@@ -3,7 +3,7 @@ import world, pygame, random
 
 # constants
 FPS = 60
-DEFAULT_ZOOM = 0.1
+DEFAULT_ZOOM = 1
 SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 700
 WORLD_WIDTH = 300
@@ -15,7 +15,7 @@ zoom=DEFAULT_ZOOM
 
 # create world
 screen = pygame.display.set_mode([SCREEN_WIDTH,SCREEN_HEIGHT])
-gameWorld = world.World(WORLD_WIDTH,WORLD_HEIGHT+100,100,defaultZoom=0.1)
+gameWorld = world.World(WORLD_WIDTH,WORLD_HEIGHT+100,100,defaultZoom=DEFAULT_ZOOM)
 clock = pygame.time.Clock()
 
 # load images

@@ -45,8 +45,8 @@ class World:
         w_width,w_height=window.get_size()
 
         # set up world layer
-        s=pygame.Surface([w_width,w_height])
-        s.fill((255,255,255,255))
+        layer=pygame.Surface([w_width,w_height])
+        layer.fill((255,255,255,255))
 
         # set up air pocket layer (negative space of the world)
         air_surface = pygame.Surface((w_width, w_height), pygame.SRCALPHA)
@@ -65,10 +65,10 @@ class World:
         pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldBottom-top)*zoom),w_width,w_height-min(w_height,(self.worldBottom-top)*zoom)))
 
         # clear air pockets from base layer
-        s.blit(air_surface, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+        layer.blit(air_surface, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
 
         # return world layer
-        return s
+        return layer
 
 # air pocket class
 class AirPocket:
