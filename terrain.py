@@ -61,7 +61,7 @@ class Terrain:
         # draw air pockets
         if zoom == self.defaultZoom:
             for airPocket in self.airPockets:
-                air_surface.blit(airPocket.img,(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
+                air_surface.blit(airPocket.IMG,(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
         else:
             for airPocket in self.airPockets:
                 air_surface.blit(pygame.transform.scale(airPocket.IMG,(airPocket.r*2*zoom,airPocket.r*2*zoom)),(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
