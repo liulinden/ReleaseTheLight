@@ -10,15 +10,14 @@ for i in range(5):
 class World:
 
     # set up and create world
-    def __init__(self, worldWidth, worldBottom, worldTop, defaultZoom=1):
+    def __init__(self, worldWidth, worldHeight, defaultZoom=1):
 
         # set up world data
-        self.terrain = terrain.Terrain(worldWidth,worldBottom,worldTop,defaultZoom=defaultZoom)
+        self.terrain = terrain.Terrain(worldWidth,worldHeight,defaultZoom=defaultZoom)
         self.nests= []
         self.decorations=[]
         self.worldWidth=worldWidth
-        self.worldBottom=worldBottom
-        self.worldTop=worldTop
+        self.worldHeight=worldHeight
         self.defaultZoom = defaultZoom
 
         # procedural generation
