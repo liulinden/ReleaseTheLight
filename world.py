@@ -33,10 +33,10 @@ class World:
         self.terrain.addAirPocket(x,y,radius)
     
     #perform frame actions
-    def tick(self,FPS,window,frame):
+    def tick(self,FPS,window,frame, keysDown):
         frameLength=1000/FPS
 
-        self.player.tick(frameLength,self.terrain)
+        self.player.tick(frameLength,self.terrain, keysDown)
 
         #change camx camy
         #update airpockets - FPS KILLERRR

@@ -42,6 +42,9 @@ class Game:
         self.window = pygame.display.set_mode([self.WINDOW_WIDTH,self.WINDOW_HEIGHT])
         self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,defaultZooms=self.DEFAULT_ZOOMS)
         self.clock = pygame.time.Clock()
+        self.keysDown = {pygame.K_w:False,
+                         pygame.K_a:False,
+                         pygame.K_s:False}
 
         self.zoom=self.DEFAULT_ZOOMS[0]
         self.camX,self.camY=self.getWorldCenteredCam()
@@ -66,16 +69,22 @@ class Game:
                     x,y= self.coordsWindowToWorld((mouseX,mouseY))
                     self.gameWorld.terrain.generateSkinnyCave(x,y,50)
                 
-                # TEMPORARY - zoom in/out
                 if event.type==pygame.KEYDOWN:
+                    if event.key in self.keysDown:
+                        self.keysDown[event.key]=True
+                    
+                    # TEMPORARY - zoom in/out
                     if event.key == pygame.K_z:
                         if self.zoom==0.1:
                             self.setZoom(2,self.coordsWindowToWorld((mouseX,mouseY)))
                         else:
                             self.setZoom(0.1,self.coordsWindowToWorld((mouseX,mouseY)))
-            self.camX+=1
-
-            self.gameWorld.tick(self.FPS,self.window,[self.camX,self.camY,self.zoom])
+                
+                if event.type==pygame.KEYUP:
+                    if event.key in self.keysDown:
+                        self.keysDown[event.key]=False
+            
+            self.gameWorld.tick(self.FPS,self.window,[self.camX,self.camY,self.zoom],self.keysDown)
             # clear window
             self.window.fill((0,0,0))
 

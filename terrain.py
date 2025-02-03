@@ -97,7 +97,6 @@ class Terrain:
 
     # check for collision with rect
     def collideRect(self, rect:pygame.Rect):
-        print("3",rect.bottom)
         if rect.bottom<0:
             return False
         x,y=rect.centerx,rect.centery
