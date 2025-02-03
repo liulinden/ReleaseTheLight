@@ -14,13 +14,14 @@ def distance(coord1:int,coord2:int):
 class Terrain:
 
     # set up and create world
-    def __init__(self, worldWidth:int, worldHeight:int, defaultZoom:float=1):
+    def __init__(self, worldWidth:int, worldHeight:int, defaultZooms:list[float]=[0.1,1]):
 
         # set up terrain data
         self.airPockets = []
         self.worldWidth=worldWidth
         self.worldHeight=worldHeight
-        self.defaultZoom = defaultZoom
+        self.defaultZooms = defaultZooms
+        self.onscreenAirPockets=[]
     
     # generate caves/nests/decorations
     def generate(self):
@@ -70,7 +71,7 @@ class Terrain:
     def addAirPocket(self, x:int, y:int, radius:int, recursions=0):
         if recursions>3 or x>self.worldWidth or x<0:
             return False
-        newAirPocket=AirPocket(x,y,radius,defaultZoom=self.defaultZoom)
+        newAirPocket=AirPocket(x,y,radius,defaultZooms=self.defaultZooms)
         for airPocket in self.airPockets:
             if not airPocket is newAirPocket:
                 if airPocket.close(x,y,newAirPocket.r+10):
@@ -79,7 +80,32 @@ class Terrain:
                         return self.addAirPocket((airPocket.x+x)/2,(airPocket.y+y)/2,(airPocket.r+radius)/2,recursions+1)
         self.airPockets.append(newAirPocket)
         return True
-        
+    
+    def updateOnscreenAirPockets(self,window,frame):
+        left,top,zoom=frame
+        w_width,w_height=window.get_size()
+        w_x=left+w_width/zoom/2
+        w_y=top+w_height/zoom/2
+        w_r=distance((0,0),(w_width,w_height))/zoom/2
+
+        self.onscreenAirPockets=[]
+        for airPocket in self.airPockets:
+            if airPocket.close(w_x,w_y,w_r):
+                self.onscreenAirPockets.append(airPocket)
+                
+                
+
+    # check for collision with rect
+    def collideRect(self, rect:pygame.Rect):
+        print("3",rect.bottom)
+        if rect.bottom<0:
+            return False
+        x,y=rect.centerx,rect.centery
+        r=distance((0,0),(rect.width,rect.height))/2
+        for airPocket in self.onscreenAirPockets:
+            if airPocket.containsRect(rect,x,y,r):
+                return False
+        return True
     
     # return terrain layer
     def getTerrainLayer(self,window:pygame.Surface,frame:list):
@@ -97,12 +123,12 @@ class Terrain:
         air_surface.fill((0, 0, 0, 0))
 
         # draw air pockets
-        if zoom == self.defaultZoom:
-            for airPocket in self.airPockets:
-                air_surface.blit(airPocket.IMG,(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
+        if zoom in self.defaultZooms:
+            for airPocket in self.onscreenAirPockets:
+                air_surface.blit(airPocket.IMGs[zoom],(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
         else:
-            for airPocket in self.airPockets:
-                air_surface.blit(pygame.transform.scale(airPocket.IMG,(airPocket.r*2*zoom,airPocket.r*2*zoom)),(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
+            for airPocket in self.onscreenAirPockets:
+                air_surface.blit(pygame.transform.scale(airPocket.fullResIMG,(airPocket.r*2*zoom,airPocket.r*2*zoom)),(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
 
         # top/bottom of the world
         pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,0,w_width,zoom*max(0,0-top)))
@@ -118,13 +144,16 @@ class Terrain:
 class AirPocket:
 
     # set up air pocket
-    def __init__(self,x:int,y:int,radius:int,defaultZoom:int=1):
+    def __init__(self,x:int,y:int,radius:int,defaultZooms:list[float]=[0.1,1]):
         self.x=x
         self.y=y
         self.r=radius
         self.top=self.y-self.r
         self.left=self.x-self.r
-        self.IMG=pygame.transform.scale(airIMGs[random.randint(0,4)],(2*self.r*defaultZoom,2*self.r*defaultZoom))
+        self.fullResIMG=airIMGs[random.randint(0,4)]
+        self.IMGs={}
+        for defaultZoom in defaultZooms:
+            self.IMGs[defaultZoom]=pygame.transform.scale(self.fullResIMG,(2*self.r*defaultZoom,2*self.r*defaultZoom))
 
     # preliminary check if two circles are near each other
     def close(self,x:int,y:int,radius:int):

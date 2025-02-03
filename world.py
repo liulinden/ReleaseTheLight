@@ -1,5 +1,5 @@
 # imports
-import pygame, random, terrain, decoration, nest, player
+import pygame, random, terrain, decoration, nest, aplayer
 
 # load images
 airIMGs=[]
@@ -10,15 +10,16 @@ for i in range(5):
 class World:
 
     # set up and create world
-    def __init__(self, worldWidth, worldHeight, defaultZoom=1):
+    def __init__(self, worldWidth, worldHeight, defaultZooms=[0.1,1]):
 
         # set up world data
-        self.terrain = terrain.Terrain(worldWidth,worldHeight,defaultZoom=defaultZoom)
+        self.terrain = terrain.Terrain(worldWidth,worldHeight,defaultZooms=defaultZooms)
         self.nests= []
         self.decorations=[]
         self.worldWidth=worldWidth
         self.worldHeight=worldHeight
-        self.defaultZoom = defaultZoom
+        self.defaultZooms = defaultZooms
+        self.player= aplayer.Player(0,-200)
 
         # procedural generation
         self.generateWorld()
@@ -30,6 +31,20 @@ class World:
     # create an air pocket at x, y with specified radius
     def addAirPocket(self, x, y, radius):
         self.terrain.addAirPocket(x,y,radius)
+    
+    #perform frame actions
+    def tick(self,FPS,window,frame):
+        frameLength=1000/FPS
+
+        self.player.tick(frameLength,self.terrain)
+
+        #change camx camy
+        #update airpockets - FPS KILLERRR
+        self.terrain.updateOnscreenAirPockets(window,frame)
+
+        #draw
+        
+        ...
     
     # return world layer
     def getSurface(self,window,frame):
@@ -43,6 +58,7 @@ class World:
         #add enemies layer
 
         # add player layer
+        self.player.draw(layer, frame)
 
         # add particles layer
 
