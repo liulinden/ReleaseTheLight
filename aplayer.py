@@ -23,17 +23,17 @@ class Player:
             if self.onGround:
                 self.xSpeed -= 0.005*frameLength
             else:
-                self.xSpeed -= 0.0005*frameLength
+                self.xSpeed -= 0.003*frameLength
         if keysDown[pygame.K_d]:
             if self.onGround:
                 self.xSpeed += 0.005*frameLength
             else:
-                self.xSpeed += 0.0005*frameLength
+                self.xSpeed += 0.003*frameLength
         
         if self.onGround:
-            self.xSpeed*=0.99**frameLength
+            self.xSpeed*=0.98**frameLength
         else:
-            self.xSpeed*=0.999**frameLength
+            self.xSpeed*=0.993**frameLength
 
         self.moveHorizontal(frameLength,cTerrain)
         self.moveVertical(frameLength,cTerrain)
