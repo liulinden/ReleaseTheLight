@@ -14,7 +14,7 @@ def distance(coord1:int,coord2:int):
 class Terrain:
 
     # set up and create world
-    def __init__(self, worldWidth:int, worldHeight:int, defaultZooms:list[float]=[0.1,1]):
+    def __init__(self, worldWidth:int, worldHeight:int, defaultZooms:list[float]=[0.1,2]):
 
         # set up terrain data
         self.airPockets = []
@@ -25,18 +25,21 @@ class Terrain:
     
     # generate caves/nests/decorations
     def generate(self):
-        for i in range(int(self.worldHeight/1000)):
+        for i in range(int(self.worldHeight/100)):
             for j in range(int(self.worldWidth/1000)):
 
-                if random.randint(1,1)==1:
-                    self.generateSkinnyCave(j*1000+random.randint(0,1000),random.randint(0,int(self.worldHeight/4)),random.randint(20,80),random.random()*2*math.pi)
-                if random.randint(1,3)==1:
-                    self.generateSkinnyCave(j*1000+random.randint(0,1000),random.randint(0,int(self.worldHeight*4/5)),random.randint(40,80),random.random()*2*math.pi)
+                if random.randint(1,10)==1:
+                    self.generateSkinnyCave(j*1000+random.randint(0,1000),random.randint(0,int((self.worldHeight-500)/4)),random.randint(20,80),random.random()*2*math.pi)
+                if random.randint(1,20)==1:
+                    self.generateSkinnyCave(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)/4),int((self.worldHeight-500))),random.randint(40,80),random.random()*2*math.pi)
                 
-                if random.randint(1,3)==1:
-                    self.generateBlobCave(j*1000+random.randint(0,1000),random.randint(int(self.worldHeight*1/4),self.worldHeight),random.randint(40,80),random.random()*2*math.pi)
-                if random.randint(1,2)==1:
-                    self.generateBlobCave(j*1000+random.randint(0,1000),random.randint(int(self.worldHeight*2/3),self.worldHeight),random.randint(80,120),random.random()*2*math.pi)
+                if random.randint(1,35)==1:
+                    self.generateBlobCave(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*1/4),self.worldHeight-500),random.randint(40,80),random.random()*2*math.pi)
+                if random.randint(1,25)==1:
+                    self.generateBlobCave(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*2/3),self.worldHeight-500),random.randint(80,120),random.random()*2*math.pi)
+
+                if random.randint(1,15)==1:
+                    self.generateBlobCave(j*1000+random.randint(0,1000),random.randint(self.worldHeight-100,self.worldHeight),random.randint(100,120),random.randint(0,1)*2*math.pi)
 
     # generate cave
     def generateBlobCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=50):
@@ -64,6 +67,20 @@ class Terrain:
                 x = startX+math.cos(dir)*min(r,startR)*0.9
                 y = startY+math.sin(dir)*min(r,startR)*0.9*0.9
                 self.generateSkinnyCave(x,y,r,dir,maxPockets-1)
+                if random.randint(1,30)>1:
+                    break
+    
+    def generateBedrockCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=50):
+        if maxPockets > 0 and (startY - 2*startR) > 0 and startY-startR < self.worldHeight and startR > 0:
+            self.addAirPocket(startX,startY,startR)
+
+            for i in range(2):
+                r = startR + (random.random()-0.6)*5
+                dir = startDir + (random.random()-0.5)*math.pi/4
+
+                x = startX+math.cos(dir)*min(r,startR)*0.9
+                y = startY+math.sin(dir)*min(r,startR)*0.9*0.2
+                self.generateBedrockCave(x,y,r,dir,maxPockets-1)
                 if random.randint(1,30)>1:
                     break
 
@@ -97,8 +114,30 @@ class Terrain:
 
     # check for collision with rect
     def collideRect(self, rect:pygame.Rect):
+
+
+        #new method
+
+        #get terrain hitbox surface
+        rectMask=pygame.Mask((rect.width,rect.height),fill=True)
+        
+        terrainMask = pygame.mask.from_surface(self.getTerrainLayer(pygame.Surface((rect.width,rect.height)),[rect.left,rect.top,1],hitboxes=True))
+        
+        width, height = terrainMask.get_size()  # Get mask dimensions
+
+        #for y in range(height):
+        #    row = "".join(["#" if terrainMask.get_at((x, y)) else "." for x in range(width)])
+        #    print(row)
+        #print(terrainMask.overlap(rectMask,(0,0)))
+        return not (terrainMask.overlap(rectMask,(0,0)) ==None)
+        #compare with rect
+
+
+
         if rect.bottom<0:
             return False
+        
+        return True
         x,y=rect.centerx,rect.centery
         r=distance((0,0),(rect.width,rect.height))/2
         for airPocket in self.onscreenAirPockets:
@@ -107,14 +146,14 @@ class Terrain:
         return True
     
     # return terrain layer
-    def getTerrainLayer(self,window:pygame.Surface,frame:list):
+    def getTerrainLayer(self,window:pygame.Surface,frame:list,hitboxes=False):
 
         # get camera framing
         left,top,zoom=frame
         w_width,w_height=window.get_size()
 
         # set up world layer
-        layer=pygame.Surface([w_width,w_height])
+        layer=pygame.Surface([w_width,w_height], pygame.SRCALPHA)
         layer.fill((255,255,255,255))
 
         # set up air pocket layer (negative space of the world)
@@ -122,16 +161,21 @@ class Terrain:
         air_surface.fill((0, 0, 0, 0))
 
         # draw air pockets
-        if zoom in self.defaultZooms:
-            for airPocket in self.onscreenAirPockets:
-                air_surface.blit(airPocket.IMGs[zoom],(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
+        if not hitboxes:
+            if zoom in self.defaultZooms:
+                for airPocket in self.onscreenAirPockets:
+                    air_surface.blit(airPocket.IMGs[zoom],(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
+            else:
+                for airPocket in self.onscreenAirPockets:
+                    air_surface.blit(pygame.transform.scale(airPocket.fullResIMG,(airPocket.r*2*zoom,airPocket.r*2*zoom)),(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
         else:
             for airPocket in self.onscreenAirPockets:
-                air_surface.blit(pygame.transform.scale(airPocket.fullResIMG,(airPocket.r*2*zoom,airPocket.r*2*zoom)),(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
+                pygame.draw.circle(air_surface,(255,255,255,255),((zoom*(airPocket.x-left),zoom*(airPocket.y-top))),airPocket.r*zoom)
+
 
         # top/bottom of the world
         pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,0,w_width,zoom*max(0,0-top)))
-        pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldHeight-top)*zoom),w_width,w_height-min(w_height,(self.worldHeight-top)*zoom)))
+        #pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldHeight-top)*zoom),w_width,w_height-min(w_height,(self.worldHeight-top)*zoom)))
 
         # clear air pockets from base layer
         layer.blit(air_surface, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
@@ -143,7 +187,7 @@ class Terrain:
 class AirPocket:
 
     # set up air pocket
-    def __init__(self,x:int,y:int,radius:int,defaultZooms:list[float]=[0.1,1]):
+    def __init__(self,x:int,y:int,radius:int,defaultZooms:list[float]=[0.1,2]):
         self.x=x
         self.y=y
         self.r=radius
@@ -162,6 +206,7 @@ class AirPocket:
             return False
         return True
     
+    """
     # return if AirPocket contains given rect
     def containsRect(self,rect: pygame.Rect,x:int,y:int,r:int):
         if not self.close(x,y,r):
@@ -170,3 +215,4 @@ class AirPocket:
             if distance(vertex,(self.x,self.y))>self.r:
                 return False
         return True
+    """

@@ -10,8 +10,8 @@ class Game:
         # constants
         self.FPS = FPS
         self.DEFAULT_ZOOMS = [0.1,2]
-        self.WORLD_WIDTH = 6000
-        self.WORLD_HEIGHT = 4000
+        self.WORLD_WIDTH = 3000
+        self.WORLD_HEIGHT = 5000
         self.WINDOW_WIDTH = WINDOW_WIDTH
         self.WINDOW_HEIGHT=WINDOW_HEIGHT
 
@@ -44,7 +44,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.keysDown = {pygame.K_w:False,
                          pygame.K_a:False,
-                         pygame.K_s:False}
+                         pygame.K_d:False}
 
         self.zoom=self.DEFAULT_ZOOMS[0]
         self.camX,self.camY=self.getWorldCenteredCam()
@@ -67,7 +67,9 @@ class Game:
                 # TEMPORARY - create new cave
                 if event.type==pygame.MOUSEBUTTONDOWN:
                     x,y= self.coordsWindowToWorld((mouseX,mouseY))
-                    self.gameWorld.terrain.generateSkinnyCave(x,y,50)
+                    self.gameWorld.player.x,self.gameWorld.player.y=x,y
+                    self.gameWorld.player.updateRect()
+                    #self.gameWorld.terrain.generateSkinnyCave(x,y,50)
                 
                 if event.type==pygame.KEYDOWN:
                     if event.key in self.keysDown:
@@ -93,7 +95,7 @@ class Game:
             #window.blit(light,(x-300,y-300))
 
             # display terrain layer
-            self.window.blit(self.gameWorld.getSurface(self.window,[self.camX,self.camY,self.zoom]),(0,0))
+            self.window.blit(self.gameWorld.getSurface(self.window,[self.camX,self.camY,self.zoom],hitboxes=False),(0,0))
 
             # update window
             pygame.display.flip()
