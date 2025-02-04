@@ -38,8 +38,6 @@ class World:
         self.player.tick(frameLength,self.terrain, keysDown)
 
         #change camx camy
-        #update airpockets - FPS KILLERRR
-        self.terrain.updateOnscreenAirPockets(window,frame)
 
         #draw
         

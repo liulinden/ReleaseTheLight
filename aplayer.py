@@ -15,7 +15,6 @@ class Player:
 
     def tick(self,frameLength,cTerrain,keysDown):
         self.ySpeed=min(1,self.ySpeed+0.002*frameLength)
-        print(self.ySpeed)
         
         if keysDown[pygame.K_w] and self.onGround:
             self.ySpeed = -0.5
@@ -46,6 +45,13 @@ class Player:
         self.x+=frameLength*self.xSpeed
         self.updateRect()
         if self.collidingWithTerrain(cTerrain):
+            slopeTolerance=math.ceil(2*abs(frameLength*self.xSpeed))
+            for i in range(slopeTolerance):
+                self.y-=1
+                self.updateRect()
+                if not self.collidingWithTerrain(cTerrain):
+                    return
+            self.y+=slopeTolerance
             backs=math.ceil(abs(frameLength*self.xSpeed/1))
             for i in range(backs):
                 self.x-=frameLength*self.xSpeed/backs
