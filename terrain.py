@@ -44,7 +44,6 @@ class Terrain:
             column+=offsets[1]
             if row>=0 and column >=0 and row<self.worldHeight/500 and column<self.worldWidth/500:
                 left,top=column*500,row*500
-                print(row,column,airPocket.x,airPocket.y)
                 for zoom in self.defaultZooms:
                     self.airPocketsSurfaces[zoom][row][column].blit(airPocket.IMGs[zoom],(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
 
@@ -75,8 +74,8 @@ class Terrain:
                 r = startR + (random.random()-0.6)*20
                 dir = startDir + (random.random()-0.5)*math.pi
 
-                x = startX+math.cos(dir)*min(r,startR)*0.8
-                y = startY+math.sin(dir)*min(r,startR)*0.8*0.4
+                x = startX+math.cos(dir)*min(r,startR)*0.9
+                y = startY+math.sin(dir)*min(r,startR)*0.9*0.4
                 self.generateBlobCave(x,y,r,dir,maxPockets-1)
                 if random.randint(1,15)>1:
                     break
@@ -95,7 +94,7 @@ class Terrain:
                 if random.randint(1,30)>1:
                     break
     
-    def generateBedrockCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=5):
+    def generateBedrockCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=3):
         if maxPockets > 0 and (startY - 2*startR) > 0 and startY-startR < self.worldHeight and startR > 0:
             self.addAirPocket(startX,startY,startR)
 
@@ -151,13 +150,7 @@ class Terrain:
         rectMask=pygame.Mask((rect.width,rect.height),fill=True)
         
         terrainMask = pygame.mask.from_surface(self.getTerrainLayer(pygame.Surface((rect.width,rect.height)),[rect.left,rect.top,1],hitboxes=True))
-        
-        width, height = terrainMask.get_size()  # Get mask dimensions
 
-        #for y in range(height):
-        #    row = "".join(["#" if terrainMask.get_at((x, y)) else "." for x in range(width)])
-        #    print(row)
-        #print(terrainMask.overlap(rectMask,(0,0)))
         return not (terrainMask.overlap(rectMask,(0,0)) ==None)
         #compare with rect
 
@@ -204,15 +197,32 @@ class Terrain:
 
         """
         if not hitboxes:
-            topChunk=math.floor(max(0,min(self.worldHeight,top-500))/500)
-            leftChunk=math.floor(max(0,min(self.worldWidth,left-500))/500)
-            bottomChunk=math.ceil(max(0,min(self.worldHeight-500,top+w_height/zoom+500))/500)
-            rightChunk=math.ceil(max(0,min(self.worldWidth-500,left+w_width/zoom+500))/500)
-            # clear air pockets from base 
-            print(topChunk,bottomChunk,leftChunk,rightChunk)
-            for row in range(topChunk,bottomChunk+1,1):
-                for column in range(leftChunk,rightChunk+1,1):
-                    layer.blit(self.airPocketsSurfaces[zoom][row][column], ((column*500-left)*zoom, (row*500-top)*zoom), special_flags=pygame.BLEND_RGBA_SUB)
+            if zoom in self.defaultZooms:
+                topChunk=math.floor(max(0,min(self.worldHeight,top-500))/500)
+                leftChunk=math.floor(max(0,min(self.worldWidth,left-500))/500)
+                bottomChunk=math.ceil(max(0,min(self.worldHeight-500,top+w_height/zoom+500))/500)
+                rightChunk=math.ceil(max(0,min(self.worldWidth-500,left+w_width/zoom+500))/500)
+                # clear air pockets from base 
+                for row in range(topChunk,bottomChunk+1,1):
+                    for column in range(leftChunk,rightChunk+1,1):
+                        layer.blit(self.airPocketsSurfaces[zoom][row][column], ((column*500-left)*zoom, (row*500-top)*zoom), special_flags=pygame.BLEND_RGBA_SUB)
+                air_surface = pygame.Surface((w_width, w_height), pygame.SRCALPHA)
+                pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,0,w_width,zoom*max(0,0-top)))
+                pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldHeight-top)*zoom),w_width,w_height-min(w_height,(self.worldHeight-top)*zoom)))
+                layer.blit(air_surface, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+            else:
+                topChunk=math.floor(max(0,min(self.worldHeight,top-500))/500)
+                leftChunk=math.floor(max(0,min(self.worldWidth,left-500))/500)
+                bottomChunk=math.ceil(max(0,min(self.worldHeight-500,top+w_height/zoom+500))/500)
+                rightChunk=math.ceil(max(0,min(self.worldWidth-500,left+w_width/zoom+500))/500)
+                # clear air pockets from base 
+                for row in range(topChunk,bottomChunk+1,1):
+                    for column in range(leftChunk,rightChunk+1,1):
+                        layer.blit(pygame.transform.scale(self.airPocketsSurfaces[2][row][column],(500*zoom,500*zoom)), ((column*500-left)*zoom, (row*500-top)*zoom), special_flags=pygame.BLEND_RGBA_SUB)
+                air_surface = pygame.Surface((w_width, w_height), pygame.SRCALPHA)
+                pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,0,w_width,zoom*max(0,0-top)))
+                pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldHeight-top)*zoom),w_width,w_height-min(w_height,(self.worldHeight-top)*zoom)))
+                layer.blit(air_surface, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)            
         else:
             air_surface = pygame.Surface((w_width, w_height), pygame.SRCALPHA)
             air_surface.fill((0, 0, 0, 0))
@@ -222,7 +232,7 @@ class Terrain:
                     pygame.draw.circle(air_surface,(255,255,255,255),((zoom*(airPocket.x-left),zoom*(airPocket.y-top))),airPocket.r*zoom)
             # top/bottom of the world
             pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,0,w_width,zoom*max(0,0-top)))
-            #pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldHeight-top)*zoom),w_width,w_height-min(w_height,(self.worldHeight-top)*zoom)))
+            pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldHeight-top)*zoom),w_width,w_height-min(w_height,(self.worldHeight-top)*zoom)))
             
             layer.blit(air_surface, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
         

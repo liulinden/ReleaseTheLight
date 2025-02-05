@@ -14,29 +14,30 @@ class Player:
         self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2
 
     def tick(self,frameLength,cTerrain,keysDown):
-        self.ySpeed=min(1,self.ySpeed+0.002*frameLength)
+        self.ySpeed=min(0.4,self.ySpeed+0.0015*frameLength)
         
         if keysDown[pygame.K_w] and self.onGround:
-            self.ySpeed = -0.5
+            self.ySpeed = -0.4
         
         if keysDown[pygame.K_a]:
             if self.onGround:
                 self.xSpeed -= 0.005*frameLength
             else:
-                self.xSpeed -= 0.003*frameLength
+                self.xSpeed -= 0.002*frameLength
         if keysDown[pygame.K_d]:
             if self.onGround:
                 self.xSpeed += 0.005*frameLength
             else:
-                self.xSpeed += 0.003*frameLength
+                self.xSpeed += 0.002*frameLength
         
         if self.onGround:
             self.xSpeed*=0.98**frameLength
         else:
             self.xSpeed*=0.993**frameLength
 
-        self.moveHorizontal(frameLength,cTerrain)
         self.moveVertical(frameLength,cTerrain)
+        self.moveHorizontal(frameLength,cTerrain)
+        
     
     def moveHorizontal(self, frameLength,cTerrain):
 
@@ -66,6 +67,20 @@ class Player:
         self.y+=frameLength*self.ySpeed
         self.updateRect()
         if self.collidingWithTerrain(cTerrain):
+            if self.ySpeed<0:
+                slopeTolerance=math.ceil(abs(0.5*frameLength*self.ySpeed))
+                for i in range(slopeTolerance):
+                    self.x-=1
+                    self.updateRect()
+                    if not self.collidingWithTerrain(cTerrain):
+                        return
+                self.x+=slopeTolerance
+                for i in range(slopeTolerance):
+                    self.x+=1
+                    self.updateRect()
+                    if not self.collidingWithTerrain(cTerrain):
+                        return
+                self.x-=slopeTolerance
             backs=math.ceil(abs(frameLength*self.ySpeed/1))
             for i in range(backs):
                 self.y-=frameLength*self.ySpeed/backs
