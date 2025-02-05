@@ -1,5 +1,5 @@
 # imports
-import pygame, random, terrain, decoration, aplayer
+import pygame, random, terrain, decoration, aplayer,lighting
 
 # load images
 airIMGs=[]
@@ -19,6 +19,7 @@ class World:
         self.worldHeight=worldHeight
         self.defaultZooms = defaultZooms
         self.player= aplayer.Player(worldWidth/2,-200)
+        self.light=lighting.Lighting(defaultZooms=defaultZooms)
 
         # procedural generation
         self.generateWorld()
@@ -38,6 +39,10 @@ class World:
         self.player.tick(frameLength,self.terrain, keysDown)
 
         #change camx camy
+        if random.randint(1,7)==1:
+            self.light.addMistParticle(self.player.x,self.player.y,color=self.player.color)
+        self.light.tickEffects(frameLength)
+        print(len(self.light.particles))
 
         #draw
         
@@ -48,10 +53,12 @@ class World:
 
         # set up layer
         layer=pygame.Surface(window.get_size())
-        layer.fill((100,100,100,0))
+        layer.fill((10,10,10,0))
 
         # add lighting layer
-
+        self.light.drawGradient(layer,frame,self.player.color,self.player.x,self.player.y)
+        self.light.drawEffects(layer,frame)
+        
         #add enemies layer
 
         # add player layer

@@ -1,9 +1,6 @@
 # imports
 import world, pygame, random
 
-#load images
-light=pygame.transform.scale(pygame.image.load(".Light.png"),(600,600))
-
 class Game:
     def __init__(self,FPS=60,WINDOW_WIDTH=1000,WINDOW_HEIGHT=700):
 
