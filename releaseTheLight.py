@@ -2,7 +2,7 @@
 import world, pygame, random
 
 class Game:
-    def __init__(self,FPS=60,WINDOW_WIDTH=1000,WINDOW_HEIGHT=700):
+    def __init__(self,FPS=60,WINDOW_WIDTH=1000,WINDOW_HEIGHT=700,developingMode=False):
 
         # constants
         self.FPS = FPS
@@ -14,6 +14,8 @@ class Game:
 
         # set up variables
         self.mode = "play"
+
+        self.developingMode= developingMode
     
     def coordsWindowToWorld(self,coords:list[int]):
         return self.camX+coords[0]/self.zoom,self.camY+coords[1]/self.zoom
@@ -32,10 +34,19 @@ class Game:
         self.camX-=(zoomCenter[0]-self.camX)*(zoomRatio-1)
         self.camY-=(zoomCenter[1]-self.camY)*(zoomRatio-1)
         self.zoom=newZoom
-
+    
+    def updateCamPos(self, FPS, zoom, playerX,playerY,playerXSpeed,playerYSpeed):
+        frameLength=1000/FPS
+        self.camOffsetX+=2*playerXSpeed*frameLength
+        self.camOffsetY+=2*playerYSpeed*frameLength
+        self.camOffsetX=min(max(self.camOffsetX,self.WINDOW_WIDTH/zoom*1/6),self.WINDOW_WIDTH/zoom*(-1/6))
+        self.camOffsetY=min(max(self.camOffsetY,self.WINDOW_HEIGHT/zoom*1/6),self.WINDOW_HEIGHT/zoom*(-1/6))
+        self.camOffsetX,self.camOffsetY=0,0
+        self.camX += (self.camOffsetX+playerX-self.camX-self.WINDOW_WIDTH/zoom/2)*frameLength/100
+        self.camY += (self.camOffsetY+playerY-self.camY-self.WINDOW_HEIGHT/zoom/2)*frameLength/100
 
     def run(self):
-
+        
         self.window = pygame.display.set_mode([self.WINDOW_WIDTH,self.WINDOW_HEIGHT])
         self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,defaultZooms=self.DEFAULT_ZOOMS)
         self.clock = pygame.time.Clock()
@@ -43,11 +54,15 @@ class Game:
                          pygame.K_a:False,
                          pygame.K_d:False}
 
-        self.zoom=self.DEFAULT_ZOOMS[0]
+        self.zoom=self.DEFAULT_ZOOMS[1]
         self.camX,self.camY=self.getWorldCenteredCam()
+        self.camOffsetX,self.camOffsetY=0,0
 
         previousTime=pygame.time.get_ticks()
         running = True
+        self.kindVisibility=False
+        practicalFPS=self.FPS
+
         while running:
 
             # get mouse pos
@@ -61,43 +76,50 @@ class Game:
                     running=False
                     return
                     
-                # TEMPORARY - create new cave
+                # TEMPORARY for testing
                 if event.type==pygame.MOUSEBUTTONDOWN:
                     x,y= self.coordsWindowToWorld((mouseX,mouseY))
+
                     self.gameWorld.player.x,self.gameWorld.player.y=x,y
                     self.gameWorld.player.updateRect()
+                    
                     #self.gameWorld.terrain.generateSkinnyCave(x,y,50)
+
+                    #self.gameWorld.terrain.generateNest(x,y,"White",100)
                 
                 if event.type==pygame.KEYDOWN:
                     if event.key in self.keysDown:
                         self.keysDown[event.key]=True
                     
                     # TEMPORARY - zoom in/out
-                    if event.key == pygame.K_z:
-                        if self.zoom==0.1:
-                            self.setZoom(2,self.coordsWindowToWorld((mouseX,mouseY)))
-                        else:
-                            self.setZoom(0.1,self.coordsWindowToWorld((mouseX,mouseY)))
+                    if self.developingMode:
+                        if event.key == pygame.K_z:
+                            if self.zoom==0.1:
+                                self.setZoom(2,self.coordsWindowToWorld((mouseX,mouseY)))
+                            else:
+                                self.setZoom(0.1,self.coordsWindowToWorld((mouseX,mouseY)))
+                        elif event.key==pygame.K_0:
+                            self.kindVisibility= not self.kindVisibility
                 
                 if event.type==pygame.KEYUP:
                     if event.key in self.keysDown:
                         self.keysDown[event.key]=False
             
-            self.gameWorld.tick(self.FPS,self.window,[self.camX,self.camY,self.zoom],self.keysDown)
+            self.gameWorld.tick(practicalFPS,self.window,[self.camX,self.camY,self.zoom],self.keysDown)
+
+            self.updateCamPos(practicalFPS,self.zoom,self.gameWorld.player.x,self.gameWorld.player.y,self.gameWorld.player.xSpeed,self.gameWorld.player.ySpeed)
+
             # clear window
             self.window.fill((0,0,0))
 
-            # TEMPORARY - display light at mouse position
-            #window.blit(light,(x-300,y-300))
-            #window.blit(light,(x-300,y-300))
-
             # display terrain layer
-            self.window.blit(self.gameWorld.getSurface(self.window,[self.camX,self.camY,self.zoom],hitboxes=False),(0,0))
+            self.window.blit(self.gameWorld.getSurface(self.window,[self.camX,self.camY,self.zoom],hitboxes=False,kindVisibility=self.kindVisibility),(0,0))
 
             # update window
             pygame.display.flip()
 
             # tick game
             self.clock.tick(self.FPS)
-            print("fps:", round(1000/(pygame.time.get_ticks()-previousTime)))
+            practicalFPS= round(1000/(pygame.time.get_ticks()-previousTime))
+            print("fps:", practicalFPS)
             previousTime=pygame.time.get_ticks()

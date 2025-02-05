@@ -3,7 +3,7 @@ import pygame,random
 mistParticleIMGs=[]
 for i in range(5):
     mistParticleIMGs.append(pygame.image.load(".MistParticle"+str(i+1)+".png"))
-lightGradient=pygame.image.load("LightGradient.png")
+lightGradient=pygame.image.load(".LightGradient.png")
 
 
 class Lighting:
@@ -19,7 +19,7 @@ class Lighting:
                 self.resizedLightIMGs["MistParticles"].append(IMGs)
         self.resizedLightIMGs["Gradient"]={}
         for zoom in defaultZooms:
-            self.resizedLightIMGs["Gradient"][zoom]=pygame.transform.scale(lightGradient,(zoom*500,zoom*500))
+            self.resizedLightIMGs["Gradient"][zoom]=pygame.transform.scale(lightGradient,(zoom*200,zoom*200))
 
     def addMistParticle(self,x,y,color=(255,255,255)):
         newParticle=MistParticle(x,y,self.resizedLightIMGs["MistParticles"][random.randint(0,len(self.resizedLightIMGs)-1)],color)
@@ -37,7 +37,7 @@ class Lighting:
         dimensions=(img.get_width(),img.get_height())
         #"""
         filter= pygame.Surface(dimensions,flags=pygame.SRCALPHA)
-        filter.fill((color[0],color[1],color[2],100))
+        filter.fill((color[0],color[1],color[2],150))
         lightSurface=pygame.Surface(dimensions,flags=pygame.SRCALPHA)
         lightSurface.blit(img,(0,0))
         lightSurface.blit(filter,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
@@ -75,7 +75,7 @@ class MistParticle:
         self.xSpeed*=0.999
         self.ySpeed*=0.999
         if self.fadeIn<1:
-            self.fadeIn+=0.06
+            self.fadeIn+=0.04
 
     def draw(self,surface:pygame.Surface, frame):
         left,top,zoom=frame

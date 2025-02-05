@@ -1,4 +1,4 @@
-import pygame, random, math
+import pygame, random, math, nest
 
 # load images
 airIMGs=[]
@@ -20,6 +20,7 @@ class Terrain:
     def __init__(self, worldWidth:int, worldHeight:int, defaultZooms:list[float]=[0.1,2]):
 
         # set up terrain data
+        self.nests=[]
         self.airPockets = []
         self.worldWidth=worldWidth
         self.worldHeight=worldHeight
@@ -65,8 +66,24 @@ class Terrain:
                 if random.randint(1,30)==1:
                     self.generateBedrockCave(j*1000+random.randint(0,1000),random.randint(self.worldHeight-100,self.worldHeight),random.randint(120,150),random.randint(0,1)*2*math.pi)
 
+                if random.randint(1,15)==1:
+                    self.generateNest(j*1000+random.randint(0,1000),random.randint(500,int((self.worldHeight-500)/4)),"White")
+                
+                if random.randint(1,20)==1:
+                    self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)/4),int((self.worldHeight-500)*2/3)),"White")
+
+    def generateNest(self,x,y,nestType, size=0):
+        if size==0:
+            size = random.randint(100,100+y//50)
+        newNest=nest.Nest(self.defaultZooms,nestType,x,y,size)
+        self.nests.append(newNest)
+
+        caveSize=(size*random.randint(0,2)/2+50)/2
+        if caveSize >25:
+            self.generateSkinnyCave(x,y-caveSize/2,caveSize,-math.pi/2,maxPockets=4,shrinking=True)
+
     # generate cave
-    def generateBlobCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=30):
+    def generateBlobCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=10):
         if maxPockets > 0 and (startY - 2*startR) > 0 and startY-startR < self.worldHeight and startR > 0:
             self.addAirPocket(startX,startY,startR)
 
@@ -80,17 +97,19 @@ class Terrain:
                 if random.randint(1,15)>1:
                     break
     
-    def generateSkinnyCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=50):
+    def generateSkinnyCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=20,shrinking=False):
         if maxPockets > 0 and (startY - 2*startR) > 0 and startY-startR < self.worldHeight and startR > 0:
             self.addAirPocket(startX,startY,startR)
 
             for i in range(2):
                 r = startR + (random.random()-0.6)*5
+                if shrinking:
+                    r=startR-random.random()*2
                 dir = startDir + (random.random()-0.5)*math.pi/2
 
                 x = startX+math.cos(dir)*min(r,startR)*0.9
                 y = startY+math.sin(dir)*min(r,startR)*0.9*0.9
-                self.generateSkinnyCave(x,y,r,dir,maxPockets-1)
+                self.generateSkinnyCave(x,y,r,dir,maxPockets-1,shrinking=shrinking)
                 if random.randint(1,30)>1:
                     break
     
@@ -110,7 +129,7 @@ class Terrain:
 
     # create an air pocket at x, y with specified radius
     def addAirPocket(self, x:int, y:int, radius:int, recursions=0, playerMade=False):
-        if recursions>3 or x>self.worldWidth or x<0 or y<0 or y>self.worldHeight:
+        if recursions>3 or x+radius>self.worldWidth or x-radius<0 or y<0 or y>self.worldHeight:
             return False
         newAirPocket=AirPocket(x,y,radius,defaultZooms=self.defaultZooms)
         if not playerMade:
@@ -149,12 +168,23 @@ class Terrain:
         #get terrain hitbox surface
         rectMask=pygame.Mask((rect.width,rect.height),fill=True)
         
-        terrainMask = pygame.mask.from_surface(self.getTerrainLayer(pygame.Surface((rect.width,rect.height)),[rect.left,rect.top,1],hitboxes=True))
+        collidingLayer=self.getTerrainLayer(pygame.Surface((rect.width,rect.height)),[rect.left,rect.top,1],hitboxes=True)
+        self.drawNests(collidingLayer,[rect.left,rect.top,1],hitboxes=True)
+
+        terrainMask = pygame.mask.from_surface(collidingLayer)
 
         return not (terrainMask.overlap(rectMask,(0,0)) ==None)
         #compare with rect
 
-    
+    def drawNests(self,window:pygame.Surface,frame:list,hitboxes=False):
+        left,top,zoom=frame
+        w_width,w_height=window.get_size()
+        x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
+
+        for nest in self.nests:
+            if nest.close(x,y,r):
+                nest.draw(window,frame,hitbox=hitboxes)
+
     # return terrain layer
     def getTerrainLayer(self,window:pygame.Surface,frame:list,hitboxes=False):
 
