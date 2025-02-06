@@ -51,7 +51,7 @@ class World:
         w_width,w_height=window.get_size()
         x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
         for nest in self.terrain.nests:
-            if random.randint(1,math.ceil(FPS/4))==1 and nest.close(x,y,r) and nest.stage==nest.maxStage:
+            if random.randint(1,math.ceil(FPS/6))==1 and nest.close(x,y,r) and nest.stage==nest.maxStage:
                 self.light.addMistParticle(nest.x,nest.y,color=nest.color)
         
         self.light.tickEffects(frameLength)

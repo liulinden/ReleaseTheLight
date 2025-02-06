@@ -91,8 +91,8 @@ class Terrain:
                 r = startR + (random.random()-0.6)*20
                 dir = startDir + (random.random()-0.5)*math.pi
 
-                x = startX+math.cos(dir)*min(r,startR)*0.9
-                y = startY+math.sin(dir)*min(r,startR)*0.9*0.4
+                x = startX+math.cos(dir)*min(r,startR)*0.8
+                y = startY+math.sin(dir)*min(r,startR)*0.8*0.4
                 self.generateBlobCave(x,y,r,dir,maxPockets-1)
                 if random.randint(1,15)>1:
                     break
@@ -107,8 +107,8 @@ class Terrain:
                     r=startR-random.random()*2
                 dir = startDir + (random.random()-0.5)*math.pi/2
 
-                x = startX+math.cos(dir)*min(r,startR)*0.9
-                y = startY+math.sin(dir)*min(r,startR)*0.9*0.9
+                x = startX+math.cos(dir)*min(r,startR)*0.8
+                y = startY+math.sin(dir)*min(r,startR)*0.8*0.9
                 self.generateSkinnyCave(x,y,r,dir,maxPockets-1,shrinking=shrinking)
                 if random.randint(1,30)>1:
                     break
@@ -121,8 +121,8 @@ class Terrain:
                 r = startR + (random.random()-0.6)*20
                 dir = startDir + (random.random()-0.5)*math.pi/2
 
-                x = startX+math.cos(dir)*min(r,startR)*0.9
-                y = startY+math.sin(dir)*min(r,startR)*0.9*0.3
+                x = startX+math.cos(dir)*min(r,startR)*0.7
+                y = startY+math.sin(dir)*min(r,startR)*0.7*0.3
                 self.generateBedrockCave(x,y,r,dir,maxPockets-1)
                 if random.randint(1,30)>1:
                     break
