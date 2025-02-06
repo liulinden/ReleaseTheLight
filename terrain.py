@@ -3,7 +3,7 @@ import pygame, random, math, nest
 # load images
 airIMGs=[]
 for i in range(5):
-    airIMGs.append(pygame.image.load(".AirPocket"+str(i+1)+".png"))
+    airIMGs.append(pygame.image.load(".AirPocket"+str(i+1)+".png").convert_alpha())
 
 def distance(coord1:int,coord2:int):
     x1,y1=coord1

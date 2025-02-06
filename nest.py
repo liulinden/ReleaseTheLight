@@ -3,8 +3,8 @@ import pygame, random,math
 def loadNestIMGSet(nestType,id,stages):
     IMGs=[]
     for i in range(stages):
-        IMGs.append(pygame.image.load(".Nest"+nestType+str(id)+"_"+str(i+1)+".png"))
-    return IMGs, pygame.image.load(".Nest"+nestType+str(id)+"Hitbox.png")
+        IMGs.append(pygame.image.load(".Nest"+nestType+str(id)+"_"+str(i+1)+".png").convert_alpha())
+    return IMGs, pygame.image.load(".Nest"+nestType+str(id)+"Hitbox.png").convert_alpha()
 
 def distance(coord1:int,coord2:int):
     x1,y1=coord1

@@ -1,5 +1,6 @@
 # imports
-import world, pygame, random
+import pygame, random
+pygame.init()
 
 class Game:
     def __init__(self,FPS=60,WINDOW_WIDTH=1000,WINDOW_HEIGHT=700,developingMode=False):
@@ -48,6 +49,7 @@ class Game:
     def run(self):
         
         self.window = pygame.display.set_mode([self.WINDOW_WIDTH,self.WINDOW_HEIGHT])
+        import world
         self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,defaultZooms=self.DEFAULT_ZOOMS)
         self.clock = pygame.time.Clock()
         self.keysDown = {pygame.K_w:False,
@@ -120,6 +122,6 @@ class Game:
 
             # tick game
             self.clock.tick(self.FPS)
-            practicalFPS= round(1000/(pygame.time.get_ticks()-previousTime))
+            practicalFPS= max(1,round(1000/(pygame.time.get_ticks()-previousTime)))
             print("fps:", practicalFPS)
             previousTime=pygame.time.get_ticks()

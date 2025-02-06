@@ -1,3 +1,3 @@
 import releaseTheLight
 
-releaseTheLight.Game(FPS=50,developingMode=True).run()
+releaseTheLight.Game(FPS=90,developingMode=True).run()

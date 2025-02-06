@@ -2,8 +2,8 @@ import pygame,random
 
 mistParticleIMGs=[]
 for i in range(5):
-    mistParticleIMGs.append(pygame.image.load(".MistParticle"+str(i+1)+".png"))
-lightGradient=pygame.image.load(".LightGradient.png")
+    mistParticleIMGs.append(pygame.image.load(".MistParticle"+str(i+1)+".png").convert_alpha())
+lightGradient=pygame.image.load(".LightGradient.png").convert_alpha()
 
 
 class Lighting:
@@ -19,7 +19,7 @@ class Lighting:
                 self.resizedLightIMGs["MistParticles"].append(IMGs)
         self.resizedLightIMGs["Gradient"]={}
         for zoom in defaultZooms:
-            self.resizedLightIMGs["Gradient"][zoom]=pygame.transform.scale(lightGradient,(zoom*200,zoom*200))
+            self.resizedLightIMGs["Gradient"][zoom]=pygame.transform.scale(lightGradient,(zoom*300,zoom*300))
 
     def addMistParticle(self,x,y,color=(255,255,255)):
         newParticle=MistParticle(x,y,self.resizedLightIMGs["MistParticles"][random.randint(0,len(self.resizedLightIMGs)-1)],color)
@@ -37,7 +37,7 @@ class Lighting:
         dimensions=(img.get_width(),img.get_height())
         #"""
         filter= pygame.Surface(dimensions,flags=pygame.SRCALPHA)
-        filter.fill((color[0],color[1],color[2],150))
+        filter.fill((color[0],color[1],color[2],100))
         lightSurface=pygame.Surface(dimensions,flags=pygame.SRCALPHA)
         lightSurface.blit(img,(0,0))
         lightSurface.blit(filter,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
@@ -72,12 +72,12 @@ class MistParticle:
             return "end"
         self.x+=self.xSpeed*frameLength
         self.y+=self.ySpeed*frameLength
-        self.ySpeed-=frameLength*0.00001
-        self.xSpeed*=0.999
-        self.ySpeed*=0.999
+        self.ySpeed-=frameLength*0.00001*frameLength/60
+        self.xSpeed*=0.99994**frameLength
+        self.ySpeed*=0.99994**frameLength
         
         if self.fadeIn<1:
-            self.fadeIn+=0.02
+            self.fadeIn+=0.02*frameLength/16
 
     def draw(self,surface:pygame.Surface, frame):
         left,top,zoom=frame

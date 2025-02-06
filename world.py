@@ -9,7 +9,7 @@ def distance(coord1:int,coord2:int):
 # load images
 airIMGs=[]
 for i in range(5):
-    airIMGs.append(pygame.image.load(".AirPocket"+str(i+1)+".png"))
+    airIMGs.append(pygame.image.load(".AirPocket"+str(i+1)+".png").convert_alpha())
 
 # overall game world class
 class World:
@@ -45,13 +45,13 @@ class World:
         self.player.tick(frameLength,self.terrain, keysDown)
 
         #change camx camy
-        if random.randint(1,6)==1:
+        if random.randint(1,math.ceil(FPS/10))==1:
             self.light.addMistParticle(self.player.x,self.player.y,color=self.player.color)
 
         w_width,w_height=window.get_size()
         x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
         for nest in self.terrain.nests:
-            if random.randint(1,15)==1 and nest.close(x,y,r) and nest.stage==nest.maxStage:
+            if random.randint(1,math.ceil(FPS/4))==1 and nest.close(x,y,r) and nest.stage==nest.maxStage:
                 self.light.addMistParticle(nest.x,nest.y,color=nest.color)
         
         self.light.tickEffects(frameLength)
