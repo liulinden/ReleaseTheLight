@@ -58,7 +58,7 @@ class MistParticle:
         self.x=x+random.randint(-50,50)
         self.y=y+random.randint(-50,50)
         self.IMGs=IMGs
-        self.brightness=(random.random()+0.2)/1.2
+        self.brightness=(random.random()+0.2)*2
         self.fadeIn=0
         for img in self.IMGs.values():
             dimensions=(img.get_width(),img.get_height())
@@ -72,10 +72,12 @@ class MistParticle:
             return "end"
         self.x+=self.xSpeed*frameLength
         self.y+=self.ySpeed*frameLength
+        self.ySpeed-=frameLength*0.00001
         self.xSpeed*=0.999
         self.ySpeed*=0.999
+        
         if self.fadeIn<1:
-            self.fadeIn+=0.04
+            self.fadeIn+=0.02
 
     def draw(self,surface:pygame.Surface, frame):
         left,top,zoom=frame

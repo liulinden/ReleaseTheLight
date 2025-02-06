@@ -45,7 +45,7 @@ class World:
         self.player.tick(frameLength,self.terrain, keysDown)
 
         #change camx camy
-        if random.randint(1,8)==1:
+        if random.randint(1,6)==1:
             self.light.addMistParticle(self.player.x,self.player.y,color=self.player.color)
 
         w_width,w_height=window.get_size()
