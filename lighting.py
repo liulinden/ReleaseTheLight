@@ -1,4 +1,4 @@
-import pygame,random
+import pygame,random,copy
 
 mistParticleIMGs=[]
 for i in range(5):
@@ -60,11 +60,13 @@ class MistParticle:
         self.IMGs=IMGs
         self.brightness=(random.random()+0.2)*2
         self.fadeIn=0
-        for img in self.IMGs.values():
-            dimensions=(img.get_width(),img.get_height())
+        self.IMGs={}
+        for key in IMGs:
+            dimensions=(IMGs[key].get_width(),IMGs[key].get_height())
             filter= pygame.Surface(dimensions,flags=pygame.SRCALPHA)
             filter.fill((self.color[0],self.color[1],self.color[2],255))
-            img.blit(filter,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+            filter.blit(IMGs[key],(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+            self.IMGs[key]=filter
     
     def tick(self,frameLength):
         self.lifeTime-=frameLength/3

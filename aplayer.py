@@ -9,7 +9,7 @@ class Player:
         self.width,self.height=dimensions
         self.rect=pygame.Rect(self.x-self.width/2,self.y-self.height/2,self.width,self.height)
         self.onGround=False
-        self.color=(0,255,255)
+        self.color=(255,0,0)
 
     def updateRect(self):
         self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2

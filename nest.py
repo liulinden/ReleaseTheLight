@@ -43,7 +43,7 @@ class Nest:
         self.enemies=[]
         self.color=NEST_COLORS[nestType]
         
-        self.stage=0
+        self.stage=2
         self.maxStage=len(stageIMGs)-1
 
         self.resizedHitboxes={}

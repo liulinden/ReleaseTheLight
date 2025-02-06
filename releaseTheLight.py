@@ -64,6 +64,7 @@ class Game:
         running = True
         self.kindVisibility=False
         practicalFPS=self.FPS
+        self.visibleHitboxes=False
 
         while running:
 
@@ -95,13 +96,16 @@ class Game:
                     
                     # TEMPORARY - zoom in/out
                     if self.developingMode:
-                        if event.key == pygame.K_z:
-                            if self.zoom==0.1:
-                                self.setZoom(2,self.coordsWindowToWorld((mouseX,mouseY)))
-                            else:
-                                self.setZoom(0.1,self.coordsWindowToWorld((mouseX,mouseY)))
-                        elif event.key==pygame.K_0:
-                            self.kindVisibility= not self.kindVisibility
+                        match event.key:
+                            case pygame.K_z:
+                                if self.zoom==0.1:
+                                    self.setZoom(2,self.coordsWindowToWorld((mouseX,mouseY)))
+                                else:
+                                    self.setZoom(0.1,self.coordsWindowToWorld((mouseX,mouseY)))
+                            case pygame.K_0:
+                                self.kindVisibility= not self.kindVisibility
+                            case pygame.K_h:
+                                self.visibleHitboxes=not self.visibleHitboxes
                 
                 if event.type==pygame.KEYUP:
                     if event.key in self.keysDown:
@@ -115,7 +119,7 @@ class Game:
             self.window.fill((0,0,0))
 
             # display terrain layer
-            self.window.blit(self.gameWorld.getSurface(self.window,[self.camX,self.camY,self.zoom],hitboxes=False,kindVisibility=self.kindVisibility),(0,0))
+            self.window.blit(self.gameWorld.getSurface(self.window,[self.camX,self.camY,self.zoom],hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
             # update window
             pygame.display.flip()
