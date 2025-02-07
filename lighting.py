@@ -19,7 +19,7 @@ class Lighting:
                 self.resizedLightIMGs["MistParticles"].append(IMGs)
         self.resizedLightIMGs["Gradient"]={}
         for zoom in defaultZooms:
-            self.resizedLightIMGs["Gradient"][zoom]=pygame.transform.scale(lightGradient,(zoom*300,zoom*300))
+            self.resizedLightIMGs["Gradient"][zoom]=pygame.transform.scale(lightGradient,(zoom*400,zoom*400))
 
     def addMistParticle(self,x,y,color=(255,255,255)):
         newParticle=MistParticle(x,y,self.resizedLightIMGs["MistParticles"][random.randint(0,len(self.resizedLightIMGs)-1)],color)
@@ -37,7 +37,7 @@ class Lighting:
         dimensions=(img.get_width(),img.get_height())
         #"""
         filter= pygame.Surface(dimensions,flags=pygame.SRCALPHA)
-        filter.fill((color[0],color[1],color[2],100))
+        filter.fill((color[0],color[1],color[2],200))
         lightSurface=pygame.Surface(dimensions,flags=pygame.SRCALPHA)
         lightSurface.blit(img,(0,0))
         lightSurface.blit(filter,(0,0),special_flags=pygame.BLEND_RGBA_MULT)

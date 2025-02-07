@@ -23,7 +23,7 @@ class World:
         self.worldWidth=worldWidth
         self.worldHeight=worldHeight
         self.defaultZooms = defaultZooms
-        self.player= aplayer.Player(worldWidth/2,-200)
+        self.player= aplayer.Player(defaultZooms,worldWidth/2,-200)
         self.light=lighting.Lighting(defaultZooms=defaultZooms)
 
         # procedural generation
