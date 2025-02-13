@@ -45,8 +45,7 @@ class Game:
         self.camOffsetX,self.camOffsetY=0,0
         self.camX += (self.camOffsetX+playerX-self.camX-self.WINDOW_WIDTH/zoom/2)*frameLength/100
         self.camY += (self.camOffsetY+playerY-self.camY-self.WINDOW_HEIGHT/zoom/2)*frameLength/100
-        self.screenshakeX=0
-        self.screenshakeY=0
+
 
     def run(self):
         
@@ -63,6 +62,8 @@ class Game:
         self.zoom=self.DEFAULT_ZOOMS[1]
         self.camX,self.camY=self.getWorldCenteredCam()
         self.camOffsetX,self.camOffsetY=0,0
+
+        self.shake=0
 
         previousTime=pygame.time.get_ticks()
         running = True
@@ -128,8 +129,14 @@ class Game:
             # clear window
             self.window.fill((0,0,0))
 
+            if self.events["mouseDown"]:
+                self.shake+=20
+            elif self.keysDown["mouse"]:
+                self.shake+=0.03
+            self.shake*=0.95
+
             # display terrain layer
-            self.window.blit(self.gameWorld.getSurface(self.window,[self.camX,self.camY,self.zoom],hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
+            self.window.blit(self.gameWorld.getSurface(self.window,[self.camX+(2*random.random()-1)*self.shake,self.camY+(2*random.random()-1)*self.shake,self.zoom],hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
             # update window
             pygame.display.flip()
