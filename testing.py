@@ -4,11 +4,11 @@ w=pygame.display.set_mode([500,500])
 thelaser=laser.Laser()
 
 thelaser.updateLaser(100,100,500,500)
-thelaser.laserPoints= thelaser.getLaserPoints(6)
+#thelaser.laserPoints= thelaser.getLaserPoints(6)
 thelaser2=laser.Laser()
 
 thelaser2.updateLaser(100,100,500,500)
-thelaser2.laserPoints= thelaser.getLaserPoints(6)
+#thelaser2.laserPoints= thelaser.getLaserPoints(6)
 
 running=True
 c=pygame.time.Clock()
@@ -29,8 +29,8 @@ while running:
     thelaser.tick(16)
     thelaser2.tick(16)
     w.fill((0,0,0))
-    thelaser.draw(w,0)
-    thelaser2.draw(w,0)
+    thelaser.draw(w,[0,0,1])
+    thelaser2.draw(w,[0,0,1])
 
     c.tick(60)
     pygame.display.flip()

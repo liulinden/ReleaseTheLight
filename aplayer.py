@@ -1,32 +1,59 @@
-import pygame,math,terrain
+import pygame,math,terrain,laser
+
+#function by chatgpt
+def rotateAndGetOffset(surface,cx,cy,angle):
+    # Rotate the surface
+    rotated_surface = pygame.transform.rotate(surface, 180/math.pi*angle)
+    rect = surface.get_rect()
+    rotated_rect = rotated_surface.get_rect()
+
+    # Pivot offset before rotation
+    pivot_x = cx - rect.centerx
+    pivot_y = cy - rect.centery
+
+    # Apply rotation transformation
+    rotated_pivot_x = pivot_x * math.cos(angle) - pivot_y * math.sin(angle)
+    rotated_pivot_y = pivot_x * math.sin(angle) + pivot_y * math.cos(angle)
+
+    # Compute new top-left position
+    offset_x = rect.centerx + rotated_pivot_x - rotated_rect.width / 2
+    offset_y = rect.centery + rotated_pivot_y - rotated_rect.height / 2
+
+    return rotated_surface, (offset_x), (offset_y)
+
 
 playerIMGs={}
 
 IMGSet=[]
 for i in range(5):
     IMGSet.append(pygame.image.load(".PlayerIdle"+str(i+1)+".png").convert_alpha())
+for i in range(3):
+    IMGSet.append(pygame.image.load(".PlayerIdle"+str(4-i)+".png").convert_alpha())
 playerIMGs["Idle"]=IMGSet
 
 IMGSet=[]
-for i in range(5):
+for i in range(8):
     IMGSet.append(pygame.image.load(".PlayerRun"+str(i+1)+".png").convert_alpha())
 playerIMGs["Run"]=IMGSet
 
+
+#TEMPORARY ANIMATION
 IMGSet=[]
-for i in range(0):
-    IMGSet.append(pygame.image.load(".PlayerBackpedal"+str(i+1)+".png").convert_alpha())
+for i in range(8):
+    IMGSet.append(pygame.image.load(".PlayerRun"+str(8-i)+".png").convert_alpha())
 playerIMGs["Backpedal"]=IMGSet
 
 playerIMGs["Falling"]=[pygame.image.load(".PlayerFalling.png").convert_alpha()]
 playerIMGs["Jumping"]=[pygame.image.load(".PlayerJumping.png").convert_alpha()]
 #playerIMGs["Sliding"]=[pygame.image.load(".PlayerSliding.png").convert_alpha()]
-#playerIMGs["arm"]=IMGSet.append([pygame.image.load(".PlayerArm").convert_alpha()])
+playerIMGs["Arm"]=[pygame.image.load(".Arm.png").convert_alpha()]
 SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
-ARM_PIVOT_X =10
-ARM_PIVOT_Y=20
-animationLengths = {"Idle":5,"Run":5,"Falling":1,"Jumping":1}
-animationFPS=20
+ARM_PIVOT_X =20
+ARM_PIVOT_Y=21
+LASER_DISTANCE=22
+animationLengths = {"Idle":8,"Run":8,"Backpedal":8,"Falling":1,"Jumping":1}
+animationFPS=13
 
 
 class Player:
@@ -45,6 +72,10 @@ class Player:
         self.animationTimer=0
         self.animationType="Idle"
         self.animationFrame=0
+        self.armAngle=0
+        self.armOffsetX=0
+        self.armOffsetY=0
+        self.laser=[]
 
         self.playerIMGs = {}
         for zoom in self.defaultZooms:
@@ -62,16 +93,20 @@ class Player:
                 zoomIMGSets[direction]=directionSet
             self.playerIMGs[zoom]=zoomIMGSets
 
-                
-    def updateCostume(self,frameLength):
-        self.animationTimer=(self.animationTimer+frameLength)%(1000/animationFPS*(max(1,2*animationLengths[self.animationType]-2)))
 
+                
+    def updateCostume(self,frameLength, mousePos):
+        self.animationTimer=(self.animationTimer+frameLength)%(1000/animationFPS*(animationLengths[self.animationType]))
         previousAnimationType=self.animationType
 
-        if self.xSpeed>0:
+        targetX,targetY=mousePos
+
+        if self.x<targetX:
             self.facing="Right"
-        elif self.xSpeed<0:
+        elif self.x>targetX:
             self.facing="Left"
+        
+        self.armAngle=-math.atan2(targetY-self.y,targetX-self.x)
 
         if not self.onGround:
             if self.ySpeed>0:
@@ -80,7 +115,10 @@ class Player:
                 self.animationType="Jumping"
         else:
             if abs(self.xSpeed)>0.1:
-                self.animationType="Run"
+                if (self.xSpeed>0 and self.facing=="Right") or (self.xSpeed<0 and self.facing=="Left"):
+                    self.animationType="Run"
+                else:
+                    self.animationType="Backpedal"
             else:
                 self.animationType="Idle"
             
@@ -95,16 +133,21 @@ class Player:
             self.animationFrame=0
         else:
             self.animationFrame=math.floor(self.animationTimer/(1000/animationFPS))
-            if self.animationFrame>animationLength-1:
-                self.animationFrame=2*animationLength-2-self.animationFrame
 
 
     def updateRect(self):
         self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2
 
-    def tick(self,frameLength,cTerrain,keysDown):
+    def tick(self,frameLength,cTerrain,mousePos,keysDown,events):
         self.ySpeed=min(0.4,self.ySpeed+0.0015*frameLength)
         
+        if events["mouseDown"]:
+            newLaser=laser.Laser()
+            self.laser=[newLaser]
+        
+        if events["mouseUp"]:
+            self.laser=[]
+
         if keysDown[pygame.K_w] and self.onGround:
             self.ySpeed = -0.4
         
@@ -127,8 +170,10 @@ class Player:
         self.moveVertical(frameLength,cTerrain)
         self.moveHorizontal(frameLength,cTerrain)
 
-        self.updateCostume(frameLength)
-        
+        self.updateCostume(frameLength,mousePos)
+        for lase in self.laser:
+            lase.updateLaser(self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1])
+            lase.tick(frameLength)
     
     def moveHorizontal(self, frameLength,cTerrain):
 
@@ -195,7 +240,21 @@ class Player:
             playerSurface=pygame.Surface((SPRITE_WIDTH*zoom,SPRITE_HEIGHT*zoom),flags=pygame.SRCALPHA)
             playerSurface.fill((self.color[0],self.color[1],self.color[2],255))
             playerSurface.blit(self.playerIMGs[zoom][self.facing][self.animationType][self.animationFrame],(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+
+            adjustedArmAngle=self.armAngle
+            if self.facing=="Left":
+                adjustedArmAngle+=math.pi
+            arm,offsetX,offsetY=rotateAndGetOffset(self.playerIMGs[zoom][self.facing]["Arm"][0],zoom*ARM_PIVOT_X,zoom*ARM_PIVOT_Y,adjustedArmAngle)
+            width,height=arm.get_size()
+            armSurface=pygame.Surface((width,height),flags=pygame.SRCALPHA)
+            armSurface.fill((self.color[0],self.color[1],self.color[2],255))
+            
+            armSurface.blit(arm,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+
             surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom))
+            surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY))
+            for lase in self.laser:
+                lase.draw(surface,frame)
 
 
     def collidingWithTerrain(self, cTerrain):

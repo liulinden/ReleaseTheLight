@@ -45,6 +45,8 @@ class Game:
         self.camOffsetX,self.camOffsetY=0,0
         self.camX += (self.camOffsetX+playerX-self.camX-self.WINDOW_WIDTH/zoom/2)*frameLength/100
         self.camY += (self.camOffsetY+playerY-self.camY-self.WINDOW_HEIGHT/zoom/2)*frameLength/100
+        self.screenshakeX=0
+        self.screenshakeY=0
 
     def run(self):
         
@@ -54,7 +56,9 @@ class Game:
         self.clock = pygame.time.Clock()
         self.keysDown = {pygame.K_w:False,
                          pygame.K_a:False,
-                         pygame.K_d:False}
+                         pygame.K_d:False,
+                         "mouse":False}
+        self.events = {"mouseDown":False,"mouseUp":False}
 
         self.zoom=self.DEFAULT_ZOOMS[1]
         self.camX,self.camY=self.getWorldCenteredCam()
@@ -72,6 +76,7 @@ class Game:
             mouseX,mouseY=pygame.mouse.get_pos()
 
             # player inputs
+            self.events = {"mouseDown":False,"mouseUp":False}
             for event in pygame.event.get():
 
                 # close game
@@ -81,6 +86,8 @@ class Game:
                     
                 # TEMPORARY for testing
                 if event.type==pygame.MOUSEBUTTONDOWN:
+                    self.events["mouseDown"]=True
+                    self.keysDown["mouse"]=True
                     x,y= self.coordsWindowToWorld((mouseX,mouseY))
 
                     self.gameWorld.player.x,self.gameWorld.player.y=x,y
@@ -89,7 +96,10 @@ class Game:
                     #self.gameWorld.terrain.generateSkinnyCave(x,y,50)
 
                     #self.gameWorld.terrain.generateNest(x,y,"White",100)
-                
+                if event.type==pygame.MOUSEBUTTONUP:
+                    self.keysDown["mouse"]=False
+                    self.events["mouseUp"]=True
+
                 if event.type==pygame.KEYDOWN:
                     if event.key in self.keysDown:
                         self.keysDown[event.key]=True
@@ -111,7 +121,7 @@ class Game:
                     if event.key in self.keysDown:
                         self.keysDown[event.key]=False
             
-            self.gameWorld.tick(practicalFPS,self.window,[self.camX,self.camY,self.zoom],self.keysDown)
+            self.gameWorld.tick(practicalFPS,self.window,[self.camX,self.camY,self.zoom],self.coordsWindowToWorld((mouseX,mouseY)),self.keysDown,self.events)
 
             self.updateCamPos(practicalFPS,self.zoom,self.gameWorld.player.x,self.gameWorld.player.y,self.gameWorld.player.xSpeed,self.gameWorld.player.ySpeed)
 

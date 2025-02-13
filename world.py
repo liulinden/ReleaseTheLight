@@ -38,11 +38,11 @@ class World:
         self.terrain.addAirPocket(x,y,radius)
     
     #perform frame actions
-    def tick(self,FPS,window,frame, keysDown):
+    def tick(self,FPS,window,frame, mousePos,keysDown,events):
         left,top,zoom=frame
         frameLength=1000/FPS
 
-        self.player.tick(frameLength,self.terrain, keysDown)
+        self.player.tick(frameLength,self.terrain, mousePos,keysDown,events)
 
         #change camx camy
         if random.randint(1,math.ceil(FPS/10))==1:
@@ -77,7 +77,7 @@ class World:
         #add enemies layer
 
         # add player layer
-        self.player.draw(layer, frame)
+        self.player.draw(layer, frame,hitboxes=hitboxes)
 
         # add particles layer
 
