@@ -3,7 +3,7 @@ import pygame, random
 pygame.init()
 
 class Game:
-    def __init__(self,FPS=60,WINDOW_WIDTH=1000,WINDOW_HEIGHT=700,developingMode=False):
+    def __init__(self,FPS=60,WINDOW_WIDTH=1200,WINDOW_HEIGHT=700,developingMode=False):
 
         # constants
         self.FPS = FPS

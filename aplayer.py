@@ -20,15 +20,13 @@ playerIMGs["Backpedal"]=IMGSet
 playerIMGs["Falling"]=[pygame.image.load(".PlayerFalling.png").convert_alpha()]
 playerIMGs["Jumping"]=[pygame.image.load(".PlayerJumping.png").convert_alpha()]
 #playerIMGs["Sliding"]=[pygame.image.load(".PlayerSliding.png").convert_alpha()]
-
 #playerIMGs["arm"]=IMGSet.append([pygame.image.load(".PlayerArm").convert_alpha()])
-
 SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
 ARM_PIVOT_X =10
 ARM_PIVOT_Y=20
 animationLengths = {"Idle":5,"Run":5,"Falling":1,"Jumping":1}
-animationFPS=15
+animationFPS=20
 
 
 class Player:
