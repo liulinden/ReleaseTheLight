@@ -91,8 +91,8 @@ class Game:
                     self.keysDown["mouse"]=True
                     x,y= self.coordsWindowToWorld((mouseX,mouseY))
 
-                    self.gameWorld.player.x,self.gameWorld.player.y=x,y
-                    self.gameWorld.player.updateRect()
+                    #self.gameWorld.player.x,self.gameWorld.player.y=x,y
+                    #self.gameWorld.player.updateRect()
                     
                     #self.gameWorld.terrain.generateSkinnyCave(x,y,50)
 
