@@ -20,6 +20,10 @@ class Terrain:
     def __init__(self, worldWidth:int, worldHeight:int, defaultZooms:list[float]=[0.1,2]):
 
         # set up terrain data
+        self.knockbackCircles=[]
+        self.newKnockbackCircles=[]
+        self.playerDamageCircles=[]
+        self.newPlayerDamageCircles=[]
         self.nests=[]
         self.airPockets = []
         self.worldWidth=worldWidth
@@ -54,33 +58,47 @@ class Terrain:
             for j in range(int(self.worldWidth/1000)):
 
                 if random.randint(1,10)==1:
-                    self.generateSkinnyCave(j*1000+random.randint(0,1000),random.randint(0,int((self.worldHeight-500)/4)),random.randint(20,80),random.random()*2*math.pi)
+                    self.generateSkinnyCave(j*1000+random.randint(0,1000),random.randint(0,int((self.worldHeight-500)/4)),random.randint(20,60),random.random()*2*math.pi)
                 if random.randint(1,20)==1:
-                    self.generateSkinnyCave(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)/4),int((self.worldHeight-500))),random.randint(40,80),random.random()*2*math.pi)
+                    self.generateSkinnyCave(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)/4),int((self.worldHeight-500))),random.randint(30,70),random.random()*2*math.pi)
                 
                 if random.randint(1,35)==1:
-                    self.generateBlobCave(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*1/4),self.worldHeight-500),random.randint(40,80),random.random()*2*math.pi)
+                    self.generateBlobCave(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*1/4),self.worldHeight-500),random.randint(30,60),random.random()*2*math.pi)
                 if random.randint(1,25)==1:
-                    self.generateBlobCave(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*2/3),self.worldHeight-500),random.randint(80,120),random.random()*2*math.pi)
+                    self.generateBlobCave(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*2/3),self.worldHeight-500),random.randint(60,120),random.random()*2*math.pi)
 
                 if random.randint(1,30)==1:
-                    self.generateBedrockCave(j*1000+random.randint(0,1000),random.randint(self.worldHeight-100,self.worldHeight),random.randint(120,150),random.randint(0,1)*2*math.pi)
+                    self.generateBedrockCave(j*1000+random.randint(0,1000),random.randint(self.worldHeight-100,self.worldHeight),random.randint(80,120),random.randint(0,1)*2*math.pi)
 
-                if random.randint(1,15)==1:
+                if random.randint(1,10)==1:
                     self.generateNest(j*1000+random.randint(0,1000),random.randint(500,int((self.worldHeight-500)/4)),"White")
                 
-                if random.randint(1,20)==1:
+                if random.randint(1,15)==1:
                     self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)/4),int((self.worldHeight-500)*2/3)),"White")
+                if random.randint(1,15)==1:
+                    self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*3/4),int((self.worldHeight-500))),"White")
+                
+                if random.randint(1,15)==1:
+                    self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*1/4),self.worldHeight-500),"Red")
+                if random.randint(1,15)==1:
+                    self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*1/4),self.worldHeight-500),"Blue")
+                
+                if random.randint(1,25)==1:
+                    self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-800)),self.worldHeight-100),"White")
+                if random.randint(1,25)==1:
+                    self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-800)),self.worldHeight-100),"Red")
+                if random.randint(1,25)==1:
+                    self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-800)),self.worldHeight-100),"Blue")
 
     def generateNest(self,x,y,nestType, size=0):
         if size==0:
             size = random.randint(100,100+y//50)
-        newNest=nest.Nest(self.defaultZooms,nestType,x,y,size)
+        newNest=nest.Nest(self.defaultZooms,self.worldHeight,nestType,x,y,size)
         self.nests.append(newNest)
 
         caveSize=(size*random.randint(0,2)/2+50)/2
         if caveSize >25:
-            self.generateSkinnyCave(x,y-caveSize/2,caveSize,-math.pi/2,maxPockets=4,shrinking=True)
+            self.generateSkinnyCave(x,y-caveSize/2,caveSize,-math.pi/2,maxPockets=10,shrinking=True)
 
     # generate cave
     def generateBlobCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=10):
@@ -92,7 +110,7 @@ class Terrain:
                 dir = startDir + (random.random()-0.5)*math.pi
 
                 x = startX+math.cos(dir)*min(r,startR)*0.8
-                y = startY+math.sin(dir)*min(r,startR)*0.8*0.4
+                y = startY+math.sin(dir)*min(r,startR)*0.8*0.2
                 self.generateBlobCave(x,y,r,dir,maxPockets-1)
                 if random.randint(1,15)>1:
                     break
@@ -108,7 +126,7 @@ class Terrain:
                 dir = startDir + (random.random()-0.5)*math.pi/2
 
                 x = startX+math.cos(dir)*min(r,startR)*0.8
-                y = startY+math.sin(dir)*min(r,startR)*0.8*0.9
+                y = startY+math.sin(dir)*min(r,startR)*0.8*0.8
                 self.generateSkinnyCave(x,y,r,dir,maxPockets-1,shrinking=shrinking)
                 if random.randint(1,30)>1:
                     break
@@ -129,7 +147,7 @@ class Terrain:
 
     # create an air pocket at x, y with specified radius
     def addAirPocket(self, x:int, y:int, radius:int, recursions=0, playerMade=False):
-        if recursions>3 or x+radius>self.worldWidth or x-radius<0 or y<0 or y>self.worldHeight:
+        if not playerMade and (recursions>3 or x+radius>self.worldWidth or x-radius<0 or y<0 or y>self.worldHeight):
             return False
         newAirPocket=AirPocket(x,y,radius,defaultZooms=self.defaultZooms)
         if not playerMade:

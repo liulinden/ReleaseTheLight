@@ -51,7 +51,7 @@ SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
 ARM_PIVOT_X =20
 ARM_PIVOT_Y=21
-LASER_DISTANCE=22
+LASER_DISTANCE=21
 animationLengths = {"Idle":8,"Run":8,"Backpedal":8,"Falling":1,"Jumping":1}
 animationFPS=13
 
@@ -66,7 +66,7 @@ class Player:
         self.width,self.height=dimensions
         self.rect=pygame.Rect(self.x-self.width/2,self.y-self.height/2,self.width,self.height)
         self.onGround=False
-        self.color=(255,255,255)
+        self.color=(255,0,0)
         self.defaultZooms=defaultZooms
         self.facing = "Right"
         self.animationTimer=0
@@ -75,7 +75,13 @@ class Player:
         self.armAngle=0
         self.armOffsetX=0
         self.armOffsetY=0
+        self.laserPower=10
+        self.laserKnockback=10
+        self.laserCooldown=400
         self.laser=[]
+        self.chargeDistribution=(1,0,0)
+        self.charge=200
+        self.maxCharge=500
 
         self.playerIMGs = {}
         for zoom in self.defaultZooms:
@@ -122,9 +128,6 @@ class Player:
             else:
                 self.animationType="Idle"
             
-
-        
-
         if self.animationType!=previousAnimationType:
             self.animationTimer=0
         
@@ -138,6 +141,46 @@ class Player:
     def updateRect(self):
         self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2
 
+    def updateColor(self):
+        cw,cb,cr=self.chargeDistribution
+        cw,cb,cr=cw*self.charge,cb*self.charge,cr*self.charge
+        r,g,b=0,0,0
+        r+=cr+cw
+        g+=cw+cb/4
+        b+=cw+cb
+        r=math.sqrt(min(r/self.maxCharge,1))
+        g=math.sqrt(min(g/self.maxCharge,1))
+        b=math.sqrt(min(b/self.maxCharge,1))
+        self.color=(r*255,g*255,b*255)
+
+    def updateLaserStats(self):
+        cw,cb,cr=self.chargeDistribution
+        cw,cb,cr=cw*self.charge,cb*self.charge,cr*self.charge
+        self.laserPower=15+cw/15+cr/6+cb/20
+        self.laserKnockback=5+cw/20+cr/25+cb/14
+        self.laserCooldown=600-cw/2-cb/10+cr/5
+
+    def addCharge(self, addedCharge, chargeDistribution, maxCharge):
+        w,b,r=self.chargeDistribution
+        w,b,r=w*self.charge,b*self.charge,r*self.charge
+        w+=chargeDistribution[0]*addedCharge
+        b+=chargeDistribution[1]*addedCharge
+        r+=chargeDistribution[2]*addedCharge
+        total=w+b+r
+        self.chargeDistribution=(w/total,b/total,r/total)
+        originalCharge=self.charge
+        if self.charge<maxCharge:
+            self.charge+=addedCharge
+            if self.charge>maxCharge:
+                self.charge=maxCharge
+        return self.charge-originalCharge
+
+    def loseCharge(self,loss):
+        self.charge-=loss
+        if self.charge<0:
+            self.charge=0
+            #gameover
+
     def tick(self,frameLength,cTerrain,mousePos,keysDown,events):
         self.ySpeed=min(0.4,self.ySpeed+0.0015*frameLength)
         
@@ -147,6 +190,32 @@ class Player:
         
         if events["mouseUp"]:
             self.laser=[]
+        
+        for lase in self.laser:
+            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1])
+            lase.tick(frameLength)
+            for point in lase.collision:
+                if lase.damageFrame:
+                    x,y=point
+                    cTerrain.addAirPocket(x, y, self.laserPower, playerMade=True)
+                    cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback])
+                    cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower])
+                    self.loseCharge(2)
+
+
+        for knockbackCircle in cTerrain.knockbackCircles:
+            dx = self.x-knockbackCircle[0]
+            dy = self.y-knockbackCircle[1]
+            distance=math.sqrt(dx**2+dy**2)
+            knockback=knockbackCircle[2]/distance/100
+            self.xSpeed+=frameLength*dx/distance*knockback
+            self.ySpeed+=frameLength*dy/distance*knockback
+
+        for nest in cTerrain.nests:
+            if nest.stage==nest.maxStage and nest.withinEffectRadius(self.x,self.y):
+                chargeGain=self.addCharge(nest.chargeRate*frameLength, nest.charging,nest.maxCharge)
+                nest.loseCharge(chargeGain)
+        self.updateLaserStats()
 
         if keysDown[pygame.K_w] and self.onGround:
             self.ySpeed = -0.4
@@ -170,10 +239,11 @@ class Player:
         self.moveVertical(frameLength,cTerrain)
         self.moveHorizontal(frameLength,cTerrain)
 
+        self.updateColor()
         self.updateCostume(frameLength,mousePos)
         for lase in self.laser:
-            lase.updateLaser(self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1])
-            lase.tick(frameLength)
+            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1],self.laserCooldown)
+            
     
     def moveHorizontal(self, frameLength,cTerrain):
 
@@ -236,6 +306,8 @@ class Player:
         if hitboxes:
             self.updateRect()
             pygame.draw.rect(surface,self.color,pygame.Rect((self.rect.left-camX)*zoom,(self.rect.top-camY)*zoom,self.width*zoom,self.height*zoom))
+            for lase in self.laser:
+                lase.draw(surface,frame,self.color,hitboxes=hitboxes)
         else:
             playerSurface=pygame.Surface((SPRITE_WIDTH*zoom,SPRITE_HEIGHT*zoom),flags=pygame.SRCALPHA)
             playerSurface.fill((self.color[0],self.color[1],self.color[2],255))
@@ -254,7 +326,7 @@ class Player:
             surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom))
             surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY))
             for lase in self.laser:
-                lase.draw(surface,frame)
+                lase.draw(surface,frame,self.color)
 
 
     def collidingWithTerrain(self, cTerrain):

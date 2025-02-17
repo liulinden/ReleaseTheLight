@@ -42,20 +42,38 @@ class World:
         left,top,zoom=frame
         frameLength=1000/FPS
 
+        self.terrain.newKnockbackCircles=[]
+        self.terrain.newPlayerDamageCircles=[]
+
+        #enemy ticking
+
+        #player ticking
         self.player.tick(frameLength,self.terrain, mousePos,keysDown,events)
 
         #change camx camy
         if random.randint(1,math.ceil(FPS/10))==1:
             self.light.addMistParticle(self.player.x,self.player.y,color=self.player.color)
+        for lase in self.player.laser:
+            if random.randint(1,math.ceil(FPS/max(1,lase.length)*50))==1:
+                mistPos= random.random()
+                self.light.addMistParticle(lase.startX+mistPos*lase.length*math.cos(lase.angle),lase.startY+mistPos*lase.length*math.sin(lase.angle),color=self.player.color)
 
         w_width,w_height=window.get_size()
         x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
         for nest in self.terrain.nests:
+            nest.applyDamageFromCircles(self.terrain.playerDamageCircles)
+            """
+            if nest.stage!=nest.maxStage:
+                d=distance((self.x,self.y),(nest.x,nest.y))
+                if d<1000 and random.randint(1,int(d/2)):
+                    nest.addEnemy()"""
             if random.randint(1,math.ceil(FPS/6))==1 and nest.close(x,y,r) and nest.stage==nest.maxStage:
                 self.light.addMistParticle(nest.x,nest.y,color=nest.color)
         
         self.light.tickEffects(frameLength)
 
+        self.terrain.knockbackCircles=self.terrain.newKnockbackCircles
+        self.terrain.playerDamageCircles=self.terrain.newPlayerDamageCircles
         #draw
         
         ...
@@ -66,25 +84,26 @@ class World:
         # set up layer
         layer=pygame.Surface(window.get_size())
         if kindVisibility:
-            layer.fill((100,100,100,0))
+            layer.fill((200,200,200,0))
         else:
-            layer.fill((10,10,10,0))
+            layer.fill((0,0,0,0))
 
         # add lighting layer
         self.light.drawGradient(layer,frame,self.player.color,self.player.x,self.player.y)
         self.light.drawEffects(layer,frame)
+
         
         #add enemies layer
 
         # add player layer
         self.player.draw(layer, frame,hitboxes=hitboxes)
 
-        # add particles layer
-
         # add nests layer
         self.terrain.drawNests(layer,frame,hitboxes=hitboxes)
 
         # add terrain layer
         layer.blit(self.terrain.getTerrainLayer(window,frame,hitboxes=hitboxes),(0,0),special_flags=pygame.BLEND_RGBA_SUB)
+
+        # add parralax
 
         return layer
