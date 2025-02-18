@@ -12,17 +12,26 @@ class ChargeDisplay():
         self.x=100
         self.y=100
         self.rotationSpeed=0
-        self.playerCharge=150
-        self.playerColor=(255,255,255)
+        self.playerCharge=0
+        self.color=(0,0,0)
         self.worldHeight=worldHeight
         self.playerY=0
 
-    def update(self,fps,color,startCharge,endCharge,playerY):
-        self.playerY=max(0,playerY)
-        chargeChange=endCharge-startCharge
-        self.playerCharge=endCharge
-        self.playerColor=color
+    def update(self,fps,color,playerCharge,playerY):
         frameLength=1000/fps
+        self.playerY=max(0,playerY)
+        chargeChange=playerCharge-self.playerCharge
+        self.playerCharge=playerCharge
+        p_r,p_g,p_b=color
+        r,g,b=self.color
+        if r!=p_r:
+            r+=(p_r-r)/abs(p_r-r)*frameLength/16
+        if g!=p_g:
+            g+=(p_g-g)/abs(p_g-g)*frameLength/16
+        if b!=p_b:
+            b+=(p_b-b)/abs(p_b-b)*frameLength/16
+        self.color=(r,g,b)
+
         if chargeChange>0:
             self.rotationGoal+=chargeChange/10
             self.scale=90
@@ -46,13 +55,12 @@ class ChargeDisplay():
     def draw(self,surface):
         transformedIcon=pygame.transform.rotate(pygame.transform.scale(chargeIcon,(self.scale,self.scale)),-self.rotation*(360))
         filter=pygame.Surface(transformedIcon.get_size(),flags=pygame.SRCALPHA)
-        filter.fill(self.playerColor)
+        filter.fill(self.color)
         filter.blit(transformedIcon,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(filter,(self.x-filter.get_width()/2,self.y-filter.get_height()/2))
-        pygame.draw.arc(surface,self.playerColor,pygame.Rect(self.x-60,self.y-60,120,120),math.pi/2-2*math.pi*self.playerCharge/500,math.pi/2,10)
-        pygame.draw.line(surface,self.playerColor, (self.x+66,self.y-50),(self.x+80,self.y-50),2)
-        pygame.draw.line(surface,self.playerColor, (self.x+66,self.y+50),(self.x+80,self.y+50),2)
-        pygame.draw.line(surface,self.playerColor, (self.x+73,self.y-50),(self.x+73,self.y+50),2)
+        pygame.draw.arc(surface,self.color,pygame.Rect(self.x-60,self.y-60,120,120),math.pi/2-2*math.pi*self.playerCharge/500,math.pi/2,10)
+        pygame.draw.line(surface,self.color, (self.x+66,self.y-50),(self.x+80,self.y-50),2)
+        pygame.draw.line(surface,self.color, (self.x+66,self.y+50),(self.x+80,self.y+50),2)
+        pygame.draw.line(surface,self.color, (self.x+73,self.y-50),(self.x+73,self.y+50),2)
         
-        pygame.draw.line(surface,self.playerColor, (self.x+66,self.y-50+100*self.playerY/self.worldHeight),(self.x+80,self.y-50+100*self.playerY/self.worldHeight),6)
-        ...
+        pygame.draw.line(surface,self.color, (self.x+66,self.y-50+100*self.playerY/self.worldHeight),(self.x+80,self.y-50+100*self.playerY/self.worldHeight),6)

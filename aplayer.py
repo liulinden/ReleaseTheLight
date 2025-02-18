@@ -59,10 +59,12 @@ animationFPS=13
 class Player:
 
     def __init__(self,defaultZooms, x,y,dimensions=[10,30]):
+        self.spawnX=x
+        self.spawnY=y
         self.x=x
         self.y=y
         self.xSpeed=0
-        self.ySpeed=-1
+        self.ySpeed=0
         self.width,self.height=dimensions
         self.rect=pygame.Rect(self.x-self.width/2,self.y-self.height/2,self.width,self.height)
         self.onGround=False
@@ -78,6 +80,7 @@ class Player:
         self.laserPower=10
         self.laserKnockback=10
         self.laserCooldown=400
+        self.laserTimer=0
         self.laser=[]
         self.chargeDistribution=(1,0,0)
         self.charge=150
@@ -100,6 +103,13 @@ class Player:
             self.playerIMGs[zoom]=zoomIMGSets
 
 
+    def resetPlayer(self):
+        self.x=self.spawnX
+        self.y=self.spawnY
+        self.xSpeed=0
+        self.ySpeed=0
+        self.chargeDistribution=(1,0,0)
+        self.charge=150
                 
     def updateCostume(self,frameLength, mousePos):
         self.animationTimer=(self.animationTimer+frameLength)%(1000/animationFPS*(animationLengths[self.animationType]))
@@ -157,7 +167,7 @@ class Player:
         cw,cb,cr=self.chargeDistribution
         cw,cb,cr=cw*self.charge,cb*self.charge,cr*self.charge
         self.laserPower=15+cw/15+cr/5+cb/20
-        self.laserKnockback=5+cw/20+cr/25+cb/9
+        self.laserKnockback=6+cw/40+cr/40+cb/10
         self.laserCooldown=600-cw/2-cb/10+cr/5
 
     def addCharge(self, addedCharge, chargeDistribution, maxCharge):
@@ -177,19 +187,25 @@ class Player:
 
     def loseCharge(self,loss):
         self.charge-=loss
-        if self.charge<0:
+        if self.charge<=0:
             self.charge=0
-            #gameover
+            self.resetPlayer()
+            return True
+        return False
 
-    def tick(self,frameLength,cTerrain,mousePos,keysDown,events):
+    def tick(self,frameLength,cTerrain:terrain.Terrain,mousePos,keysDown,events):
         self.ySpeed=min(0.4,self.ySpeed+0.0015*frameLength)
         
-        if events["mouseDown"]:
+        if keysDown["mouse"] and len(self.laser)==0 and self.laserTimer<=self.laserCooldown/4:
             newLaser=laser.Laser()
             self.laser=[newLaser]
         
-        if events["mouseUp"]:
+        if events["mouseUp"] and len(self.laser)>0:
+            self.laserTimer=self.laser[0].timer
             self.laser=[]
+
+        self.laserTimer-=frameLength
+        self.laserTimer=max(0,self.laserTimer)
         
         for lase in self.laser:
             lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1])
@@ -200,14 +216,14 @@ class Player:
                     cTerrain.addAirPocket(x, y, self.laserPower, playerMade=True)
                     cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback])
                     cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower])
-                self.loseCharge(2)
-                    
-
+                if self.loseCharge(2):
+                    return True
 
         for knockbackCircle in cTerrain.knockbackCircles:
             dx = self.x-knockbackCircle[0]
             dy = self.y-knockbackCircle[1]
             distance=math.sqrt(dx**2+dy**2)
+            print(max(30,distance))
             knockback=knockbackCircle[2]/distance/100
             self.xSpeed+=frameLength*dx/distance*knockback
             self.ySpeed+=frameLength*dy/distance*knockback
@@ -244,7 +260,7 @@ class Player:
         self.updateCostume(frameLength,mousePos)
         for lase in self.laser:
             lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1],self.laserCooldown)
-            
+        return False
     
     def moveHorizontal(self, frameLength,cTerrain):
 
@@ -253,7 +269,7 @@ class Player:
         self.x+=frameLength*self.xSpeed
         self.updateRect()
         if self.collidingWithTerrain(cTerrain):
-            slopeTolerance=math.ceil(5*abs(frameLength*self.xSpeed))
+            slopeTolerance=math.ceil(3*abs(frameLength*self.xSpeed))
             for i in range(slopeTolerance):
                 self.y-=1
                 self.updateRect()

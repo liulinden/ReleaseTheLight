@@ -11,11 +11,13 @@ def distance(coord1:int,coord2:int):
     x2,y2=coord2
     return math.sqrt((x1-x2)**2+(y1-y2)**2)
 
+lightGradient=pygame.image.load(".LightGradient.png").convert_alpha()
+
 nestEffectHitboxes={}
 nestHitboxes={}
 nestIMGs = {}
 
-for nestType, nStages, variants in [("White",3,[1]),("Blue",3,[1]),("Red",3,[1]),("Sun",10,[])]:
+for nestType, nStages, variants in [("White",3,[1,2,3,4]),("Blue",4,[5,6]),("Red",4,[5,6]),("Sun",10,[])]:
     IMGsets=[]
     hitboxes=[]
     for variant in variants:
@@ -25,8 +27,6 @@ for nestType, nStages, variants in [("White",3,[1]),("Blue",3,[1]),("Red",3,[1])
     nestIMGs[nestType]=IMGsets
     nestHitboxes[nestType]=hitboxes
 
-
-NEST_COLORS = {"White":(255,255,255),"Red":(255,0,0),"Blue":(0,255,255),"Sun":(255,255,255)}
 
 class Nest:
     def __init__(self,defaultZooms,worldHeight,nestType,x,y,size):
@@ -42,12 +42,13 @@ class Nest:
         self.size=size
         self.enemies=[]
         self.enemyCap=5
-        self.color=NEST_COLORS[nestType]
-        
+        self.color=(255,255,255)
+        self.glow=0
         self.stage=0
         self.maxStage=len(stageIMGs)-1
 
         self.resizedHitboxes={}
+        self.resizedGradients={}
         self.resizedIMGs={}
         for zoom in defaultZooms:
             IMGs=[]
@@ -55,6 +56,7 @@ class Nest:
                 IMGs.append(pygame.transform.scale(stageIMG,(size*zoom,size*zoom)))
             self.resizedIMGs[zoom]=IMGs
             self.resizedHitboxes[zoom]=pygame.transform.scale(hitbox,(size*zoom,size*zoom))
+            self.resizedGradients[zoom]=pygame.transform.scale(lightGradient,(size*zoom,size*zoom))
 
         self.resizedHitboxes[1]=pygame.transform.scale(hitbox,(size,size))
         
@@ -100,6 +102,7 @@ class Nest:
         self.color=(r*255,g*255,b*255)
     
     def loseCharge(self,loss):
+        self.glow=255
         self.charge-=loss
         if self.charge<0:
             self.charge=0
@@ -111,7 +114,18 @@ class Nest:
             self.visualCharge-=frameLength/10
             if self.visualCharge<0:
                 self.visualCharge=0
+        self.glow+=((self.stage/self.maxStage*self.visualCharge/self.maxCharge*150)-self.glow)/1500*frameLength
 
+    def drawGradient(self,surface,frame):
+        camX,camY,zoom=frame
+        img=self.resizedGradients[zoom]
+        #return
+        if self.glow>0:
+            filter=pygame.Surface(img.get_size(),flags=pygame.SRCALPHA)
+            filter.fill((self.color[0],self.color[1],self.color[2],self.glow))
+            filter.blit(img,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+            surface.blit(filter,((self.left-camX)*zoom,(self.top-camY)*zoom))
+    
     def draw(self, surface, frame,hitbox=False):
         camX,camY,zoom=frame
         
@@ -121,12 +135,19 @@ class Nest:
             img=self.resizedIMGs[zoom][self.stage]
         
         self.updateColor()
+        #if not hitboxes:
+        #    filter=pygame.Surface(img.get_size(),flags=pygame.SRCALPHA)
+        #    filter.fill((self.color[0],self.color[1],self.color[2],self.glow))
+        #    filter.blit(img,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+        #    surface.blit(filter,((self.left-camX)*zoom,(self.top-camY)*zoom))
+
         filter=pygame.Surface(img.get_size(),flags=pygame.SRCALPHA)
         filter.fill(self.color)
         filter.blit(img,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(filter,((self.left-camX)*zoom,(self.top-camY)*zoom))
 
     def addEnemy(self,airPockets):
+        self.glow=200
         if len(self.enemies)<self.enemyCap:
             #self.enemies.append(enemies.getEnemy(airPockets,self.nestType))
             ...
@@ -137,10 +158,12 @@ class Nest:
         return False
 
     def applyDamageFromCircles(self,damageCircles):
-        for circle in damageCircles:
-            x,y,r=circle
-            if self.close(x,y,0):
-                self.dealDamage(r/2)
+        if self.health>0:
+            for circle in damageCircles:
+                x,y,r=circle
+                if self.close(x,y,0):
+                    self.glow=200
+                    self.dealDamage(r/2)
     
     def dealDamage(self,damage):
         self.health-=damage

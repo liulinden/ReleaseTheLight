@@ -17,9 +17,10 @@ class Lighting:
                 for zoom in defaultZooms:
                     IMGs[zoom]=pygame.transform.scale(lightIMG,(zoom*size,zoom*size))
                 self.resizedLightIMGs["MistParticles"].append(IMGs)
-        #self.resizedLightIMGs["Gradient"]={}
-        #for zoom in defaultZooms:
-        #    self.resizedLightIMGs["Gradient"][zoom]=pygame.transform.scale(lightGradient,(zoom*400,zoom*400))
+        for size in [300,600]:
+            self.resizedLightIMGs["Gradient"+str(size)]={}
+            for zoom in defaultZooms:
+                self.resizedLightIMGs["Gradient"+str(size)][zoom]=pygame.transform.scale(lightGradient,(zoom*size,zoom*size))
 
     def addMistParticle(self,x,y,color=(255,255,255)):
         newParticle=MistParticle(x,y,self.resizedLightIMGs["MistParticles"][random.randint(0,len(self.resizedLightIMGs)-1)],color)
@@ -30,18 +31,16 @@ class Lighting:
             if self.particles[i].tick(frameLength)=="end":
                 self.particles.remove(self.particles[i])
 
-    def drawGradient(self,surface:pygame.Surface,frame,color,x,y,radius=200):
+    def drawGradient(self,surface:pygame.Surface,frame,color,x,y):
         left,top,zoom=frame
         
-        img=pygame.transform.scale(lightGradient,(zoom*radius*2,zoom*radius*2))
+        img=self.resizedLightIMGs["Gradient600"][zoom]
         dimensions=(img.get_width(),img.get_height())
         #"""
         filter= pygame.Surface(dimensions,flags=pygame.SRCALPHA)
-        filter.fill((color[0],color[1],color[2],240))
-        lightSurface=pygame.Surface(dimensions,flags=pygame.SRCALPHA)
-        lightSurface.blit(img,(0,0))
-        lightSurface.blit(filter,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
-        surface.blit(lightSurface,((x-left)*zoom-dimensions[0]/2,(y-top)*zoom-dimensions[1]/2))
+        filter.fill((color[0],color[1],color[2],60))
+        filter.blit(img,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+        surface.blit(filter,((x-left)*zoom-dimensions[0]/2,(y-top)*zoom-dimensions[1]/2))
         #"""
         #surface.blit(img,((x-left)*zoom-dimensions[0]/2,(y-top)*zoom-dimensions[1]/2))
     
@@ -83,7 +82,6 @@ class MistParticle:
 
     def draw(self,surface:pygame.Surface, frame):
         left,top,zoom=frame
-
         #if needed to reduce lag, can probably do most of this in the init function
         """
         dimensions=(self.IMGs[zoom].get_width(),self.IMGs[zoom].get_height())

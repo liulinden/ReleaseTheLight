@@ -5,11 +5,13 @@ class Game:
     def __init__(self,window,FPS=60,developingMode=False):
 
         self.window = window
+        self.window_width,self.window_height=window.get_size()
+        self.window_width,self.window_height=500,300
 
         # constants
         self.FPS = FPS
-        self.DEFAULT_ZOOMS = [0.1,2]
-        self.WORLD_WIDTH = 3000
+        self.DEFAULT_ZOOMS = [0.1,1]
+        self.WORLD_WIDTH = 2000
         self.WORLD_HEIGHT = 10000
 
         # set up variables
@@ -25,10 +27,10 @@ class Game:
         return self.getCenteredCam((self.WORLD_WIDTH/2,self.WORLD_HEIGHT/2))
     
     def getCenteredCam(self, center):
-        return center[0]-self.window.get_width()/self.zoom/2,center[1]-self.window.get_height()/self.zoom/2
+        return center[0]-self.window_width/self.zoom/2,center[1]-self.window_height/self.zoom/2
 
     def getWindowCenterWorldCoords(self):
-        return self.coordsWindowToWorld([self.window.get_width()/2,self.window.get_height()/2])
+        return self.coordsWindowToWorld([self.window_width/2,self.window_height/2])
 
     def setZoom(self, newZoom, zoomCenter):
         zoomRatio = self.zoom/newZoom
@@ -40,15 +42,15 @@ class Game:
         frameLength=1000/FPS
         self.camOffsetX+=2*playerXSpeed*frameLength
         self.camOffsetY+=2*playerYSpeed*frameLength
-        self.camOffsetX=min(max(self.camOffsetX,self.window.get_width()/zoom*1/6),self.window.get_width()/zoom*(-1/6))
-        self.camOffsetY=min(max(self.camOffsetY,self.window.get_height()/zoom*1/6),self.window.get_height()/zoom*(-1/6))
+        self.camOffsetX=min(max(self.camOffsetX,self.window_width/zoom*1/6),self.window_width/zoom*(-1/6))
+        self.camOffsetY=min(max(self.camOffsetY,self.window_height/zoom*1/6),self.window_height/zoom*(-1/6))
         self.camOffsetX,self.camOffsetY=0,0
-        self.camX += (self.camOffsetX+playerX-self.camX-self.window.get_width()/zoom/2)*frameLength/200
-        self.camY += (self.camOffsetY+max(-50,playerY)-self.camY-self.window.get_height()/zoom/2)*frameLength/200
+        self.camX += (self.camOffsetX+playerX-self.camX-self.window_width/zoom/2)*frameLength/200
+        self.camY += (self.camOffsetY+max(-100,playerY)-self.camY-self.window_height/zoom/2)*frameLength/200
 
 
     def run(self):
-        
+    
         #self.window = pygame.display.set_mode([self.window.get_width(),self.window.get_height()])
         #self.window.get_width(),self.window.get_height()=self.window.get_size()
         
@@ -62,7 +64,8 @@ class Game:
         self.events = {"mouseDown":False,"mouseUp":False}
 
         self.zoom=self.DEFAULT_ZOOMS[1]
-        self.camX,self.camY=self.getWorldCenteredCam()
+        self.defaultCamCoords=self.getWorldCenteredCam()[0],-100
+        self.camX,self.camY=self.defaultCamCoords
         self.camOffsetX,self.camOffsetY=0,0
 
         self.shake=0
@@ -107,7 +110,7 @@ class Game:
                         match event.key:
                             case pygame.K_z:
                                 if self.zoom==0.1:
-                                    self.setZoom(2,self.coordsWindowToWorld((mouseX,mouseY)))
+                                    self.setZoom(self.DEFAULT_ZOOMS[1],self.coordsWindowToWorld((mouseX,mouseY)))
                                 else:
                                     self.setZoom(0.1,self.coordsWindowToWorld((mouseX,mouseY)))
                             case pygame.K_0:
@@ -124,14 +127,21 @@ class Game:
                     if event.key in self.keysDown:
                         self.keysDown[event.key]=False
             
-            startCharge=self.gameWorld.player.charge
-            self.gameWorld.tick(practicalFPS,self.window,[self.camX,self.camY,self.zoom],self.coordsWindowToWorld((mouseX,mouseY)),self.keysDown,self.events)
-            self.chargeDisplay.update(practicalFPS,self.gameWorld.player.color,startCharge,self.gameWorld.player.charge,self.gameWorld.player.y)
+            if self.gameWorld.tick(practicalFPS,(self.window_width,self.window_height),[self.camX,self.camY,self.zoom],self.coordsWindowToWorld((mouseX,mouseY)),self.keysDown,self.events):
+                self.camX,self.camY=self.defaultCamCoords
+            self.chargeDisplay.update(practicalFPS,self.gameWorld.player.color,self.gameWorld.player.charge,self.gameWorld.player.y)
 
             self.updateCamPos(practicalFPS,self.zoom,self.gameWorld.player.x,self.gameWorld.player.y,self.gameWorld.player.xSpeed,self.gameWorld.player.ySpeed)
+            #world wrapping
+            if self.gameWorld.player.x>self.WORLD_WIDTH:
+                self.gameWorld.player.x-=self.WORLD_WIDTH
+                self.camX-=self.WORLD_WIDTH
+            elif self.gameWorld.player.x<0:
+                self.gameWorld.player.x+=self.WORLD_WIDTH
+                self.camX+=self.WORLD_WIDTH
 
             # clear window
-            self.window.fill((0,0,0))
+            self.window.fill((255,255,255))
             
             for lase in self.gameWorld.player.laser:
                 if lase.damageFrame:
@@ -142,10 +152,14 @@ class Game:
             self.shake*=0.9
 
             # display world layer
-            self.window.blit(self.gameWorld.getSurface(self.window,[self.camX+(2*random.random()-1)*self.shake,self.camY+(2*random.random()-1)*self.shake,self.zoom],hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
+            frame=[self.camX+(2*random.random()-1)*self.shake,self.camY+(2*random.random()-1)*self.shake,self.zoom]
+            self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
             # display UI stuff
             self.chargeDisplay.draw(self.window)
+
+            if self.developingMode:
+                pygame.draw.rect(self.window,(0,255,0),pygame.Rect(0,0,self.window_width,self.window_height),1)
 
             # update window
             pygame.display.flip()

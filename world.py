@@ -23,7 +23,7 @@ class World:
         self.worldWidth=worldWidth
         self.worldHeight=worldHeight
         self.defaultZooms = defaultZooms
-        self.player= aplayer.Player(defaultZooms,worldWidth/2,-200)
+        self.player= aplayer.Player(defaultZooms,worldWidth/2,-1200)
         self.light=lighting.Lighting(defaultZooms=defaultZooms)
 
         # procedural generation
@@ -38,7 +38,7 @@ class World:
         self.terrain.addAirPocket(x,y,radius)
     
     #perform frame actions
-    def tick(self,FPS,window,frame, mousePos,keysDown,events):
+    def tick(self,FPS,window_size,frame, mousePos,keysDown,events):
         left,top,zoom=frame
         frameLength=1000/FPS
 
@@ -48,17 +48,18 @@ class World:
         #enemy ticking
 
         #player ticking
-        self.player.tick(frameLength,self.terrain, mousePos,keysDown,events)
+        if self.player.tick(frameLength,self.terrain, mousePos,keysDown,events):
+            return True
 
         #change camx camy
         if random.randint(1,math.ceil(FPS/10))==1:
             self.light.addMistParticle(self.player.x,self.player.y,color=self.player.color)
         for lase in self.player.laser:
-            if random.randint(1,math.ceil(FPS/max(1,lase.length)*50))==1:
+            if random.randint(1,math.ceil(FPS/max(1,lase.length)*30))==1:
                 mistPos= random.random()
                 self.light.addMistParticle(lase.startX+mistPos*lase.length*math.cos(lase.angle),lase.startY+mistPos*lase.length*math.sin(lase.angle),color=self.player.color)
 
-        w_width,w_height=window.get_size()
+        w_width,w_height=window_size
         x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
         for nest in self.terrain.nests:
             nest.updateVisuals(frameLength)
@@ -77,13 +78,13 @@ class World:
         self.terrain.playerDamageCircles=self.terrain.newPlayerDamageCircles
         #draw
         
-        ...
+        return False
     
     # return world layer
-    def getSurface(self,window,frame,hitboxes=False,kindVisibility=False):
+    def getSurface(self,window_size,frame,hitboxes=False,kindVisibility=False):
 
         # set up layer
-        layer=pygame.Surface(window.get_size())
+        layer=pygame.Surface(window_size)
         if kindVisibility:
             layer.fill((200,200,200,0))
         else:
@@ -92,7 +93,7 @@ class World:
         # add lighting layer
         self.light.drawGradient(layer,frame,self.player.color,self.player.x,self.player.y)
         self.light.drawEffects(layer,frame)
-
+        self.terrain.drawNestGradients(layer,frame)
         
         #add enemies layer
 
@@ -103,7 +104,7 @@ class World:
         self.terrain.drawNests(layer,frame, hitboxes=hitboxes)
 
         # add terrain layer
-        layer.blit(self.terrain.getTerrainLayer(window,frame,hitboxes=hitboxes),(0,0),special_flags=pygame.BLEND_RGBA_SUB)
+        layer.blit(self.terrain.getTerrainLayer(window_size,frame,hitboxes=hitboxes),(0,0),special_flags=pygame.BLEND_RGBA_SUB)
 
         # add parralax
 
