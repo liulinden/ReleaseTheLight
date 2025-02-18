@@ -116,7 +116,7 @@ class Nest:
                 self.visualCharge=0
         self.glow+=((self.stage/self.maxStage*self.visualCharge/self.maxCharge*150)-self.glow)/1500*frameLength
 
-    def drawGradient(self,surface,frame):
+    def drawGradient(self,surface,frame,offset_x=0,offset_y=0):
         camX,camY,zoom=frame
         img=self.resizedGradients[zoom]
         #return
@@ -124,9 +124,9 @@ class Nest:
             filter=pygame.Surface(img.get_size(),flags=pygame.SRCALPHA)
             filter.fill((self.color[0],self.color[1],self.color[2],self.glow))
             filter.blit(img,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
-            surface.blit(filter,((self.left-camX)*zoom,(self.top-camY)*zoom))
+            surface.blit(filter,((self.left-camX)*zoom+offset_x,(self.top-camY)*zoom+offset_y))
     
-    def draw(self, surface, frame,hitbox=False):
+    def draw(self, surface, frame,hitbox=False,offset_x=0,offset_y=0):
         camX,camY,zoom=frame
         
         if hitbox:
@@ -144,7 +144,7 @@ class Nest:
         filter=pygame.Surface(img.get_size(),flags=pygame.SRCALPHA)
         filter.fill(self.color)
         filter.blit(img,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
-        surface.blit(filter,((self.left-camX)*zoom,(self.top-camY)*zoom))
+        surface.blit(filter,((self.left-camX)*zoom+offset_x,(self.top-camY)*zoom+offset_y))
 
     def addEnemy(self,airPockets):
         self.glow=200
@@ -169,6 +169,9 @@ class Nest:
         self.health-=damage
         if self.health<0:
             self.health=0
+        self.updateStage()
+
+    def updateStage(self):
         self.stage=self.maxStage-math.ceil(self.maxStage*self.health/self.maxHealth)
 
     def close(self,x:int,y:int,radius:int):

@@ -318,13 +318,13 @@ class Player:
                     break
             self.ySpeed=0
     
-    def draw(self, surface, frame,hitboxes=False):
+    def draw(self, surface, frame,hitboxes=False,offset_x=0,offset_y=0):
         camX,camY,zoom=frame
         if hitboxes:
             self.updateRect()
-            pygame.draw.rect(surface,self.color,pygame.Rect((self.rect.left-camX)*zoom,(self.rect.top-camY)*zoom,self.width*zoom,self.height*zoom))
+            pygame.draw.rect(surface,self.color,pygame.Rect((self.rect.left-camX)*zoom+offset_x,(self.rect.top-camY)*zoom+offset_y,self.width*zoom,self.height*zoom))
             for lase in self.laser:
-                lase.draw(surface,frame,self.color,hitboxes=hitboxes)
+                lase.draw(surface,frame,self.color,hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)
         else:
             playerSurface=pygame.Surface((SPRITE_WIDTH*zoom,SPRITE_HEIGHT*zoom),flags=pygame.SRCALPHA)
             playerSurface.fill((self.color[0],self.color[1],self.color[2],255))
@@ -340,10 +340,10 @@ class Player:
             
             armSurface.blit(arm,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
 
-            surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom))
-            surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY))
+            surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offset_x,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offset_y))
+            surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX+offset_x,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY+offset_y))
             for lase in self.laser:
-                lase.draw(surface,frame,self.color)
+                lase.draw(surface,frame,self.color,offset_x=offset_x,offset_y=offset_y)
 
 
     def collidingWithTerrain(self, cTerrain):

@@ -31,7 +31,7 @@ class Lighting:
             if self.particles[i].tick(frameLength)=="end":
                 self.particles.remove(self.particles[i])
 
-    def drawGradient(self,surface:pygame.Surface,frame,color,x,y):
+    def drawGradient(self,surface:pygame.Surface,frame,color,x,y,offset_x=0,offset_y=0):
         left,top,zoom=frame
         
         img=self.resizedLightIMGs["Gradient600"][zoom]
@@ -40,13 +40,13 @@ class Lighting:
         filter= pygame.Surface(dimensions,flags=pygame.SRCALPHA)
         filter.fill((color[0],color[1],color[2],60))
         filter.blit(img,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
-        surface.blit(filter,((x-left)*zoom-dimensions[0]/2,(y-top)*zoom-dimensions[1]/2))
+        surface.blit(filter,((x-left)*zoom-dimensions[0]/2+offset_x,(y-top)*zoom-dimensions[1]/2+offset_y))
         #"""
         #surface.blit(img,((x-left)*zoom-dimensions[0]/2,(y-top)*zoom-dimensions[1]/2))
     
-    def drawEffects(self,surface:pygame.Surface,frame):
+    def drawEffects(self,surface:pygame.Surface,frame,offset_x=0,offset_y=0):
         for particle in self.particles:
-            particle.draw(surface, frame)
+            particle.draw(surface, frame,offset_x=offset_x,offset_y=offset_y)
 
 class MistParticle:
     def __init__(self, x, y, IMGs, color=(255,255,255)):
@@ -80,7 +80,7 @@ class MistParticle:
         if self.fadeIn<1:
             self.fadeIn+=0.02*frameLength/16
 
-    def draw(self,surface:pygame.Surface, frame):
+    def draw(self,surface:pygame.Surface, frame,offset_x=0,offset_y=0):
         left,top,zoom=frame
         #if needed to reduce lag, can probably do most of this in the init function
         """
@@ -94,7 +94,7 @@ class MistParticle:
         """
         dimensions=(self.IMGs[zoom].get_width(),self.IMGs[zoom].get_height())
         self.IMGs[zoom].set_alpha(self.lifeTime/4*self.brightness*self.fadeIn)
-        surface.blit(self.IMGs[zoom],((self.x-left)*zoom-dimensions[0]/2,(self.y-top)*zoom-dimensions[1]/2))
+        surface.blit(self.IMGs[zoom],((self.x-left)*zoom-dimensions[0]/2+offset_x,(self.y-top)*zoom-dimensions[1]/2+offset_y))
 
 
         

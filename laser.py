@@ -68,14 +68,14 @@ class Laser:
             self.laserPoints2=self.getLaserPoints(6)
             self.damageFrame=True
     
-    def draw(self, surface, frame,color, hitboxes=False):
+    def draw(self, surface, frame,color, hitboxes=False,offset_x=0,offset_y=0):
         left,top,zoom=frame
         if hitboxes:
             dx=self.laserWidth/2*math.cos(self.angle)
             dy=self.laserWidth/2*math.sin(self.angle)
             rect=pygame.Rect(self.startX-self.laserWidth/2,self.startY-self.laserWidth/2,self.laserWidth,self.laserWidth)
             for i in range(round(self.length*2/self.laserWidth+1)):
-                pygame.draw.rect(surface,color,pygame.Rect((rect.x-left)*zoom,(rect.y-top)*zoom,rect.width*zoom,rect.width*zoom))
+                pygame.draw.rect(surface,color,pygame.Rect((rect.x-left)*zoom+offset_x,(rect.y-top)*zoom+offset_y,rect.width*zoom,rect.width*zoom))
                 rect.x+=dx
                 rect.y+=dy
         else:
@@ -88,7 +88,7 @@ class Laser:
                             x,y=point*math.cos(self.angle),point*math.sin(self.angle)
                         else:
                             x,y=point*math.cos(self.angle)+waveHeight*math.sin(self.angle),point*math.sin(self.angle)-waveHeight*math.cos(self.angle)
-                        polygonPoints.append(((x+self.startX-left)*zoom,(y+self.startY-top)*zoom))
+                        polygonPoints.append(((x+self.startX-left)*zoom+offset_x,(y+self.startY-top)*zoom+offset_y))
                     else:
                         self.laserPoints=self.getLaserPoints(6)
                         self.laserPoints2=self.getLaserPoints(6)

@@ -37,6 +37,12 @@ class World:
     def addAirPocket(self, x, y, radius):
         self.terrain.addAirPocket(x,y,radius)
     
+    def healNests(self):
+        for nest in self.terrain.nests:
+            if nest.health>0:
+                nest.health=nest.maxHealth
+                nest.updateStage()
+
     #perform frame actions
     def tick(self,FPS,window_size,frame, mousePos,keysDown,events):
         left,top,zoom=frame
@@ -81,30 +87,32 @@ class World:
         return False
     
     # return world layer
-    def getSurface(self,window_size,frame,hitboxes=False,kindVisibility=False):
+    def getSurface(self,window_size,frame,hitboxes=False,kindVisibility=False,real_window_size=0,offset_x=0,offset_y=0):
+        if real_window_size==0:
+            real_window_size=window_size
 
         # set up layer
-        layer=pygame.Surface(window_size)
+        layer=pygame.Surface(real_window_size)
         if kindVisibility:
             layer.fill((200,200,200,0))
         else:
             layer.fill((0,0,0,0))
 
         # add lighting layer
-        self.light.drawGradient(layer,frame,self.player.color,self.player.x,self.player.y)
-        self.light.drawEffects(layer,frame)
-        self.terrain.drawNestGradients(layer,frame)
+        self.light.drawGradient(layer,frame,self.player.color,self.player.x,self.player.y,offset_x=offset_x,offset_y=offset_y)
+        self.light.drawEffects(layer,frame,offset_x=offset_x,offset_y=offset_y)
+        self.terrain.drawNestGradients(window_size,layer,frame,offset_x=offset_x,offset_y=offset_y)
         
         #add enemies layer
 
         # add player layer
-        self.player.draw(layer, frame,hitboxes=hitboxes)
+        self.player.draw(layer, frame,hitboxes=hitboxes, offset_x=offset_x,offset_y=offset_y)
 
         # add nests layer
-        self.terrain.drawNests(layer,frame, hitboxes=hitboxes)
+        self.terrain.drawNests(window_size,layer,frame, hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)
 
         # add terrain layer
-        layer.blit(self.terrain.getTerrainLayer(window_size,frame,hitboxes=hitboxes),(0,0),special_flags=pygame.BLEND_RGBA_SUB)
+        layer.blit(self.terrain.getTerrainLayer(window_size,frame,hitboxes=hitboxes,real_window_size=real_window_size,offset_x=offset_x,offset_y=offset_y),(0,0),special_flags=pygame.BLEND_RGBA_SUB)
 
         # add parralax
 
