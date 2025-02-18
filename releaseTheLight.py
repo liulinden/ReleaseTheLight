@@ -44,7 +44,7 @@ class Game:
         self.camOffsetY=min(max(self.camOffsetY,self.window.get_height()/zoom*1/6),self.window.get_height()/zoom*(-1/6))
         self.camOffsetX,self.camOffsetY=0,0
         self.camX += (self.camOffsetX+playerX-self.camX-self.window.get_width()/zoom/2)*frameLength/200
-        self.camY += (self.camOffsetY+max(50,playerY)-self.camY-self.window.get_height()/zoom/2)*frameLength/200
+        self.camY += (self.camOffsetY+max(-50,playerY)-self.camY-self.window.get_height()/zoom/2)*frameLength/200
 
 
     def run(self):
