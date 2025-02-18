@@ -1,3 +1,7 @@
-import releaseTheLight
+import pygame
+pygame.init()
 
-releaseTheLight.Game(FPS=90,developingMode=True).run()
+window = pygame.display.set_mode((0,0))
+
+import releaseTheLight
+releaseTheLight.Game(window,FPS=90,developingMode=True).run()

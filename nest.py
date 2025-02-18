@@ -73,6 +73,7 @@ class Nest:
         self.health=self.maxHealth
 
         self.maxCharge=self.maxHealth/3+100
+        self.visualCharge=self.maxCharge
         self.charge=self.maxCharge
         self.chargeRate=self.maxCharge/10000
         self.charging=(0,0,0)
@@ -86,7 +87,7 @@ class Nest:
 
     def updateColor(self):
         cw,cb,cr=self.charging
-        cw,cb,cr=cw*self.charge,cb*self.charge,cr*self.charge
+        cw,cb,cr=cw*self.visualCharge,cb*self.visualCharge,cr*self.visualCharge
         r,g,b=0,0,0
         r+=cr+cw
         g+=cw+cb/4
@@ -105,8 +106,15 @@ class Nest:
             #self destruct animation and self-removal?
             ...
 
-    def draw(self, surface, frame, hitbox=False):
+    def updateVisuals(self,frameLength):
+        if self.charge==0 and self.visualCharge!=0:
+            self.visualCharge-=frameLength/10
+            if self.visualCharge<0:
+                self.visualCharge=0
+
+    def draw(self, surface, frame,hitbox=False):
         camX,camY,zoom=frame
+        
         if hitbox:
             img=self.resizedHitboxes[zoom]
         else:

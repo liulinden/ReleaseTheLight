@@ -43,7 +43,8 @@ class Terrain:
     def addAirPocketToSurfaces(self, airPocket):
         row,column=math.floor(airPocket.y/500),math.floor(airPocket.x/500)
         if row>9:
-            print("broken")
+            #print("broken")
+            ...
         for offsets in ([0,0],[0,1],[1,0],[0,-1],[0,-1],[-1,0],[-1,0],[0,1],[0,1]):
             row+=offsets[0]
             column+=offsets[1]
@@ -54,6 +55,11 @@ class Terrain:
 
     # generate caves/nests/decorations
     def generate(self):
+        x=0
+        while x<self.worldWidth:
+            r=random.randint(10,30)
+            self.addAirPocket(x,0,r,playerMade=True)
+            x+=r/2
         for i in range(int(self.worldHeight/100)):
             for j in range(int(self.worldWidth/1000)):
 
@@ -83,11 +89,11 @@ class Terrain:
                 if random.randint(1,15)==1:
                     self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-500)*1/4),self.worldHeight-500),"Blue")
                 
-                if random.randint(1,25)==1:
+                if random.randint(1,50)==1:
                     self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-800)),self.worldHeight-100),"White")
-                if random.randint(1,25)==1:
+                if random.randint(1,40)==1:
                     self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-800)),self.worldHeight-100),"Red")
-                if random.randint(1,25)==1:
+                if random.randint(1,40)==1:
                     self.generateNest(j*1000+random.randint(0,1000),random.randint(int((self.worldHeight-800)),self.worldHeight-100),"Blue")
 
     def generateNest(self,x,y,nestType, size=0):
@@ -202,6 +208,10 @@ class Terrain:
         for nest in self.nests:
             if nest.close(x,y,r):
                 nest.draw(window,frame,hitbox=hitboxes)
+
+        if hitboxes:
+            #sunnest
+            pygame.draw.rect(window,(255,255,255),pygame.Rect(0,(self.worldHeight-top)*zoom,w_width,200))
 
     # return terrain layer
     def getTerrainLayer(self,window:pygame.Surface,frame:list,hitboxes=False):

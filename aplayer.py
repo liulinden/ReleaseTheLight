@@ -80,7 +80,7 @@ class Player:
         self.laserCooldown=400
         self.laser=[]
         self.chargeDistribution=(1,0,0)
-        self.charge=200
+        self.charge=150
         self.maxCharge=500
 
         self.playerIMGs = {}
@@ -156,8 +156,8 @@ class Player:
     def updateLaserStats(self):
         cw,cb,cr=self.chargeDistribution
         cw,cb,cr=cw*self.charge,cb*self.charge,cr*self.charge
-        self.laserPower=15+cw/15+cr/6+cb/20
-        self.laserKnockback=5+cw/20+cr/25+cb/14
+        self.laserPower=15+cw/15+cr/5+cb/20
+        self.laserKnockback=5+cw/20+cr/25+cb/9
         self.laserCooldown=600-cw/2-cb/10+cr/5
 
     def addCharge(self, addedCharge, chargeDistribution, maxCharge):
@@ -194,13 +194,14 @@ class Player:
         for lase in self.laser:
             lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1])
             lase.tick(frameLength)
-            for point in lase.collision:
-                if lase.damageFrame:
+            if lase.damageFrame:
+                for point in lase.collision:
                     x,y=point
                     cTerrain.addAirPocket(x, y, self.laserPower, playerMade=True)
                     cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback])
                     cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower])
-                    self.loseCharge(2)
+                self.loseCharge(2)
+                    
 
 
         for knockbackCircle in cTerrain.knockbackCircles:
@@ -212,7 +213,7 @@ class Player:
             self.ySpeed+=frameLength*dy/distance*knockback
 
         for nest in cTerrain.nests:
-            if nest.stage==nest.maxStage and nest.withinEffectRadius(self.x,self.y):
+            if nest.stage==nest.maxStage and nest.withinEffectRadius(self.x,self.y) and nest.charge>0:
                 chargeGain=self.addCharge(nest.chargeRate*frameLength, nest.charging,nest.maxCharge)
                 nest.loseCharge(chargeGain)
         self.updateLaserStats()

@@ -1,9 +1,10 @@
 # imports
-import pygame, random
-pygame.init()
+import pygame,world, random,UI
 
 class Game:
-    def __init__(self,FPS=60,WINDOW_WIDTH=1200,WINDOW_HEIGHT=700,developingMode=False):
+    def __init__(self,window,FPS=60,developingMode=False):
+
+        self.window = window
 
         # constants
         self.FPS = FPS
@@ -15,6 +16,7 @@ class Game:
         self.mode = "play"
 
         self.developingMode= developingMode
+        
     
     def coordsWindowToWorld(self,coords:list[int]):
         return self.camX+coords[0]/self.zoom,self.camY+coords[1]/self.zoom
@@ -41,18 +43,16 @@ class Game:
         self.camOffsetX=min(max(self.camOffsetX,self.window.get_width()/zoom*1/6),self.window.get_width()/zoom*(-1/6))
         self.camOffsetY=min(max(self.camOffsetY,self.window.get_height()/zoom*1/6),self.window.get_height()/zoom*(-1/6))
         self.camOffsetX,self.camOffsetY=0,0
-        self.camX += (self.camOffsetX+playerX-self.camX-self.window.get_width()/zoom/2)*frameLength/100
-        self.camY += (self.camOffsetY+playerY-self.camY-self.window.get_height()/zoom/2)*frameLength/100
+        self.camX += (self.camOffsetX+playerX-self.camX-self.window.get_width()/zoom/2)*frameLength/200
+        self.camY += (self.camOffsetY+max(50,playerY)-self.camY-self.window.get_height()/zoom/2)*frameLength/200
 
 
     def run(self):
         
         #self.window = pygame.display.set_mode([self.window.get_width(),self.window.get_height()])
-        self.window = pygame.display.set_mode((0,0))
-        print(self.window.get_size())
         #self.window.get_width(),self.window.get_height()=self.window.get_size()
-
-        import world
+        
+        self.chargeDisplay=UI.ChargeDisplay(self.WORLD_HEIGHT)
         self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,defaultZooms=self.DEFAULT_ZOOMS)
         self.clock = pygame.time.Clock()
         self.keysDown = {pygame.K_w:False,
@@ -93,13 +93,7 @@ class Game:
                     self.events["mouseDown"]=True
                     self.keysDown["mouse"]=True
                     x,y= self.coordsWindowToWorld((mouseX,mouseY))
-
-                    #self.gameWorld.player.x,self.gameWorld.player.y=x,y
-                    #self.gameWorld.player.updateRect()
                     
-                    #self.gameWorld.terrain.generateSkinnyCave(x,y,50)
-
-                    #self.gameWorld.terrain.generateNest(x,y,"White",100)
                 if event.type==pygame.MOUSEBUTTONUP:
                     self.keysDown["mouse"]=False
                     self.events["mouseUp"]=True
@@ -120,12 +114,19 @@ class Game:
                                 self.kindVisibility= not self.kindVisibility
                             case pygame.K_h:
                                 self.visibleHitboxes=not self.visibleHitboxes
+                            case pygame.K_t:
+                                x,y= self.coordsWindowToWorld((mouseX,mouseY))
+
+                                self.gameWorld.player.x,self.gameWorld.player.y=x,y
+                                self.gameWorld.player.updateRect()
                 
                 if event.type==pygame.KEYUP:
                     if event.key in self.keysDown:
                         self.keysDown[event.key]=False
             
+            startCharge=self.gameWorld.player.charge
             self.gameWorld.tick(practicalFPS,self.window,[self.camX,self.camY,self.zoom],self.coordsWindowToWorld((mouseX,mouseY)),self.keysDown,self.events)
+            self.chargeDisplay.update(practicalFPS,self.gameWorld.player.color,startCharge,self.gameWorld.player.charge,self.gameWorld.player.y)
 
             self.updateCamPos(practicalFPS,self.zoom,self.gameWorld.player.x,self.gameWorld.player.y,self.gameWorld.player.xSpeed,self.gameWorld.player.ySpeed)
 
@@ -134,13 +135,17 @@ class Game:
             
             for lase in self.gameWorld.player.laser:
                 if lase.damageFrame:
-                    self.shake=5
+                    self.shake=self.gameWorld.player.laserPower/20
                 else:
-                    self.shake+=0.1
+                    self.shake+=self.gameWorld.player.laserPower/300
+                    #self.shake+=0.1
             self.shake*=0.9
 
-            # display terrain layer
+            # display world layer
             self.window.blit(self.gameWorld.getSurface(self.window,[self.camX+(2*random.random()-1)*self.shake,self.camY+(2*random.random()-1)*self.shake,self.zoom],hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
+
+            # display UI stuff
+            self.chargeDisplay.draw(self.window)
 
             # update window
             pygame.display.flip()

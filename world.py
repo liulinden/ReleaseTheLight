@@ -61,6 +61,7 @@ class World:
         w_width,w_height=window.get_size()
         x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
         for nest in self.terrain.nests:
+            nest.updateVisuals(frameLength)
             nest.applyDamageFromCircles(self.terrain.playerDamageCircles)
             """
             if nest.stage!=nest.maxStage:
@@ -99,7 +100,7 @@ class World:
         self.player.draw(layer, frame,hitboxes=hitboxes)
 
         # add nests layer
-        self.terrain.drawNests(layer,frame,hitboxes=hitboxes)
+        self.terrain.drawNests(layer,frame, hitboxes=hitboxes)
 
         # add terrain layer
         layer.blit(self.terrain.getTerrainLayer(window,frame,hitboxes=hitboxes),(0,0),special_flags=pygame.BLEND_RGBA_SUB)
