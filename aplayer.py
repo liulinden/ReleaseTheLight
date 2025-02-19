@@ -1,4 +1,4 @@
-import pygame,math,terrain,laser
+import pygame,math,terrain,laser,particles
 
 #function by chatgpt
 def rotateAndGetOffset(surface,cx,cy,angle):
@@ -167,8 +167,8 @@ class Player:
         cw,cb,cr=self.chargeDistribution
         cw,cb,cr=cw*self.charge,cb*self.charge,cr*self.charge
         self.laserPower=15+cw/15+cr/5+cb/20
-        self.laserKnockback=6+cw/40+cr/40+cb/10
-        self.laserCooldown=600-cw/2-cb/10+cr/5
+        self.laserKnockback=8+cw/35+cr/35+cb/10
+        self.laserCooldown=500-cw/5-cb/5+cr/5
 
     def addCharge(self, addedCharge, chargeDistribution, maxCharge):
         w,b,r=self.chargeDistribution
@@ -211,9 +211,13 @@ class Player:
             lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1])
             lase.tick(frameLength)
             if lase.damageFrame:
-                for point in lase.collision:
+                if lase.collision:
+                    point= lase.collision[0]
                     x,y=point
                     cTerrain.addAirPocket(x, y, self.laserPower, playerMade=True)
+                    print(lase.collision)
+                    if lase.collision[1]=="ground":
+                        cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower,x,y)
                     cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback])
                     cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower])
                 if self.loseCharge(2):
@@ -223,7 +227,6 @@ class Player:
             dx = self.x-knockbackCircle[0]
             dy = self.y-knockbackCircle[1]
             distance=math.sqrt(dx**2+dy**2)
-            print(max(30,distance))
             knockback=knockbackCircle[2]/distance/100
             self.xSpeed+=frameLength*dx/distance*knockback
             self.ySpeed+=frameLength*dy/distance*knockback
@@ -289,13 +292,15 @@ class Player:
             self.xSpeed=0
     
 
-    def moveVertical(self, frameLength,cTerrain):
+    def moveVertical(self, frameLength,cTerrain:terrain.Terrain):
         self.onGround=False
         self.y+=frameLength*self.ySpeed
         self.updateRect()
         if self.collidingWithTerrain(cTerrain):
             if self.ySpeed>0:
                 self.onGround=True
+                if not cTerrain.nestsCollideRect(self.rect):
+                    cTerrain.particles.spawnMiningParticles(int(abs((abs(max(0.005*frameLength,abs(self.xSpeed))-0.005*frameLength)+3*(self.ySpeed-0.0015*frameLength))*12)),(0,0,0),20,self.x,self.y+self.height/2,time=200)
             if self.ySpeed<0:
                 slopeTolerance=math.ceil(abs(0.5*frameLength*self.ySpeed))
                 for i in range(slopeTolerance):

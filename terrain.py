@@ -1,4 +1,4 @@
-import pygame, random, math, nest
+import pygame, random, math, nest,particles
 
 # load images
 airIMGs=[]
@@ -30,6 +30,7 @@ class Terrain:
         self.worldHeight=worldHeight
         self.defaultZooms = defaultZooms
         self.airPocketsSurfaces = {}
+        self.particles=particles.Particles()
         for zoom in defaultZooms:
             self.airPocketsSurfaces[zoom]=[]
             for row in range(math.ceil(worldHeight/500)):
@@ -199,6 +200,20 @@ class Terrain:
 
         return not (terrainMask.overlap(rectMask,(0,0)) ==None)
         #compare with rect
+    
+    def nestsCollideRect(self,rect:pygame.Rect):
+        rectMask=pygame.Mask((rect.width,rect.height),fill=True)
+        collidingLayer=pygame.Surface((rect.width,rect.height),flags=pygame.SRCALPHA)
+        #collidingLayer.fill((0,0,0,0))
+        self.drawNests((rect.width,rect.height),collidingLayer,[rect.left,rect.top,1],hitboxes=True)
+        terrainMask = pygame.mask.from_surface(collidingLayer)
+        return not (terrainMask.overlap(rectMask,(0,0)) ==None)
+    
+    def groundCollideRect(self,rect:pygame.Rect):
+        rectMask=pygame.Mask((rect.width,rect.height),fill=True)
+        collidingLayer=self.getTerrainLayer((rect.width,rect.height),[rect.left,rect.top,1],hitboxes=True)
+        terrainMask = pygame.mask.from_surface(collidingLayer)
+        return not (terrainMask.overlap(rectMask,(0,0)) ==None)
 
     #window_size is the size of the smaller window that should have things being drawn in. dimensions might be different versus surface, which is the surface actually being drawn on
     def drawNestGradients(self,window_size,surface:pygame.Surface,frame:list,hitboxes=False,offset_x=0,offset_y=0):

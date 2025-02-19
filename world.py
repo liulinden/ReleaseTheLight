@@ -41,7 +41,7 @@ class World:
         for nest in self.terrain.nests:
             if nest.health>0:
                 nest.health=nest.maxHealth
-                nest.updateStage()
+                nest.stage=0
 
     #perform frame actions
     def tick(self,FPS,window_size,frame, mousePos,keysDown,events):
@@ -61,7 +61,7 @@ class World:
         if random.randint(1,math.ceil(FPS/10))==1:
             self.light.addMistParticle(self.player.x,self.player.y,color=self.player.color)
         for lase in self.player.laser:
-            if random.randint(1,math.ceil(FPS/max(1,lase.length)*30))==1:
+            if random.randint(1,math.ceil(FPS/max(1,lase.length)*25))==1:
                 mistPos= random.random()
                 self.light.addMistParticle(lase.startX+mistPos*lase.length*math.cos(lase.angle),lase.startY+mistPos*lase.length*math.sin(lase.angle),color=self.player.color)
 
@@ -69,7 +69,8 @@ class World:
         x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
         for nest in self.terrain.nests:
             nest.updateVisuals(frameLength)
-            nest.applyDamageFromCircles(self.terrain.playerDamageCircles)
+            for particleCoords in nest.applyDamageFromCircles(self.terrain.playerDamageCircles):
+                self.terrain.particles.spawnMiningParticles(10,nest.color,self.player.laserPower/2,particleCoords[0],particleCoords[1])
             """
             if nest.stage!=nest.maxStage:
                 d=distance((self.x,self.y),(nest.x,nest.y))
@@ -79,6 +80,7 @@ class World:
                 self.light.addMistParticle(nest.x,nest.y,color=nest.color)
         
         self.light.tickEffects(frameLength)
+        self.terrain.particles.tickParticles(frameLength)
 
         self.terrain.knockbackCircles=self.terrain.newKnockbackCircles
         self.terrain.playerDamageCircles=self.terrain.newPlayerDamageCircles
@@ -94,19 +96,27 @@ class World:
         # set up layer
         layer=pygame.Surface(real_window_size)
         if kindVisibility:
-            layer.fill((200,200,200,0))
+            layer.fill((200,200,200))
         else:
-            layer.fill((0,0,0,0))
+            layer.fill((0,0,0))
 
         # add lighting layer
-        self.light.drawGradient(layer,frame,self.player.color,self.player.x,self.player.y,offset_x=offset_x,offset_y=offset_y)
         self.light.drawEffects(layer,frame,offset_x=offset_x,offset_y=offset_y)
+
+        self.light.drawGradient(layer,frame,self.player.color,self.player.x,self.player.y,offset_x=offset_x,offset_y=offset_y)
+        if self.player.laser:
+            if self.player.laser[0].collision:
+                x,y=self.player.laser[0].collision[0]
+                self.light.drawGradient(layer,frame,self.player.color,x,y,offset_x=offset_x,offset_y=offset_y)
+        
         self.terrain.drawNestGradients(window_size,layer,frame,offset_x=offset_x,offset_y=offset_y)
         
         #add enemies layer
 
         # add player layer
         self.player.draw(layer, frame,hitboxes=hitboxes, offset_x=offset_x,offset_y=offset_y)
+        
+        self.terrain.particles.drawParticles(layer,frame,offset_x=offset_x,offset_y=offset_y)
 
         # add nests layer
         self.terrain.drawNests(window_size,layer,frame, hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)

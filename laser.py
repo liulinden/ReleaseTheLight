@@ -13,10 +13,11 @@ class Laser:
         self.sinWaveOffset=0
         self.timer=0
         self.laserTime=400
-        self.laserWidth=10
+        self.laserWidth=20
         self.maxLength=400
         self.collision=[]
         self.damageFrame=False
+        self.hitboxes=[]
 
     def getLaserPoints(self, n_points):
         n_points=max(3,1+round(self.length/40))
@@ -31,12 +32,45 @@ class Laser:
         return points
 
     def getAngleLength(self,terrain,targetX,targetY):
-
+        
+        self.hitboxes=[]
         dx=targetX-self.startX
         dy=targetY-self.startY
         angle=math.atan2(dy,dx)
 
         length=math.sqrt(dx**2+dy**2)
+
+        dx/=length
+        dy/=length
+        size=self.laserWidth
+        distance=0
+        self.collision=[]
+
+        rect=pygame.Rect(self.startX+dx*distance,self.startY+dy*distance,size,size)
+        while distance<self.maxLength:
+            distance+=size
+            if distance>self.maxLength:
+                distance=self.maxLength
+            rect.x=self.startX+dx*distance
+            rect.y=self.startY+dy*distance
+            if terrain.collideRect(rect):
+                if size>1:
+                    distance-=size
+                    size=math.ceil(size/2)
+                    if size>=5:
+                        rect.width=size
+                        rect.height=size
+                else:
+                    self.hitboxes.append([rect.left,rect.top,rect.width,rect.height])
+                    if terrain.nestsCollideRect(rect):
+                        self.collision=[rect.center,"nests"]
+                    else:
+                        self.collision=[rect.center,"ground"]
+                    break
+            else:
+                self.hitboxes.append([rect.left,rect.top,rect.width,rect.height])
+        return angle,distance
+
         dx*=self.laserWidth/2/length
         dy*=self.laserWidth/2/length
 
@@ -71,13 +105,8 @@ class Laser:
     def draw(self, surface, frame,color, hitboxes=False,offset_x=0,offset_y=0):
         left,top,zoom=frame
         if hitboxes:
-            dx=self.laserWidth/2*math.cos(self.angle)
-            dy=self.laserWidth/2*math.sin(self.angle)
-            rect=pygame.Rect(self.startX-self.laserWidth/2,self.startY-self.laserWidth/2,self.laserWidth,self.laserWidth)
-            for i in range(round(self.length*2/self.laserWidth+1)):
-                pygame.draw.rect(surface,color,pygame.Rect((rect.x-left)*zoom+offset_x,(rect.y-top)*zoom+offset_y,rect.width*zoom,rect.width*zoom))
-                rect.x+=dx
-                rect.y+=dy
+            for hitbox in self.hitboxes:
+                pygame.draw.rect(surface,color,pygame.Rect((hitbox[0]-left)*zoom+offset_x,(hitbox[1]-top)*zoom+offset_y,hitbox[2]*zoom,hitbox[3]*zoom))
         else:
             for laserPart in [self.laserPoints,self.laserPoints2]:
                 polygonPoints=[]

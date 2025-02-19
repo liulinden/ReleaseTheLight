@@ -17,7 +17,7 @@ class Lighting:
                 for zoom in defaultZooms:
                     IMGs[zoom]=pygame.transform.scale(lightIMG,(zoom*size,zoom*size))
                 self.resizedLightIMGs["MistParticles"].append(IMGs)
-        for size in [300,600]:
+        for size in [400,600,800]:
             self.resizedLightIMGs["Gradient"+str(size)]={}
             for zoom in defaultZooms:
                 self.resizedLightIMGs["Gradient"+str(size)][zoom]=pygame.transform.scale(lightGradient,(zoom*size,zoom*size))
@@ -34,8 +34,8 @@ class Lighting:
     def drawGradient(self,surface:pygame.Surface,frame,color,x,y,offset_x=0,offset_y=0):
         left,top,zoom=frame
         
-        img=self.resizedLightIMGs["Gradient600"][zoom]
-        dimensions=(img.get_width(),img.get_height())
+        img=self.resizedLightIMGs["Gradient400"][zoom]
+        dimensions=img.get_size()
         #"""
         filter= pygame.Surface(dimensions,flags=pygame.SRCALPHA)
         filter.fill((color[0],color[1],color[2],60))

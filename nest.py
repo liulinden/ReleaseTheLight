@@ -158,12 +158,15 @@ class Nest:
         return False
 
     def applyDamageFromCircles(self,damageCircles):
+        newParticles=[]
         if self.health>0:
             for circle in damageCircles:
                 x,y,r=circle
                 if self.close(x,y,0):
                     self.glow=200
                     self.dealDamage(r/2)
+                    newParticles.append([x,y])
+        return newParticles
     
     def dealDamage(self,damage):
         self.health-=damage
@@ -172,7 +175,7 @@ class Nest:
         self.updateStage()
 
     def updateStage(self):
-        self.stage=self.maxStage-math.ceil(self.maxStage*self.health/self.maxHealth)
+        self.stage=self.maxStage-math.ceil((self.maxStage-1)*self.health/self.maxHealth)
 
     def close(self,x:int,y:int,radius:int):
         if abs(self.x-x)>radius+self.size/2:

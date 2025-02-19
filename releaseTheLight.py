@@ -10,7 +10,7 @@ class Game:
         # constants
         self.FPS = FPS
         self.DEFAULT_ZOOMS = [0.1,0.3,0.5,1,2]
-        self.WORLD_WIDTH = 4000
+        self.WORLD_WIDTH = 2000
         self.WORLD_HEIGHT = 10000
 
         self.offset_x=0
