@@ -6,10 +6,6 @@ def distance(coord1:int,coord2:int):
     x2,y2=coord2
     return math.sqrt((x1-x2)**2+(y1-y2)**2)
 
-# load images
-airIMGs=[]
-for i in range(5):
-    airIMGs.append(pygame.image.load(".AirPocket"+str(i+1)+".png").convert_alpha())
 
 # overall game world class
 class World:

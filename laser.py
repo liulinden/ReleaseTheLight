@@ -48,14 +48,9 @@ class Laser:
 
         rect=pygame.Rect(self.startX+dx*distance,self.startY+dy*distance,size,size)
         while distance<self.maxLength:
-            distance+=size
-            if distance>self.maxLength:
-                distance=self.maxLength
-            rect.x=self.startX+dx*distance
-            rect.y=self.startY+dy*distance
             if terrain.collideRect(rect):
                 if size>1:
-                    distance-=size
+                    distance=max(0,distance-size)
                     size=math.ceil(size/2)
                     if size>=5:
                         rect.width=size
@@ -69,6 +64,11 @@ class Laser:
                     break
             else:
                 self.hitboxes.append([rect.left,rect.top,rect.width,rect.height])
+            distance+=size
+            if distance>self.maxLength:
+                distance=self.maxLength
+            rect.x=self.startX+dx*distance
+            rect.y=self.startY+dy*distance
         return angle,distance
 
         dx*=self.laserWidth/2/length
@@ -119,6 +119,7 @@ class Laser:
                             x,y=point*math.cos(self.angle)+waveHeight*math.sin(self.angle),point*math.sin(self.angle)-waveHeight*math.cos(self.angle)
                         polygonPoints.append(((x+self.startX-left)*zoom+offset_x,(y+self.startY-top)*zoom+offset_y))
                     else:
+                        print(self.length)
                         self.laserPoints=self.getLaserPoints(6)
                         self.laserPoints2=self.getLaserPoints(6)
                         self.draw(surface,frame,color,hitboxes=hitboxes)

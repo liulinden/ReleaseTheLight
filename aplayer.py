@@ -51,7 +51,7 @@ SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
 ARM_PIVOT_X =20
 ARM_PIVOT_Y=21
-LASER_DISTANCE=21
+LASER_DISTANCE=19
 animationLengths = {"Idle":8,"Run":8,"Backpedal":8,"Falling":1,"Jumping":1}
 animationFPS=13
 
@@ -125,9 +125,9 @@ class Player:
         self.armAngle=-math.atan2(targetY-self.y,targetX-self.x)
 
         if not self.onGround:
-            if self.ySpeed>0:
+            if self.ySpeed>0.2:
                 self.animationType="Falling"
-            else:
+            elif self.ySpeed<-0.2:
                 self.animationType="Jumping"
         else:
             if abs(self.xSpeed)>0.1:
