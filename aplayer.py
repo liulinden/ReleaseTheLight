@@ -299,11 +299,14 @@ class Player:
                         self.xSpeed-=self.xSpeed*i/slopeTolerance
                     return
             self.y+=slopeTolerance
+            self.x-=frameLength*self.xSpeed
             backs=math.ceil(abs(frameLength*self.xSpeed/1))
             for i in range(backs):
-                self.x-=frameLength*self.xSpeed/backs
+                self.x+=frameLength*self.xSpeed/backs
                 self.updateRect()
-                if not self.collidingWithTerrain(cTerrain):
+                if self.collidingWithTerrain(cTerrain):
+                    self.x-=frameLength*self.xSpeed/backs
+                    self.updateRect()
                     break
             self.xSpeed=0
     
@@ -331,11 +334,14 @@ class Player:
                     if not self.collidingWithTerrain(cTerrain):
                         return
                 self.x-=slopeTolerance
+            self.y-=frameLength*self.ySpeed
             backs=math.ceil(abs(frameLength*self.ySpeed/1))
             for i in range(backs):
-                self.y-=frameLength*self.ySpeed/backs
+                self.y+=frameLength*self.ySpeed/backs
                 self.updateRect()
-                if not self.collidingWithTerrain(cTerrain):
+                if self.collidingWithTerrain(cTerrain):
+                    self.y-=frameLength*self.ySpeed/backs
+                    self.updateRect()
                     break
             self.ySpeed=0
     
