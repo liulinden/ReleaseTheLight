@@ -230,7 +230,6 @@ class Player:
                     point= lase.collision[0]
                     x,y=point
                     cTerrain.addAirPocket(x, y, self.laserPower, playerMade=True)
-                    print(lase.collision)
                     if lase.collision[1]=="ground":
                         cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower,x,y)
                     cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback])
