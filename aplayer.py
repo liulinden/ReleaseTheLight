@@ -51,7 +51,7 @@ SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
 ARM_PIVOT_X =20
 ARM_PIVOT_Y=21
-LASER_DISTANCE=19
+LASER_DISTANCE=18
 animationLengths = {"Idle":8,"Run":8,"Backpedal":8,"Falling":1,"Jumping":1}
 animationFPS=13
 
@@ -69,6 +69,7 @@ class Player:
         self.rect=pygame.Rect(self.x-self.width/2,self.y-self.height/2,self.width,self.height)
         self.onGround=False
         self.color=(255,0,0)
+        self.visualColor=(255,0,0)
         self.defaultZooms=defaultZooms
         self.facing = "Right"
         self.animationTimer=0
@@ -162,6 +163,20 @@ class Player:
         g=math.sqrt(min(g/self.maxCharge,1))
         b=math.sqrt(min(b/self.maxCharge,1))
         self.color=(r*255,g*255,b*255)
+    
+    def updateVisualColor(self):
+        self.visualColor=self.color
+        return
+        cw,cb,cr=self.chargeDistribution
+        r,g,b=0,0,0
+        r+=cr+cw
+        g+=cw+cb/4
+        b+=cw+cb
+        r=(math.sqrt(min(r,1))+self.color[0]/255)/2
+        g=(math.sqrt(min(g,1))+self.color[1]/255)/2
+        b=(math.sqrt(min(b,1))+self.color[2]/255)/2
+        self.visualColor=(r*255,g*255,b*255)
+        print(self.visualColor)
 
     def updateLaserStats(self):
         cw,cb,cr=self.chargeDistribution
@@ -208,7 +223,7 @@ class Player:
         self.laserTimer=max(0,self.laserTimer)
         
         for lase in self.laser:
-            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1])
+            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),-self.armAngle)
             lase.tick(frameLength)
             if lase.damageFrame:
                 if lase.collision:
@@ -260,9 +275,10 @@ class Player:
         self.moveHorizontal(frameLength,cTerrain)
 
         self.updateColor()
+        self.updateVisualColor()
         self.updateCostume(frameLength,mousePos)
         for lase in self.laser:
-            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),mousePos[0],mousePos[1],self.laserCooldown)
+            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),-self.armAngle,self.laserCooldown)
         return False
     
     def moveHorizontal(self, frameLength,cTerrain):
@@ -327,12 +343,12 @@ class Player:
         camX,camY,zoom=frame
         if hitboxes:
             self.updateRect()
-            pygame.draw.rect(surface,self.color,pygame.Rect((self.rect.left-camX)*zoom+offset_x,(self.rect.top-camY)*zoom+offset_y,self.width*zoom,self.height*zoom))
+            pygame.draw.rect(surface,self.visualColor,pygame.Rect((self.rect.left-camX)*zoom+offset_x,(self.rect.top-camY)*zoom+offset_y,self.width*zoom,self.height*zoom))
             for lase in self.laser:
-                lase.draw(surface,frame,self.color,hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)
+                lase.draw(surface,frame,self.visualColor,hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)
         else:
             playerSurface=pygame.Surface((SPRITE_WIDTH*zoom,SPRITE_HEIGHT*zoom),flags=pygame.SRCALPHA)
-            playerSurface.fill((self.color[0],self.color[1],self.color[2],255))
+            playerSurface.fill((self.visualColor[0],self.visualColor[1],self.visualColor[2],255))
             playerSurface.blit(self.playerIMGs[zoom][self.facing][self.animationType][self.animationFrame],(0,0),special_flags=pygame.BLEND_RGBA_MULT)
 
             adjustedArmAngle=self.armAngle
@@ -341,14 +357,14 @@ class Player:
             arm,offsetX,offsetY=rotateAndGetOffset(self.playerIMGs[zoom][self.facing]["Arm"][0],zoom*ARM_PIVOT_X,zoom*ARM_PIVOT_Y,adjustedArmAngle)
             width,height=arm.get_size()
             armSurface=pygame.Surface((width,height),flags=pygame.SRCALPHA)
-            armSurface.fill((self.color[0],self.color[1],self.color[2],255))
+            armSurface.fill((self.visualColor[0],self.visualColor[1],self.visualColor[2],255))
             
             armSurface.blit(arm,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
 
             surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offset_x,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offset_y))
             surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX+offset_x,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY+offset_y))
             for lase in self.laser:
-                lase.draw(surface,frame,self.color,offset_x=offset_x,offset_y=offset_y)
+                lase.draw(surface,frame,self.visualColor,offset_x=offset_x,offset_y=offset_y)
 
 
     def collidingWithTerrain(self, cTerrain):

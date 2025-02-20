@@ -31,17 +31,13 @@ class Laser:
             points.append(spacing*(n_points-3-i)+random.random()*spacing)
         return points
 
-    def getAngleLength(self,terrain,targetX,targetY):
+    def getLength(self,terrain,angle):
         
         self.hitboxes=[]
-        dx=targetX-self.startX
-        dy=targetY-self.startY
-        angle=math.atan2(dy,dx)
 
-        length=math.sqrt(dx**2+dy**2)
+        dy=math.sin(angle)
+        dx=math.cos(angle)
 
-        dx/=length
-        dy/=length
         size=self.laserWidth
         distance=0
         self.collision=[]
@@ -64,12 +60,12 @@ class Laser:
                     break
             else:
                 self.hitboxes.append([rect.left,rect.top,rect.width,rect.height])
-            distance+=size
-            if distance>self.maxLength:
-                distance=self.maxLength
-            rect.x=self.startX+dx*distance
-            rect.y=self.startY+dy*distance
-        return angle,distance
+                distance+=size
+                if distance>self.maxLength:
+                    distance=self.maxLength
+                rect.x=self.startX+dx*distance
+                rect.y=self.startY+dy*distance
+        return distance
 
         dx*=self.laserWidth/2/length
         dy*=self.laserWidth/2/length
@@ -86,9 +82,10 @@ class Laser:
         return angle,self.maxLength
         #return math.atan2(dy,dx),math.sqrt(dx**2+dy**2)*5
     
-    def updateLaser(self,terrain,startX,startY,targetX,targetY,laserCooldown=0):
+    def updateLaser(self,terrain,startX,startY,angle,laserCooldown=0):
         self.startX,self.startY=startX,startY
-        self.angle,self.length=self.getAngleLength(terrain,targetX,targetY)
+        self.angle=angle
+        self.length=self.getLength(terrain,angle)
         if laserCooldown!=0:
             self.laserTime=laserCooldown
 

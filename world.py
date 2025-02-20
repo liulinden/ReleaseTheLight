@@ -1,6 +1,8 @@
 # imports
 import pygame, random, terrain, decoration, aplayer,lighting,math
 
+background=pygame.image.load(".Background.png").convert()
+
 def distance(coord1:int,coord2:int):
     x1,y1=coord1
     x2,y2=coord2
@@ -21,6 +23,8 @@ class World:
         self.defaultZooms = defaultZooms
         self.player= aplayer.Player(defaultZooms,worldWidth/2,-1200)
         self.light=lighting.Lighting(defaultZooms=defaultZooms)
+        self.background=pygame.transform.scale(background,(4000,4000))
+        self.bg_width,self.bg_height=self.background.get_size()
 
         # procedural generation
         self.generateWorld()
@@ -84,6 +88,11 @@ class World:
         
         return False
     
+    def drawBackground(self,layer,window_size,frame):
+        left,top,zoom=frame
+        x,y=(-left*zoom)%self.bg_width/2-self.bg_width/2,(-top*zoom)%self.bg_width/2-self.bg_height/2
+        layer.blit(self.background,(x,y),special_flags=pygame.BLEND_RGB_MULT)
+
     # return world layer
     def getSurface(self,window_size,frame,hitboxes=False,kindVisibility=False,real_window_size=0,offset_x=0,offset_y=0):
         if real_window_size==0:
@@ -107,6 +116,9 @@ class World:
         
         self.terrain.drawNestGradients(window_size,layer,frame,offset_x=offset_x,offset_y=offset_y)
         
+        #draw background
+        self.drawBackground(layer,window_size,frame)
+
         #add enemies layer
 
         # add player layer
