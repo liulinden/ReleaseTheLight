@@ -251,6 +251,11 @@ class Player:
                 nest.loseCharge(chargeGain)
         self.updateLaserStats()
 
+        if self.x<50:
+            self.xSpeed +=(50-self.x)/10000*frameLength
+        elif self.x>cTerrain.worldWidth-50:
+            self.xSpeed -= (self.x-cTerrain.worldWidth+50)/10000*frameLength
+
         if keysDown[pygame.K_w] and self.onGround:
             self.ySpeed = -0.4
         

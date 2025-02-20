@@ -9,8 +9,8 @@ class Game:
 
         # constants
         self.FPS = FPS
-        self.DEFAULT_ZOOMS = [0.1,0.3,0.5,1,2]
-        self.WORLD_WIDTH = 2000
+        self.DEFAULT_ZOOMS = [0.1,0.3,0.5,1,1.5]
+        self.WORLD_WIDTH = 4000
         self.WORLD_HEIGHT = 10000
 
         self.offset_x=0
@@ -47,8 +47,12 @@ class Game:
         self.camOffsetX=min(max(self.camOffsetX,self.window_width/zoom*1/6),self.window_width/zoom*(-1/6))
         self.camOffsetY=min(max(self.camOffsetY,self.window_height/zoom*1/6),self.window_height/zoom*(-1/6))
         self.camOffsetX,self.camOffsetY=0,0
-        self.camX += (self.camOffsetX+playerX-self.camX-self.window_width/zoom/2)*frameLength/200
-        self.camY += (self.camOffsetY+max(-100,playerY)-self.camY-self.window_height/zoom/2)*frameLength/200
+        goalX=max(self.window_width/zoom/2,min(self.WORLD_WIDTH-self.window_width/zoom/2,playerX))
+        if self.window_width/zoom/2 >self.WORLD_WIDTH-self.window_width/zoom/2:
+            goalX=playerX
+        goalY=max(-100,min(self.WORLD_HEIGHT-100,playerY))
+        self.camX += (self.camOffsetX+goalX-self.camX-self.window_width/zoom/2)*frameLength/200
+        self.camY += (self.camOffsetY+goalY-self.camY-self.window_height/zoom/2)*frameLength/200
 
 
     def run(self):
@@ -150,12 +154,12 @@ class Game:
 
             self.updateCamPos(practicalFPS,self.zoom,self.gameWorld.player.x,self.gameWorld.player.y,self.gameWorld.player.xSpeed,self.gameWorld.player.ySpeed)
             #world wrapping
-            if self.gameWorld.player.x>self.WORLD_WIDTH:
-                self.gameWorld.player.x-=self.WORLD_WIDTH
-                self.camX-=self.WORLD_WIDTH
-            elif self.gameWorld.player.x<0:
-                self.gameWorld.player.x+=self.WORLD_WIDTH
-                self.camX+=self.WORLD_WIDTH
+            #if self.gameWorld.player.x>self.WORLD_WIDTH:
+            #    self.gameWorld.player.x-=self.WORLD_WIDTH
+            #    self.camX-=self.WORLD_WIDTH
+            #elif self.gameWorld.player.x<0:
+            #    self.gameWorld.player.x+=self.WORLD_WIDTH
+            #    self.camX+=self.WORLD_WIDTH
 
             # clear window
             self.window.fill((255,255,255))
@@ -186,6 +190,6 @@ class Game:
             # tick game
             self.clock.tick(self.FPS)
             practicalFPS= max(1,round(1000/(pygame.time.get_ticks()-previousTime)))
-            #if random.randint(1,10)==1:
-            #    print("fps:", practicalFPS)
+            if random.randint(1,10)==1:
+                print("fps:", practicalFPS)
             previousTime=pygame.time.get_ticks()
