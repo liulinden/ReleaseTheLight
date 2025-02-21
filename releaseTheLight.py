@@ -166,9 +166,9 @@ class Game:
             
             for lase in self.gameWorld.player.laser:
                 if lase.damageFrame:
-                    self.shake=self.gameWorld.player.laserPower/20
+                    self.shake=self.gameWorld.player.laserPower/12
                 else:
-                    self.shake+=self.gameWorld.player.laserPower/300
+                    self.shake+=self.gameWorld.player.laserPower/500
                     #self.shake+=0.1
             self.shake*=0.9
 
