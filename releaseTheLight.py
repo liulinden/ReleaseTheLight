@@ -114,33 +114,32 @@ class Game:
                     
                     # TEMPORARY - zoom in/out
                     if self.developingMode:
-                        match event.key:
-                            case pygame.K_z:
-                                newZoom=0
-                                if self.DEFAULT_ZOOMS.index(self.zoom)==len(self.DEFAULT_ZOOMS)-1:
-                                    newZoom=self.DEFAULT_ZOOMS[0]
-                                else:
-                                    newZoom=self.DEFAULT_ZOOMS[self.DEFAULT_ZOOMS.index(self.zoom)+1]
-                                self.setZoom(newZoom,(self.gameWorld.player.x,self.gameWorld.player.y))
-                            case pygame.K_0:
-                                self.kindVisibility= not self.kindVisibility
-                            case pygame.K_h:
-                                self.visibleHitboxes=not self.visibleHitboxes
-                            case pygame.K_t:
-                                x,y= self.coordsWindowToWorld((mouseX,mouseY))
+                        if event.key== pygame.K_z:
+                            newZoom=0
+                            if self.DEFAULT_ZOOMS.index(self.zoom)==len(self.DEFAULT_ZOOMS)-1:
+                                newZoom=self.DEFAULT_ZOOMS[0]
+                            else:
+                                newZoom=self.DEFAULT_ZOOMS[self.DEFAULT_ZOOMS.index(self.zoom)+1]
+                            self.setZoom(newZoom,(self.gameWorld.player.x,self.gameWorld.player.y))
+                        elif event.key== pygame.K_0:
+                            self.kindVisibility= not self.kindVisibility
+                        elif event.key== pygame.K_h:
+                            self.visibleHitboxes=not self.visibleHitboxes
+                        elif event.key== pygame.K_t:
+                            x,y= self.coordsWindowToWorld((mouseX,mouseY))
 
-                                self.gameWorld.player.x,self.gameWorld.player.y=x,y
-                                self.gameWorld.player.updateRect()
-                            case pygame.K_l:
-                                if not self.loadingDebug:
-                                    self.window_width,self.window_height=300,200
-                                    self.offset_x=(self.window.get_width()-self.window_width)/2
-                                    self.offset_y=(self.window.get_height()-self.window_height)/2
-                                else:
-                                    self.window_width,self.window_height=self.window.get_size()
-                                    self.offset_x=0
-                                    self.offset_y=0
-                                self.loadingDebug=not self.loadingDebug
+                            self.gameWorld.player.x,self.gameWorld.player.y=x,y
+                            self.gameWorld.player.updateRect()
+                        elif event.key== pygame.K_l:
+                            if not self.loadingDebug:
+                                self.window_width,self.window_height=300,200
+                                self.offset_x=(self.window.get_width()-self.window_width)/2
+                                self.offset_y=(self.window.get_height()-self.window_height)/2
+                            else:
+                                self.window_width,self.window_height=self.window.get_size()
+                                self.offset_x=0
+                                self.offset_y=0
+                            self.loadingDebug=not self.loadingDebug
                 
                 if event.type==pygame.KEYUP:
                     if event.key in self.keysDown:
@@ -149,6 +148,7 @@ class Game:
             if self.gameWorld.tick(practicalFPS,(self.window_width,self.window_height),[self.camX,self.camY,self.zoom],self.coordsWindowToWorld((mouseX,mouseY)),self.keysDown,self.events):
                 self.camX,self.camY=self.defaultCamCoords
                 self.gameWorld.healNests()
+                self.gameWorld.removeEnemies()
 
             self.chargeDisplay.update(practicalFPS,self.gameWorld.player.color,self.gameWorld.player.charge,self.gameWorld.player.y)
 

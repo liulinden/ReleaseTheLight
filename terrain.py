@@ -125,11 +125,18 @@ class Terrain:
         if size==0:
             size = random.randint(100,100+y//50)
         newNest=nest.Nest(self.defaultZooms,self.worldHeight,nestType,x,y,size)
+        rect=newNest.getRect()
+        for cnest in self.nests:
+            if rect.colliderect(cnest.getRect()):
+                return False
         self.nests.append(newNest)
 
-        caveSize=(size*random.randint(0,2)/2+50)/3
+        caveSize=(size*random.randint(0,2)/3+80)/3
         if caveSize >15:
             self.generateSkinnyCave(x,y-caveSize/2,caveSize,-math.pi/2,maxPockets=10,shrinking=True)
+        else:
+            self.addAirPocket(x,y-caveSize/2,caveSize)
+        return True
 
     # generate cave
     def generateBlobCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=10):
@@ -228,6 +235,39 @@ class Terrain:
         return not (terrainMask.overlap(rectMask,(0,0)) ==None)
         #compare with rect
     
+    # check for collision with rect, including enemies
+    def laserCollideRect(self, rect:pygame.Rect):
+
+        #new method
+
+        #get terrain hitbox surface
+        rectMask=pygame.Mask((rect.width,rect.height),fill=True)
+        
+        collidingLayer=self.getTerrainLayer((rect.width,rect.height),[rect.left,rect.top,1],hitboxes=True)
+        self.drawNests((rect.width,rect.height),collidingLayer,[rect.left,rect.top,1],hitboxes=True)
+        self.drawEnemies((rect.width,rect.height),collidingLayer,[rect.left,rect.top,1],hitboxes=True)
+
+        terrainMask = pygame.mask.from_surface(collidingLayer)
+
+        return not (terrainMask.overlap(rectMask,(0,0)) ==None)
+        #compare with rect
+    
+    def enemiesCollideRect(self,rect:pygame.Rect):
+        rectMask=pygame.Mask((rect.width,rect.height),fill=True)
+        collidingLayer=pygame.Surface((rect.width,rect.height),flags=pygame.SRCALPHA)
+        #collidingLayer.fill((0,0,0,0))
+        self.drawEnemies((rect.width,rect.height),collidingLayer,[rect.left,rect.top,1],hitboxes=True)
+        terrainMask = pygame.mask.from_surface(collidingLayer)
+        return not (terrainMask.overlap(rectMask,(0,0)) ==None)
+
+    def enemiesAttackCollideRect(self,rect:pygame.Rect):
+        rectMask=pygame.Mask((rect.width,rect.height),fill=True)
+        collidingLayer=pygame.Surface((rect.width,rect.height),flags=pygame.SRCALPHA)
+        #collidingLayer.fill((0,0,0,0))
+        self.drawEnemies((rect.width,rect.height),collidingLayer,[rect.left,rect.top,1],hitboxes=True)
+        terrainMask = pygame.mask.from_surface(collidingLayer)
+        return not (terrainMask.overlap(rectMask,(0,0)) ==None)
+
     def nestsCollideRect(self,rect:pygame.Rect):
         rectMask=pygame.Mask((rect.width,rect.height),fill=True)
         collidingLayer=pygame.Surface((rect.width,rect.height),flags=pygame.SRCALPHA)
@@ -262,9 +302,22 @@ class Terrain:
             if nest.close(x,y,r):
                 nest.draw(surface,frame,hitbox=hitboxes,offset_x=offset_x,offset_y=offset_y)
 
-        #if hitboxes:
+        #temporary
         #    #sunnest
         pygame.draw.rect(surface,(255,255,255),pygame.Rect(0+offset_x,(self.worldHeight-top)*zoom+offset_y,w_width,200))
+    
+    #draw enemies
+    def drawEnemies(self,window_size,surface:pygame.Surface,frame:list,hitboxes=False,offset_x=0,offset_y=0):
+        left,top,zoom=frame
+        w_width,w_height=window_size
+        x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
+
+        for nest in self.nests:
+            for i in range(len(nest.enemies)-1,-1,-1):
+                enemy=nest.enemies[i]
+                d=distance((x,y),(enemy.x,enemy.y))
+                if d<r+enemy.r:
+                    enemy.draw(surface,frame,hitbox=hitboxes,offset_x=offset_x,offset_y=offset_y)
 
     # return terrain layer
     def getTerrainLayer(self,window_size,frame:list,hitboxes=False,real_window_size=0,offset_x=0,offset_y=0):

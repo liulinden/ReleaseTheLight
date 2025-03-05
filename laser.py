@@ -44,7 +44,7 @@ class Laser:
 
         rect=pygame.Rect(self.startX+dx*distance,self.startY+dy*distance,size,size)
         while distance<self.maxLength:
-            if terrain.collideRect(rect):
+            if terrain.laserCollideRect(rect):
                 if size>1:
                     distance=max(0,distance-size)
                     size=math.ceil(size/2)
@@ -55,6 +55,8 @@ class Laser:
                     self.hitboxes.append([rect.left,rect.top,rect.width,rect.height])
                     if terrain.nestsCollideRect(rect):
                         self.collision=[rect.center,"nests"]
+                    elif terrain.enemiesCollideRect(rect):
+                        self.collision=[rect.center,"enemies"]
                     else:
                         self.collision=[rect.center,"ground"]
                     break
@@ -106,14 +108,17 @@ class Laser:
                 pygame.draw.rect(surface,color,pygame.Rect((hitbox[0]-left)*zoom+offset_x,(hitbox[1]-top)*zoom+offset_y,hitbox[2]*zoom,hitbox[3]*zoom))
         else:
             for laserPart in [self.laserPoints,self.laserPoints2]:
+                print(len(laserPart))
+                oglength=laserPart[int(len(laserPart)/2)]
+                scale = self.length/oglength
                 polygonPoints=[]
                 for point in laserPart:
-                    if point <= self.length:
+                    if True or point <= self.length:
                         waveHeight=self.thickness*math.sin((point+self.sinWaveOffset)*1.5)*(0.5+self.timer/self.laserTime)
                         if laserPart.index(point)%(len(laserPart)/2)==0:
-                            x,y=point*math.cos(self.angle),point*math.sin(self.angle)
+                            x,y=point*math.cos(self.angle)*scale,point*math.sin(self.angle)*scale
                         else:
-                            x,y=point*math.cos(self.angle)+waveHeight*math.sin(self.angle),point*math.sin(self.angle)-waveHeight*math.cos(self.angle)
+                            x,y=point*math.cos(self.angle)*scale+waveHeight*math.sin(self.angle),point*math.sin(self.angle)*scale-waveHeight*math.cos(self.angle)
                         polygonPoints.append(((x+self.startX-left)*zoom+offset_x,(y+self.startY-top)*zoom+offset_y))
                     else:
                         print(self.length)

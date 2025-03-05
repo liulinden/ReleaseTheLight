@@ -41,7 +41,8 @@ class Nest:
         hitbox=nestHitboxes[nestType][id]
         self.size=size
         self.enemies=[]
-        self.enemyCap=5
+        self.basicEnemyCap=1
+        self.totalEnemyCap=5
         self.color=(255,255,255)
         self.glow=0
         self.stage=0
@@ -60,17 +61,16 @@ class Nest:
 
         self.resizedHitboxes[1]=pygame.transform.scale(hitbox,(size,size))
         
-        self.maxHealth=self.y*1000/worldHeight
-        match self.nestType:
-            case "White":
-                self.maxHealth*=1.1
-                self.maxHealth+=10
-            case "Blue":
-                self.maxHealth+=100
-            case "Red":
-                self.maxHealth+=100
-            case "Sun":
-                self.maxHealth+=1000
+        self.maxHealth=self.y*500/worldHeight
+        if self.nestType== "White":
+            self.maxHealth*=1.1
+            self.maxHealth+=10
+        elif self.nestType== "Blue":
+            self.maxHealth+=100
+        elif self.nestType=="Red":
+            self.maxHealth+=100
+        elif self.nestType=="Sun":
+            self.maxHealth+=1000
         
         self.health=self.maxHealth
 
@@ -79,13 +79,15 @@ class Nest:
         self.charge=self.maxCharge
         self.chargeRate=self.maxCharge/10000
         self.charging=(0,0,0)
-        match self.nestType:
-            case "White":
-                self.charging=(1,0,0)
-            case "Blue":
-                self.charging=(0,1,0)
-            case "Red":
-                self.charging=(0,0,1)
+        if self.nestType=="White":
+            self.charging=(1,0,0)
+        elif self.nestType== "Blue":
+            self.charging=(0,1,0)
+        elif self.nestType== "Red":
+            self.charging=(0,0,1)
+
+    def getRect(self):
+        return pygame.Rect(self.left,self.top,self.size,self.size)
 
     def updateColor(self):
         cw,cb,cr=self.charging
@@ -146,36 +148,43 @@ class Nest:
         filter.blit(img,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(filter,((self.left-camX)*zoom+offset_x,(self.top-camY)*zoom+offset_y))
 
-    def addEnemy(self,airPockets):
-        self.glow=200
-        if len(self.enemies)<self.enemyCap:
-            #self.enemies.append(enemies.getEnemy(airPockets,self.nestType))
-            ...
+    def addEnemy(self,cTerrain):
+        if len(self.enemies)<self.basicEnemyCap:
+            newEnemy=enemies.getEnemy(cTerrain,self.nestType,self.color,self.maxHealth,self.x,self.y,self.size)
+            if newEnemy:
+                self.glow=200
+                self.enemies.append(newEnemy)
 
     def withinEffectRadius(self,x,y):
         if distance((x,y),(self.x,self.y)) < self.size*1.5:
             return True
         return False
 
-    def applyDamageFromCircles(self,damageCircles):
+    def applyDamageFromCircles(self,cTerrain):
         newParticles=[]
         if self.health>0:
-            for circle in damageCircles:
+            for circle in cTerrain.playerDamageCircles:
                 x,y,r=circle
                 if self.close(x,y,0):
-                    self.glow=200
-                    self.dealDamage(r/2)
+                    self.dealDamage(r/2,cTerrain)
                     newParticles.append([x,y])
         return newParticles
     
-    def dealDamage(self,damage):
+    def dealDamage(self,damage,cTerrain):
+        self.glow=200
         self.health-=damage
         if self.health<0:
             self.health=0
+            self.enemies=[]
+        elif len(self.enemies)<self.totalEnemyCap and random.randint(1,5)==1:
+            newEnemy=enemies.getEnemy(cTerrain,self.nestType,self.color,self.maxHealth,self.x,self.y,self.size)
+            if newEnemy:
+                self.enemies.append(newEnemy)
         self.updateStage()
 
     def updateStage(self):
         self.stage=self.maxStage-math.ceil((self.maxStage-1)*self.health/self.maxHealth)
+        self.basicEnemyCap=self.stage
 
     def close(self,x:int,y:int,radius:int):
         if abs(self.x-x)>radius+self.size/2:

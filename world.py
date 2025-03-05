@@ -42,6 +42,11 @@ class World:
             if nest.health>0:
                 nest.health=nest.maxHealth
                 nest.stage=0
+    
+    def removeEnemies(self):
+        for nest in self.terrain.nests:
+            while len(nest.enemies)>0:
+                nest.enemies.remove(nest.enemies[0])
 
     #perform frame actions
     def tick(self,FPS,window_size,frame, mousePos,keysDown,events):
@@ -69,15 +74,21 @@ class World:
         x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
         for nest in self.terrain.nests:
             nest.updateVisuals(frameLength)
-            for particleCoords in nest.applyDamageFromCircles(self.terrain.playerDamageCircles):
+            for particleCoords in nest.applyDamageFromCircles(self.terrain):
                 self.terrain.particles.spawnMiningParticles(10,nest.color,self.player.laserPower/2,particleCoords[0],particleCoords[1])
-            """
+            
             if nest.stage!=nest.maxStage:
-                d=distance((self.x,self.y),(nest.x,nest.y))
-                if d<1000 and random.randint(1,int(d/2)):
-                    nest.addEnemy()"""
+                d=distance((self.player.x,self.player.y),(nest.x,nest.y))
+                if d<300 and random.randint(1,int(50+0.1*int(d/2)**2))<frameLength:
+                    nest.addEnemy(self.terrain)
+                for i in range(len(nest.enemies)-1,-1,-1):
+                    enemy=nest.enemies[i]
+                    if enemy.tick(frameLength,self.terrain,self.player):
+                        nest.enemies.remove(enemy)
+
             if random.randint(1,math.ceil(FPS/6))==1 and nest.close(x,y,r) and nest.stage==nest.maxStage:
                 self.light.addMistParticle(nest.x,nest.y,color=nest.color)
+            
         
         self.light.tickEffects(frameLength)
         self.terrain.particles.tickParticles(frameLength)
@@ -104,6 +115,8 @@ class World:
             layer.fill((200,200,200))
         else:
             layer.fill((0,0,0))
+            #brightness=max(0,min(255,150-(frame[0]+window_size[1]/frame[2]/2)/5))
+            #layer.fill((brightness,brightness,brightness))
 
         # add lighting layer
         self.light.drawEffects(layer,frame,offset_x=offset_x,offset_y=offset_y)
@@ -123,6 +136,8 @@ class World:
 
         # add player layer
         self.player.draw(layer, frame,hitboxes=hitboxes, offset_x=offset_x,offset_y=offset_y)
+
+        self.terrain.drawEnemies(window_size,layer,frame, hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)
         
         self.terrain.particles.drawParticles(layer,frame,offset_x=offset_x,offset_y=offset_y)
 
