@@ -161,9 +161,9 @@ class Player:
         r+=cr+cw
         g+=cw+cb/4
         b+=cw+cb
-        r=math.sqrt(min(r/self.maxCharge,1))
-        g=math.sqrt(min(g/self.maxCharge,1))
-        b=math.sqrt(min(b/self.maxCharge,1))
+        r=(min(r/self.maxCharge,1))**0.3
+        g=(min(g/self.maxCharge,1))**0.3
+        b=(min(b/self.maxCharge,1))**0.3
         self.color=(r*255,g*255,b*255)
 
     def updateLaserStats(self):
@@ -228,7 +228,7 @@ class Player:
                 if lase.collision:
                     point= lase.collision[0]
                     x,y=point
-                    cTerrain.addAirPocket(x, y, self.laserPower, playerMade=True)
+                    cTerrain.addAirPocketClump(x, y, self.laserPower, playerMade=True,spreading=1/5)
                     if lase.collision[1]=="ground":
                         cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower,x,y)
                     cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback])
@@ -240,7 +240,6 @@ class Player:
             dx = self.x-knockbackCircle[0]
             dy = self.y-knockbackCircle[1]
             distance=max(25,math.sqrt(dx**2+dy**2))
-            print(distance)
             knockback=knockbackCircle[2]/distance/100
             self.xSpeed+=frameLength*dx/distance*knockback
             self.ySpeed+=frameLength*dy/distance*knockback
@@ -371,8 +370,8 @@ class Player:
             
             armSurface.blit(arm,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
 
-            surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offset_x,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offset_y))
-            surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX+offset_x,(self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY+offset_y))
+            surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offset_y))
+            surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY+offset_y))
             for lase in self.laser:
                 lase.draw(surface,frame,self.color,offset_x=offset_x,offset_y=offset_y)
 

@@ -30,7 +30,7 @@ class ChargeDisplay():
             g+=(p_g-g)/abs(p_g-g)*frameLength/16
         if b!=p_b:
             b+=(p_b-b)/abs(p_b-b)*frameLength/16
-        self.color=(r,g,b)
+        self.color=(min(255,r),min(255,g),min(255,b))
 
         if chargeChange>0:
             self.rotationGoal+=chargeChange/10

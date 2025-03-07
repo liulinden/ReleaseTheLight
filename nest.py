@@ -98,9 +98,9 @@ class Nest:
         b+=cw+cb
 
         #500 is player's maxcharge
-        r=math.sqrt(min(r/500,1))
-        g=math.sqrt(min(g/500,1))
-        b=math.sqrt(min(b/500,1))
+        r=(min(r/500,1))**0.3
+        g=(min(g/500,1))**0.3
+        b=(min(b/500,1))**0.3
         self.color=(r*255,g*255,b*255)
     
     def loseCharge(self,loss):
@@ -148,9 +148,9 @@ class Nest:
         filter.blit(img,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(filter,((self.left-camX)*zoom+offset_x,(self.top-camY)*zoom+offset_y))
 
-    def addEnemy(self,cTerrain):
+    def addEnemy(self,cTerrain,player):
         if len(self.enemies)<self.basicEnemyCap:
-            newEnemy=enemies.getEnemy(cTerrain,self.nestType,self.color,self.maxHealth,self.x,self.y,self.size)
+            newEnemy=enemies.getEnemy(cTerrain,player,self.nestType,self.color,self.maxHealth,self.x,self.y,self.size)
             if newEnemy:
                 self.glow=200
                 self.enemies.append(newEnemy)
@@ -160,24 +160,26 @@ class Nest:
             return True
         return False
 
-    def applyDamageFromCircles(self,cTerrain):
+    def applyDamageFromCircles(self,cTerrain,player):
         newParticles=[]
         if self.health>0:
             for circle in cTerrain.playerDamageCircles:
                 x,y,r=circle
                 if self.close(x,y,0):
-                    self.dealDamage(r/2,cTerrain)
+                    self.dealDamage(r/2,cTerrain,player)
                     newParticles.append([x,y])
         return newParticles
     
-    def dealDamage(self,damage,cTerrain):
+    def dealDamage(self,damage,cTerrain,player):
         self.glow=200
         self.health-=damage
         if self.health<0:
             self.health=0
+            for enemy in self.enemies:
+                enemy.spawnParticles(cTerrain)
             self.enemies=[]
         elif len(self.enemies)<self.totalEnemyCap and random.randint(1,5)==1:
-            newEnemy=enemies.getEnemy(cTerrain,self.nestType,self.color,self.maxHealth,self.x,self.y,self.size)
+            newEnemy=enemies.getEnemy(cTerrain,player,self.nestType,self.color,self.maxHealth,self.x,self.y,self.size)
             if newEnemy:
                 self.enemies.append(newEnemy)
         self.updateStage()

@@ -76,7 +76,7 @@ class Terrain:
         x=-500
         while x<self.worldWidth+500:
             r=random.randint(10,30)
-            self.addAirPocket(x,0,r,playerMade=True)
+            self.addAirPocketClump(x,0,r,playerMade=True)
             x+=r/2
         for i in range(int(self.worldHeight/100)):
             for j in range(int(self.worldWidth/1000)):
@@ -135,13 +135,13 @@ class Terrain:
         if caveSize >15:
             self.generateSkinnyCave(x,y-caveSize/2,caveSize,-math.pi/2,maxPockets=10,shrinking=True)
         else:
-            self.addAirPocket(x,y-caveSize/2,caveSize)
+            self.addAirPocketClump(x,y-caveSize/2,caveSize)
         return True
 
     # generate cave
     def generateBlobCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=10):
         if maxPockets > 0 and (startY - 2*startR) > 0 and startY-startR < self.worldHeight and startR > 0:
-            self.addAirPocket(startX,startY,startR)
+            self.addAirPocketClump(startX,startY,startR)
 
             for i in range(2):
                 r = startR + (random.random()-0.6)*20
@@ -155,7 +155,7 @@ class Terrain:
     
     def generateSkinnyCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=20,shrinking=False):
         if maxPockets > 0 and (startY - 2*startR) > 0 and startY-startR < self.worldHeight and startR > 0:
-            self.addAirPocket(startX,startY,startR)
+            self.addAirPocketClump(startX,startY,startR)
 
             for i in range(2):
                 r = startR + (random.random()-0.6)*5
@@ -171,7 +171,7 @@ class Terrain:
     
     def generateBedrockCave(self, startX:int, startY:int, startR:int, startDir:float=0, maxPockets:int=3):
         if maxPockets > 0 and (startY - 2*startR) > 0 and startY-startR < self.worldHeight and startR > 0:
-            self.addAirPocket(startX,startY,startR)
+            self.addAirPocketClump(startX,startY,startR)
 
             for i in range(2):
                 r = startR + (random.random()-0.6)*20
@@ -182,6 +182,12 @@ class Terrain:
                 self.generateBedrockCave(x,y,r,dir,maxPockets-1)
                 if random.randint(1,30)>1:
                     break
+
+    def addAirPocketClump(self,x,y,radius, playerMade=False,spreading=1/3):
+        spreading=radius*spreading
+        for i in range(3):
+            self.addAirPocket(x+spreading*(random.random()*2-1),y+spreading*(random.random()*2-1),radius,playerMade=playerMade)
+
 
     # create an air pocket at x, y with specified radius
     def addAirPocket(self, x:int, y:int, radius:int, recursions=0, playerMade=False):
@@ -291,6 +297,10 @@ class Terrain:
         for nest in self.nests:
             if nest.close(x,y,r):
                 nest.drawGradient(surface,frame,offset_x=offset_x,offset_y=offset_y)
+            for enemy in nest.enemies:
+                d=distance((x,y),(enemy.x,enemy.y))
+                if d<r+enemy.r:
+                    enemy.drawGradient(surface,frame,offset_x=offset_x,offset_y=offset_y)
 
     #window size is size of area where things should be good, not necessary the same as the size of the surface
     def drawNests(self,window_size,surface:pygame.Surface,frame:list,hitboxes=False,offset_x=0,offset_y=0):

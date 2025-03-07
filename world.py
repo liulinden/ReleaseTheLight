@@ -74,13 +74,13 @@ class World:
         x,y,r=left+w_width/zoom/2,top+w_height/zoom/2,distance((0,0),(w_width,w_height))/2/zoom
         for nest in self.terrain.nests:
             nest.updateVisuals(frameLength)
-            for particleCoords in nest.applyDamageFromCircles(self.terrain):
+            for particleCoords in nest.applyDamageFromCircles(self.terrain,self.player):
                 self.terrain.particles.spawnMiningParticles(10,nest.color,self.player.laserPower/2,particleCoords[0],particleCoords[1])
             
             if nest.stage!=nest.maxStage:
                 d=distance((self.player.x,self.player.y),(nest.x,nest.y))
-                if d<300 and random.randint(1,int(50+0.1*int(d/2)**2))<frameLength:
-                    nest.addEnemy(self.terrain)
+                if d<300 and random.randint(1,int(200+0.1*int(d/2)**2))<frameLength:
+                    nest.addEnemy(self.terrain,self.player)
                 for i in range(len(nest.enemies)-1,-1,-1):
                     enemy=nest.enemies[i]
                     if enemy.tick(frameLength,self.terrain,self.player):

@@ -108,7 +108,6 @@ class Laser:
                 pygame.draw.rect(surface,color,pygame.Rect((hitbox[0]-left)*zoom+offset_x,(hitbox[1]-top)*zoom+offset_y,hitbox[2]*zoom,hitbox[3]*zoom))
         else:
             for laserPart in [self.laserPoints,self.laserPoints2]:
-                print(len(laserPart))
                 oglength=laserPart[int(len(laserPart)/2)]
                 scale = self.length/oglength
                 polygonPoints=[]
@@ -119,7 +118,7 @@ class Laser:
                             x,y=point*math.cos(self.angle)*scale,point*math.sin(self.angle)*scale
                         else:
                             x,y=point*math.cos(self.angle)*scale+waveHeight*math.sin(self.angle),point*math.sin(self.angle)*scale-waveHeight*math.cos(self.angle)
-                        polygonPoints.append(((x+self.startX-left)*zoom+offset_x,(y+self.startY-top)*zoom+offset_y))
+                        polygonPoints.append(((x+self.startX-left)*zoom+offset_x,(y+self.startY-top+3)*zoom+offset_y))
                     else:
                         print(self.length)
                         self.laserPoints=self.getLaserPoints(6)
