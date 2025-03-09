@@ -47,6 +47,8 @@ class Laser:
             if terrain.laserCollideRect(rect):
                 if size>1:
                     distance=max(0,distance-size)
+                    rect.x=self.startX+dx*distance
+                    rect.y=self.startY+dy*distance
                     size=math.ceil(size/2)
                     if size>=5:
                         rect.width=size
@@ -67,7 +69,7 @@ class Laser:
                     distance=self.maxLength
                 rect.x=self.startX+dx*distance
                 rect.y=self.startY+dy*distance
-        return distance+5
+        return distance+5/2
 
         dx*=self.laserWidth/2/length
         dy*=self.laserWidth/2/length
