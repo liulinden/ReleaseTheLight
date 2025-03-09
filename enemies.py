@@ -1,16 +1,36 @@
 import pygame, math, random
 
 lightGradient=pygame.image.load(".LightGradient.png").convert_alpha()
-animationIMGs={}
-walkIMGs=[]
-for i in range(7):
-    walkIMGs.append(pygame.image.load(".Enemy1Walk"+str(i+1)+".png").convert_alpha())
-animationIMGs["Walk"]=walkIMGs
-attackIMGs=[]
-for i in range(9):
-    attackIMGs.append(pygame.image.load(".Enemy1Attack"+str(i+1)+".png").convert_alpha())
-animationIMGs["Attack"]=attackIMGs
-attackHitbox=pygame.image.load(".Enemy1AttackHitbox.png").convert_alpha()
+
+enemyAttackFrames={'1':[4,5]}
+enemyAnimationLengths={
+    '1':{"Spawn":6,"Walk":7,"Attack":9}
+}
+
+enemyAnimations={}
+for variantID in ['1']:
+
+    animationIMGs={}
+
+    spawnIMGs=[]
+    for i in range(enemyAnimationLengths[variantID]["Spawn"]):
+        spawnIMGs.append(pygame.image.load(".Enemy"+variantID+"Spawn"+str(i+1)+".png").convert_alpha())
+    animationIMGs["Spawn"]=spawnIMGs
+
+    walkIMGs=[]
+    for i in range(enemyAnimationLengths[variantID]["Walk"]):
+        walkIMGs.append(pygame.image.load(".Enemy"+variantID+"Walk"+str(i+1)+".png").convert_alpha())
+    animationIMGs["Walk"]=walkIMGs
+
+    attackIMGs=[]
+    for i in range(enemyAnimationLengths[variantID]["Attack"]):
+        attackIMGs.append(pygame.image.load(".Enemy"+variantID+"Attack"+str(i+1)+".png").convert_alpha())
+    animationIMGs["Attack"]=attackIMGs
+    animationIMGs["AttackHitbox"]=pygame.image.load(".Enemy"+variantID+"AttackHitbox.png").convert_alpha()
+
+    enemyAnimations[variantID]=animationIMGs
+
+
 
 def distance(coord1:int,coord2:int):
     x1,y1=coord1
@@ -30,50 +50,68 @@ animationFPS=15
 
 class Enemy:
     def __init__(self,defaultZooms, x,y,color,health):
+        self.size=random.randint(20,70)
+        self.width,self.height=self.size*3/8,self.size*3/4
+        self.maxHealth=health
+        self.damage=self.maxHealth/5
+        self.speed=1
+        self.canFly=True
+        self.variantID='1'
+        self.attackFrames=enemyAttackFrames[self.variantID]
+        self.animationLengths=enemyAnimationLengths[self.variantID]
+
         self.x=x
         self.y=y
         self.xSpeed=0
         self.ySpeed=0
-        self.size=random.randint(20,70)
-        self.width,self.height=self.size*3/8,self.size*3/4
-        self.r=distance((0,0),(self.width/2,self.height/2))
-        self.rect=pygame.Rect(self.x-self.width/2,self.y-self.height/2,self.width,self.height)
         self.color = color
-        self.maxHealth=health
         self.health=self.maxHealth
         self.onGround=False
-        self.damage=self.maxHealth/5
-        self.attacking=False
         self.animationTimer=0
         self.animationFrame=0
         self.facing="Right"
-        self.animationType="Walk"
+        self.mode="Spawn"
         self.glow=0
+        self.r=distance((0,0),(self.width/2,self.height/2))
+        self.rect=pygame.Rect(self.x-self.width/2,self.y-self.height/2,self.width,self.height)
 
         self.resizedGradients={}
         self.resizedIMGs={}
         for zoom in defaultZooms:
             zoomSet={}
             for direction in ["Left","Right"]:
+
                 IMGs={}
+
+                resizedspawns=[]
+                for spawnIMG in enemyAnimations[self.variantID]["Spawn"]:
+                    resized=pygame.transform.scale(spawnIMG,(self.size*zoom,self.size*zoom))
+                    if direction=="Left":
+                        resized=pygame.transform.flip(resized,True,False)
+                    resizedspawns.append(resized)
+                IMGs["Spawn"]=resizedspawns
+
                 resizedwalks=[]
-                for walkIMG in walkIMGs:
+                for walkIMG in enemyAnimations[self.variantID]["Walk"]:
                     resized=pygame.transform.scale(walkIMG,(self.size*zoom,self.size*zoom))
                     if direction=="Left":
                         resized=pygame.transform.flip(resized,True,False)
                     resizedwalks.append(resized)
                 IMGs["Walk"]=resizedwalks
+
                 resizedAttacks=[]
-                for attackIMG in attackIMGs:
+                for attackIMG in enemyAnimations[self.variantID]["Attack"]:
                     resized=pygame.transform.scale(attackIMG,(self.size*zoom,self.size*zoom))
                     if direction=="Left":
                         resized=pygame.transform.flip(resized,True,False)
                     resizedAttacks.append(resized)
                 IMGs["Attack"]=resizedAttacks
-                resized=pygame.transform.scale(attackHitbox,(self.size*zoom,self.size*zoom))
+
+                resized=pygame.transform.scale(enemyAnimations[self.variantID]["AttackHitbox"],(self.size*zoom,self.size*zoom))
                 if direction=="Left":
                     resized=pygame.transform.flip(resized,True,False)
                 IMGs["AttackHitbox"]=resized
+
                 zoomSet[direction]=IMGs
             self.resizedIMGs[zoom]=zoomSet
             self.resizedGradients[zoom]=pygame.transform.scale(lightGradient,(self.size*2*zoom,self.size*2*zoom))
@@ -84,17 +122,20 @@ class Enemy:
     def updateCostume(self,frameLength, player):
         self.glow+=(0-self.glow)/500*frameLength
         self.animationTimer=self.animationTimer+frameLength
-        if self.animationType=="Walk":
-            self.animationTimer=self.animationTimer%(7*1000/animationFPS)
-        elif self.animationType=="Attack":
-            if self.animationTimer>9*1000/animationFPS:
-                self.animationType="Walk"
+        if self.mode=="Spawn":
+            if self.animationTimer>self.animationLengths["Spawn"]*1000/animationFPS:
+                self.mode="Walk"
                 self.animationTimer=0
-                self.attacking=False
+        elif self.mode=="Walk":
+            self.animationTimer=self.animationTimer%(self.animationLengths["Walk"]*1000/animationFPS)
+        elif self.mode=="Attack":
+            if self.animationTimer>self.animationLengths["Attack"]*1000/animationFPS:
+                self.mode="Walk"
+                self.animationTimer=0
     
         targetX,targetY=player.x,player.y
 
-        if not self.attacking:
+        if self.mode=="Walk":
             if self.x<targetX:
                 self.facing="Right"
             elif self.x>targetX:
@@ -121,13 +162,14 @@ class Enemy:
 
         self.updateRect()
         if hitbox:
-            pygame.draw.rect(surface,(0,0,0),pygame.Rect((self.rect.left-camX)*zoom+offset_x,(self.rect.top-camY)*zoom+offset_y,self.width*zoom,self.height*zoom))
-            if self.attacking and self.animationFrame in [4,5]:
-                self.drawAttackHitbox(surface,frame,offset_x=offset_x,offset_y=offset_y)
+            if self.mode!="Spawn":
+                pygame.draw.rect(surface,(0,0,0),pygame.Rect((self.rect.left-camX)*zoom+offset_x,(self.rect.top-camY)*zoom+offset_y,self.width*zoom,self.height*zoom))
+                if self.mode=="Attack" and self.animationFrame in self.attackFrames:
+                    self.drawAttackHitbox(surface,frame,offset_x=offset_x,offset_y=offset_y)
         else:
             filt=pygame.Surface((self.size*zoom,self.size*zoom),flags=pygame.SRCALPHA)
             filt.fill(self.color)
-            filt.blit(self.resizedIMGs[zoom][self.facing][self.animationType][self.animationFrame],(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+            filt.blit(self.resizedIMGs[zoom][self.facing][self.mode][self.animationFrame],(0,0),special_flags=pygame.BLEND_RGBA_MULT)
             surface.blit(filt,((self.rect.centerx-self.size/2-camX)*zoom+offset_x,(self.rect.bottom-self.size-camY+5)*zoom+offset_y))
 
     def drawAttackHitbox(self, surface, frame,offset_x=0,offset_y=0):
@@ -147,74 +189,109 @@ class Enemy:
         self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2
 
     def tick(self,frameLength,cTerrain,player):
-        self.ySpeed=min(0.4,self.ySpeed+0.0015*frameLength)
-        for knockbackCircle in cTerrain.knockbackCircles:
-            dx = self.x-knockbackCircle[0]
-            dy = self.y-knockbackCircle[1]
-            d=max(50,math.sqrt(dx**2+dy**2))
-            knockback=4*knockbackCircle[2]/d/100
-            self.xSpeed+=frameLength*dx/d*knockback*1.5
-            self.ySpeed+=frameLength*dy/d*knockback
-            print(d)
-            #if self.ySpeed<0:
-            #    self.ySpeed=min(self.ySpeed,-0.4)
+        if self.mode!="Spawn":
+            if not self.canFly:
+                #gravity
+                self.ySpeed=min(0.4,self.ySpeed+0.0015*frameLength)
 
-        for damageCircle in cTerrain.playerDamageCircles:
-            x,y,r=damageCircle
-            dx = self.x-x
-            dy = self.y-y
-            d=math.sqrt(dx**2+dy**2)
-            if d<r+self.r:
-                cTerrain.particles.spawnMiningParticles(10,self.color,r/2,x,y)
-                if self.dealDamage(r/2):
-                    return True
+            #deal knockback
+            for knockbackCircle in cTerrain.knockbackCircles:
+                dx = self.x-knockbackCircle[0]
+                dy = self.y-knockbackCircle[1]
+                d=math.sqrt(dx**2+dy**2)
+                if 50>d:
+                    dx*=50/d
+                    dy*=50/d
+                    d=50
+                knockback=knockbackCircle[2]/d**2/1.5
+                self.xSpeed+=frameLength*dx/d*knockback
+                self.ySpeed+=frameLength*dy/d*knockback
+                print(dx,dy,d)
+                #if self.ySpeed<0:
+                #    self.ySpeed=min(self.ySpeed,-0.4)
 
-        if self.x<50:
-            self.xSpeed +=(50-self.x)/10000*frameLength
-        elif self.x>cTerrain.worldWidth-50:
-            self.xSpeed -= (self.x-cTerrain.worldWidth+50)/10000*frameLength
+            
+            #deal damage
+            for damageCircle in cTerrain.playerDamageCircles:
+                x,y,r=damageCircle
+                dx = self.x-x
+                dy = self.y-y
+                d=math.sqrt(dx**2+dy**2)
+                if d<r+self.r:
+                    cTerrain.particles.spawnMiningParticles(10,self.color,r/2,x,y)
+                    if self.dealDamage(r/2):
+                        return True
+            
+            
+            #world push
+            if self.x<50:
+                self.xSpeed +=(50-self.x)/10000*frameLength
+            elif self.x>cTerrain.worldWidth-50:
+                self.xSpeed -= (self.x-cTerrain.worldWidth+50)/10000*frameLength
 
-
-        if not self.attacking:
-            if player.y<self.y-10 and self.onGround and random.randint(1,500)<frameLength:
-                self.ySpeed = -0.3
-            if abs(player.x-self.x)>self.size/2 or abs(player.y-self.y)>self.size/2:
-                if player.x<self.x:
-                    if self.onGround:
-                        self.xSpeed -= 0.001*frameLength
+            #jumping/walking
+            if self.mode=="Walk":
+                if self.canFly:
+                    if abs(player.x-self.x)>self.size/2 or abs(player.y-self.y)>self.size/2:
+                        rand=random.randint(0,3)
+                        if (player.x<self.x and not rand==3) or rand==0:
+                            self.xSpeed -= 0.0003*frameLength*self.speed
+                        else:
+                            self.xSpeed += 0.0003*frameLength*self.speed
+                        rand=random.randint(0,3)
+                        if (player.y<self.y and not rand==3) or rand==0:
+                            self.ySpeed -= 0.0003*frameLength*self.speed
+                        else:
+                            self.ySpeed += 0.0003*frameLength*self.speed
+                        self.xSpeed*=0.995**frameLength
+                        self.ySpeed*=0.995**frameLength
                     else:
-                        self.xSpeed -= 0.0003*frameLength
-                if player.x>self.x:
-                    if self.onGround:
-                        self.xSpeed += 0.001*frameLength
-                    else:
-                        self.xSpeed += 0.0003*frameLength
-            else:
-                self.attacking=True
-                self.animationType="Attack"
-                self.animationTimer=0
-        
-        if self.onGround:
-            self.xSpeed*=0.98**frameLength
-        else:
-            self.xSpeed*=0.993**frameLength
-
-        self.moveVertical(frameLength,cTerrain)
-        self.moveHorizontal(frameLength,cTerrain)
-        
-        if player.immunityTimer==0 and self.attacking and self.animationFrame in [4,5]:
-            if self.attackCollideRect(player.rect):
-                player.immunityTimer=player.immunityTime
-                if self.facing=="Right":
-                    player.xSpeed=0.3
+                        self.mode="Attack"
+                        self.animationTimer=0
                 else:
-                    player.xSpeed=-0.3
-                player.ySpeed=-0.3
-                player.dealDamage(self.damage)
+                    if player.y<self.y-10 and self.onGround and random.randint(1,500)<frameLength:
+                        self.ySpeed = -0.3
+                    if abs(player.x-self.x)>self.size/2 or abs(player.y-self.y)>self.size/2:
+                        rand=random.randint(0,3)
+                        if (player.x<self.x and not rand==3) or rand==0:
+                            if self.onGround:
+                                self.xSpeed -= 0.001*frameLength*self.speed
+                            else:
+                                self.xSpeed -= 0.0003*frameLength*self.speed
+                        else:
+                            if self.onGround:
+                                self.xSpeed += 0.001*frameLength*self.speed
+                            else:
+                                self.xSpeed += 0.0003*frameLength*self.speed
+                    else:
+                        self.mode="Attack"
+                        self.animationTimer=0
+            
+                    if self.onGround:
+                        self.xSpeed*=0.98**frameLength
+                    else:
+                        self.xSpeed*=0.993**frameLength
 
-        if distance((self.x,self.y),(player.x,player.y))>500:
-            return True
+            #apply velocities
+            self.moveVertical(frameLength,cTerrain)
+            self.moveHorizontal(frameLength,cTerrain)
+            
+            #deal damage to player
+            if player.immunityTimer==0 and self.mode=="Attack" and self.animationFrame in self.attackFrames:
+                if self.attackCollideRect(player.rect):
+                    player.immunityTimer=player.immunityTime
+                    if self.facing=="Right":
+                        player.xSpeed=0.3
+                    else:
+                        player.xSpeed=-0.3
+                    player.ySpeed=-0.3
+                    player.dealDamage(self.damage)
 
+            #despawn
+            if distance((self.x,self.y),(player.x,player.y))>500:
+                return True
+
+        #update costume
         self.updateCostume(frameLength,player)
 
         return False

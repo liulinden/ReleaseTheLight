@@ -67,7 +67,7 @@ class Laser:
                     distance=self.maxLength
                 rect.x=self.startX+dx*distance
                 rect.y=self.startY+dy*distance
-        return distance+20
+        return distance+5
 
         dx*=self.laserWidth/2/length
         dy*=self.laserWidth/2/length
