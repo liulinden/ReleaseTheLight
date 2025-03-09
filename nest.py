@@ -42,7 +42,7 @@ class Nest:
         self.size=size
         self.enemies=[]
         self.basicEnemyCap=1
-        self.totalEnemyCap=5
+        self.totalEnemyCap=10
         self.color=(255,255,255)
         self.glow=0
         self.stage=0
@@ -178,7 +178,7 @@ class Nest:
             for enemy in self.enemies:
                 enemy.spawnParticles(cTerrain)
             self.enemies=[]
-        elif len(self.enemies)<self.totalEnemyCap and random.randint(1,5)==1:
+        elif len(self.enemies)<self.totalEnemyCap and random.randint(1,4)==1:
             newEnemy=enemies.getEnemy(cTerrain,player,self.nestType,self.color,self.maxHealth,self.x,self.y,self.size)
             if newEnemy:
                 self.enemies.append(newEnemy)
@@ -186,7 +186,7 @@ class Nest:
 
     def updateStage(self):
         self.stage=self.maxStage-math.ceil((self.maxStage-1)*self.health/self.maxHealth)
-        self.basicEnemyCap=self.stage
+        self.basicEnemyCap=math.floor(self.stage*1.5)
 
     def close(self,x:int,y:int,radius:int):
         if abs(self.x-x)>radius+self.size/2:
