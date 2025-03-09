@@ -20,6 +20,9 @@ def distance(coord1:int,coord2:int):
 def rectToCircle(left,top,width,height):
     return left+width/2,top+height/2,distance((0,0),(width,height))/2
 
+hitbox_chunk_size=125
+max_airpocket_radius=120
+
 # overall game world class
 class Terrain:
 
@@ -41,23 +44,25 @@ class Terrain:
         self.particles=particles.Particles()
         for zoom in defaultZooms:
             self.airPocketsSurfaces[zoom]=[]
-            self.airPocketsHitboxesSurfaces[zoom]=[]
             for row in range(math.ceil(worldHeight/500)+1):
                 row=[]
                 row2=[]
                 for j in range(math.ceil(worldWidth/500)):
                     layer=pygame.Surface((500*zoom,500*zoom),pygame.SRCALPHA)
-                    layer2=pygame.Surface((500*zoom,500*zoom),pygame.SRCALPHA)
                     row.append(layer)
-                    row2.append(layer2)
                 self.airPocketsSurfaces[zoom].append(row)
-                self.airPocketsHitboxesSurfaces[zoom].append(row2)
+
+        for zoom in defaultZooms:
+            self.airPocketsHitboxesSurfaces[zoom]=[]
+            for row in range(math.ceil(worldHeight/hitbox_chunk_size)+1):
+                row=[]
+                for j in range(math.ceil(worldWidth/hitbox_chunk_size)):
+                    layer=pygame.Surface((hitbox_chunk_size*zoom,hitbox_chunk_size*zoom),pygame.SRCALPHA)
+                    row.append(layer)
+                self.airPocketsHitboxesSurfaces[zoom].append(row)
     
     def addAirPocketToSurfaces(self, airPocket):
         row,column=math.floor(airPocket.y/500),math.floor(airPocket.x/500)
-        if row>9:
-            #print("broken")
-            ...
         for offsets in ([0,0],[0,1],[1,0],[0,-1],[0,-1],[-1,0],[-1,0],[0,1],[0,1]):
             row+=offsets[0]
             column+=offsets[1]
@@ -66,6 +71,14 @@ class Terrain:
                 for zoom in self.defaultZooms:
                     ...
                     self.airPocketsSurfaces[zoom][row][column].blit(airPocket.IMGs[zoom],(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
+                    
+        row,column=math.floor(airPocket.y/hitbox_chunk_size),math.floor(airPocket.x/hitbox_chunk_size)
+        for offsets in ([0,0],[0,1],[1,0],[0,-1],[0,-1],[-1,0],[-1,0],[0,1],[0,1]):
+            row+=offsets[0]
+            column+=offsets[1]
+            if row>=0 and column >=0 and row<=self.worldHeight/hitbox_chunk_size and column<self.worldWidth/hitbox_chunk_size:
+                left,top=column*hitbox_chunk_size,row*hitbox_chunk_size
+                for zoom in self.defaultZooms:
                     if airPocket.type=="Circle":
                         pygame.draw.circle(self.airPocketsHitboxesSurfaces[zoom][row][column],(255,255,255),(zoom*(airPocket.x-left),zoom*(airPocket.y-top)),airPocket.r*zoom)
                     else:
@@ -191,6 +204,7 @@ class Terrain:
 
     # create an air pocket at x, y with specified radius
     def addAirPocket(self, x:int, y:int, radius:int, recursions=0, playerMade=False):
+        radius=min(radius,max_airpocket_radius)
         if (not playerMade and x-radius<0) or (recursions>3 or x+radius>self.worldWidth or x-radius<0 or y<0 or y>self.worldHeight):
             return False
         if (not playerMade) and random.randint(1,10)==1:
@@ -343,28 +357,39 @@ class Terrain:
         layer.fill((255,255,255,255))
         #if not hitboxes:
         if zoom in self.defaultZooms:
-            topChunk=math.floor(max(0,min(self.worldHeight,top))/500)
-            leftChunk=math.floor(max(0,min(self.worldWidth-500,left))/500)
-            bottomChunk=math.ceil(max(0,min(self.worldHeight,top+w_height/zoom-500))/500)
-            rightChunk=math.ceil(max(0,min(self.worldWidth-500,left+w_width/zoom-500))/500)
-            
             if hitboxes:
+                topChunk=math.floor(max(0,min(self.worldHeight,top))/hitbox_chunk_size)
+                leftChunk=math.floor(max(0,min(self.worldWidth-hitbox_chunk_size,left))/hitbox_chunk_size)
+                bottomChunk=math.ceil(max(0,min(self.worldHeight,top+w_height/zoom-hitbox_chunk_size))/hitbox_chunk_size)
+                rightChunk=math.ceil(max(0,min(self.worldWidth-hitbox_chunk_size,left+w_width/zoom-hitbox_chunk_size))/hitbox_chunk_size)
+                
                 surfaces=self.airPocketsHitboxesSurfaces[zoom]
+                
+                # clear air pockets from base 
+                for row in range(topChunk,bottomChunk+1,1):
+                    for column in range(leftChunk,rightChunk+1,1):
+                        realColumn=column
+                        layer.blit(surfaces[row][realColumn], ((column*hitbox_chunk_size-left)*zoom+offset_x, (row*hitbox_chunk_size-top)*zoom+offset_y), special_flags=pygame.BLEND_RGBA_SUB)
+                air_surface = pygame.Surface((w_width, w_height), pygame.SRCALPHA)
+                pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,0,w_width,zoom*max(0,0-top)))
+                #pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldHeight-top)*zoom),w_width,w_height-min(w_height,(self.worldHeight-top)*zoom)))
+                layer.blit(air_surface, (offset_x, offset_y), special_flags=pygame.BLEND_RGBA_SUB)
             else:
+                topChunk=math.floor(max(0,min(self.worldHeight,top))/500)
+                leftChunk=math.floor(max(0,min(self.worldWidth-500,left))/500)
+                bottomChunk=math.ceil(max(0,min(self.worldHeight,top+w_height/zoom-500))/500)
+                rightChunk=math.ceil(max(0,min(self.worldWidth-500,left+w_width/zoom-500))/500)
+                
                 surfaces=self.airPocketsSurfaces[zoom]
-            # clear air pockets from base 
-            for row in range(topChunk,bottomChunk+1,1):
-                for column in range(leftChunk,rightChunk+1,1):
-                    realColumn=column
-                    #if column<0:
-                    #    realColumn+=round(self.worldWidth/500)
-                    #elif column>=self.worldWidth/500:
-                    #    realColumn-=round(self.worldWidth/500)
-                    layer.blit(surfaces[row][realColumn], ((column*500-left)*zoom+offset_x, (row*500-top)*zoom+offset_y), special_flags=pygame.BLEND_RGBA_SUB)
-            air_surface = pygame.Surface((w_width, w_height), pygame.SRCALPHA)
-            pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,0,w_width,zoom*max(0,0-top)))
-            #pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldHeight-top)*zoom),w_width,w_height-min(w_height,(self.worldHeight-top)*zoom)))
-            layer.blit(air_surface, (offset_x, offset_y), special_flags=pygame.BLEND_RGBA_SUB)
+                # clear air pockets from base 
+                for row in range(topChunk,bottomChunk+1,1):
+                    for column in range(leftChunk,rightChunk+1,1):
+                        realColumn=column
+                        layer.blit(surfaces[row][realColumn], ((column*500-left)*zoom+offset_x, (row*500-top)*zoom+offset_y), special_flags=pygame.BLEND_RGBA_SUB)
+                air_surface = pygame.Surface((w_width, w_height), pygame.SRCALPHA)
+                pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,0,w_width,zoom*max(0,0-top)))
+                #pygame.draw.rect(air_surface,(255, 255, 255, 255),pygame.Rect(0,min(w_height,(self.worldHeight-top)*zoom),w_width,w_height-min(w_height,(self.worldHeight-top)*zoom)))
+                layer.blit(air_surface, (offset_x, offset_y), special_flags=pygame.BLEND_RGBA_SUB)
         else:
             ...
             """

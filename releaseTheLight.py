@@ -2,7 +2,7 @@
 import pygame,world, random,UI
 
 class Game:
-    def __init__(self,window,FPS=60,developingMode=False):
+    def __init__(self,window,FPS=60,fullWorld=True,developingMode=False):
 
         self.window = window
         self.window_width,self.window_height=window.get_size()
@@ -12,6 +12,8 @@ class Game:
         self.DEFAULT_ZOOMS = [0.1,0.3,0.5,1,1.5]
         self.WORLD_WIDTH = 4000
         self.WORLD_HEIGHT = 20000
+        if not fullWorld:
+            self.WORLD_HEIGHT=8000
         #high temporarily
 
         self.offset_x=0

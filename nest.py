@@ -42,7 +42,7 @@ class Nest:
         self.size=size
         self.enemies=[]
         self.basicEnemyCap=1
-        self.totalEnemyCap=10
+        self.totalEnemyCap=8
         self.color=(255,255,255)
         self.glow=0
         self.stage=0
