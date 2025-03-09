@@ -53,8 +53,8 @@ class Enemy:
         self.size=random.randint(20,70)
         self.width,self.height=self.size*3/8,self.size*3/4
         self.maxHealth=health
-        self.damage=self.maxHealth/5
-        self.speed=1
+        self.damage=self.maxHealth/3
+        self.speed=1.5
         self.canFly=True
         self.variantID='1'
         self.attackFrames=enemyAttackFrames[self.variantID]

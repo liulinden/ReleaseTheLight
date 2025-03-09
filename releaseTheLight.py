@@ -11,7 +11,8 @@ class Game:
         self.FPS = FPS
         self.DEFAULT_ZOOMS = [0.1,0.3,0.5,1,1.5]
         self.WORLD_WIDTH = 4000
-        self.WORLD_HEIGHT = 10000
+        self.WORLD_HEIGHT = 20000
+        #high temporarily
 
         self.offset_x=0
         self.offset_y=0
