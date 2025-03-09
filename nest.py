@@ -77,7 +77,7 @@ class Nest:
         self.maxCharge=self.maxHealth/3+100
         self.visualCharge=self.maxCharge
         self.charge=self.maxCharge*0.5
-        self.chargeRate=self.maxCharge/30000
+        self.chargeRate=self.maxCharge/10000
         self.charging=(0,0,0)
         if self.nestType=="White":
             self.charging=(1,0,0)
