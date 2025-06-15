@@ -63,7 +63,7 @@ class World:
             return True
 
         #change camx camy
-        if random.randint(1,math.ceil(FPS/10))==1:
+        if random.randint(1,math.ceil(FPS/7))==1:
             self.light.addMistParticle(self.player.x,self.player.y,color=self.player.color)
         for lase in self.player.laser:
             if random.randint(1,math.ceil(FPS/max(1,lase.length)*25))==1:

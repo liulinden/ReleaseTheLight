@@ -136,7 +136,7 @@ class Terrain:
 
     def generateNest(self,x,y,nestType, size=0):
         if size==0:
-            size = random.randint(100,100+y//50)
+            size = random.randint(100,100+(y*150)//self.worldHeight)
         newNest=nest.Nest(self.defaultZooms,self.worldHeight,nestType,x,y,size)
         rect=newNest.getRect()
         for cnest in self.nests:

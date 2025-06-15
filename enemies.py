@@ -123,13 +123,13 @@ class Enemy:
         self.glow+=(0-self.glow)/500*frameLength
         self.animationTimer=self.animationTimer+frameLength
         if self.mode=="Spawn":
-            if self.animationTimer>self.animationLengths["Spawn"]*1000/animationFPS:
+            if self.animationTimer>=self.animationLengths["Spawn"]*1000/animationFPS:
                 self.mode="Walk"
                 self.animationTimer=0
         elif self.mode=="Walk":
             self.animationTimer=self.animationTimer%(self.animationLengths["Walk"]*1000/animationFPS)
         elif self.mode=="Attack":
-            if self.animationTimer>self.animationLengths["Attack"]*1000/animationFPS:
+            if self.animationTimer>=self.animationLengths["Attack"]*1000/animationFPS:
                 self.mode="Walk"
                 self.animationTimer=0
     

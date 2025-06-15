@@ -239,7 +239,11 @@ class Player:
         for knockbackCircle in cTerrain.knockbackCircles:
             dx = self.x-knockbackCircle[0]
             dy = self.y-knockbackCircle[1]
-            distance=max(25,math.sqrt(dx**2+dy**2))
+            distance=math.sqrt(dx**2+dy**2)
+            if distance<30:
+                dx*=30/distance
+                dy*=30/distance
+                distance=30
             knockback=knockbackCircle[2]/distance/100
             self.xSpeed+=frameLength*dx/distance*knockback
             self.ySpeed+=frameLength*dy/distance*knockback
