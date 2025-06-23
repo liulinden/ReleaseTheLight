@@ -1,6 +1,6 @@
-import pygame, math, random
+import pygame, math, random,os
 
-lightGradient=pygame.image.load(".LightGradient.png").convert_alpha()
+lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
 enemyAttackFrames={'1':[4,5]}
 enemyAnimationLengths={
@@ -14,19 +14,19 @@ for variantID in ['1']:
 
     spawnIMGs=[]
     for i in range(enemyAnimationLengths[variantID]["Spawn"]):
-        spawnIMGs.append(pygame.image.load(".Enemy"+variantID+"Spawn"+str(i+1)+".png").convert_alpha())
+        spawnIMGs.append(pygame.image.load(os.path.join("assets","Enemy"+variantID+"Spawn"+str(i+1)+".png")).convert_alpha())
     animationIMGs["Spawn"]=spawnIMGs
 
     walkIMGs=[]
     for i in range(enemyAnimationLengths[variantID]["Walk"]):
-        walkIMGs.append(pygame.image.load(".Enemy"+variantID+"Walk"+str(i+1)+".png").convert_alpha())
+        walkIMGs.append(pygame.image.load(os.path.join("assets","Enemy"+variantID+"Walk"+str(i+1)+".png")).convert_alpha())
     animationIMGs["Walk"]=walkIMGs
 
     attackIMGs=[]
     for i in range(enemyAnimationLengths[variantID]["Attack"]):
-        attackIMGs.append(pygame.image.load(".Enemy"+variantID+"Attack"+str(i+1)+".png").convert_alpha())
+        attackIMGs.append(pygame.image.load(os.path.join("assets","Enemy"+variantID+"Attack"+str(i+1)+".png")).convert_alpha())
     animationIMGs["Attack"]=attackIMGs
-    animationIMGs["AttackHitbox"]=pygame.image.load(".Enemy"+variantID+"AttackHitbox.png").convert_alpha()
+    animationIMGs["AttackHitbox"]=pygame.image.load(os.path.join("assets","Enemy"+variantID+"AttackHitbox.png")).convert_alpha()
 
     enemyAnimations[variantID]=animationIMGs
 

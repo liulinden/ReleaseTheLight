@@ -1,16 +1,16 @@
-import pygame, random, math, nest,particles
+import pygame, random, math, nest,particles,os
 
 # load images
 airIMGs={}
 circleIMGs=[]
 for i in range(4):
-    circleIMGs.append(pygame.image.load(".AirPocket"+str(i+1)+".png").convert_alpha())
+    circleIMGs.append(pygame.image.load(os.path.join("assets","AirPocket"+str(i+1)+".png")).convert_alpha())
 airIMGs["Circle"]=circleIMGs
 
 airHitboxIMGs={}
 for customPocket in ["C1"]:
-    airIMGs[customPocket]=[pygame.image.load(".AirPocket"+customPocket+".png").convert_alpha()]
-    airHitboxIMGs[customPocket]=pygame.image.load(".AirPocket"+customPocket+"Hitbox.png").convert_alpha()
+    airIMGs[customPocket]=[pygame.image.load(os.path.join("assets","AirPocket"+customPocket+".png")).convert_alpha()]
+    airHitboxIMGs[customPocket]=pygame.image.load(os.path.join("assets","AirPocket"+customPocket+"Hitbox.png")).convert_alpha()
 
 def distance(coord1:int,coord2:int):
     x1,y1=coord1

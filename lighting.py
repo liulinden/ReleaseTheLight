@@ -1,9 +1,9 @@
-import pygame,random,copy
+import pygame,random,copy,os
 
 mistParticleIMGs=[]
 for i in range(5):
-    mistParticleIMGs.append(pygame.image.load(".MistParticle"+str(i+1)+".png").convert_alpha())
-lightGradient=pygame.image.load(".LightGradient.png").convert_alpha()
+    mistParticleIMGs.append(pygame.image.load(os.path.join("assets","MistParticle"+str(i+1)+".png")).convert_alpha())
+lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
 
 class Lighting:

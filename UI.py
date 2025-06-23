@@ -1,8 +1,8 @@
-import pygame,math
+import pygame,math,os
 pygame.init()
 
-chargeIcon = pygame.transform.scale(pygame.image.load(".ChargeIcon.png").convert_alpha(),(80,80))
-lightGradient=pygame.image.load(".LightGradient.png").convert_alpha()
+chargeIcon = pygame.transform.scale(pygame.image.load(os.path.join("assets","ChargeIcon.png")).convert_alpha(),(80,80))
+lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
 class ChargeDisplay():
     def __init__(self,worldHeight):

@@ -1,7 +1,7 @@
 # imports
-import pygame, random, terrain, decoration, aplayer,lighting,math
+import pygame, random, terrain, decoration, aplayer,lighting,math,os
 
-background=pygame.image.load(".Background.png").convert()
+background=pygame.image.load(os.path.join("assets","Background.png")).convert()
 
 def distance(coord1:int,coord2:int):
     x1,y1=coord1

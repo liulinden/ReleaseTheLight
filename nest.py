@@ -1,17 +1,17 @@
-import pygame, random,math,enemies
+import pygame, random,math,enemies,os
 
 def loadNestIMGSet(id,stages):
     IMGs=[]
     for i in range(stages):
-        IMGs.append(pygame.image.load(".Nest"+str(id)+"_"+str(i+1)+".png").convert_alpha())
-    return IMGs, pygame.image.load(".Nest"+str(id)+"Hitbox.png").convert_alpha()
+        IMGs.append(pygame.image.load(os.path.join("assets","Nest"+str(id)+"_"+str(i+1)+".png")).convert_alpha())
+    return IMGs, pygame.image.load(os.path.join("assets","Nest"+str(id)+"Hitbox.png")).convert_alpha()
 
 def distance(coord1:int,coord2:int):
     x1,y1=coord1
     x2,y2=coord2
     return math.sqrt((x1-x2)**2+(y1-y2)**2)
 
-lightGradient=pygame.image.load(".LightGradient.png").convert_alpha()
+lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
 nestEffectHitboxes={}
 nestHitboxes={}

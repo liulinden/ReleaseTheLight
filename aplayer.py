@@ -1,4 +1,4 @@
-import pygame,math,terrain,laser,particles
+import pygame,math,terrain,laser,particles,os
 
 #function by chatgpt
 def rotateAndGetOffset(surface,cx,cy,angle):
@@ -26,27 +26,27 @@ playerIMGs={}
 
 IMGSet=[]
 for i in range(5):
-    IMGSet.append(pygame.image.load(".PlayerIdle"+str(i+1)+".png").convert_alpha())
+    IMGSet.append(pygame.image.load(os.path.join("assets","PlayerIdle"+str(i+1)+".png")).convert_alpha())
 for i in range(3):
-    IMGSet.append(pygame.image.load(".PlayerIdle"+str(4-i)+".png").convert_alpha())
+    IMGSet.append(pygame.image.load(os.path.join("assets","PlayerIdle"+str(4-i)+".png")).convert_alpha())
 playerIMGs["Idle"]=IMGSet
 
 IMGSet=[]
 for i in range(8):
-    IMGSet.append(pygame.image.load(".PlayerRun"+str(i+1)+".png").convert_alpha())
+    IMGSet.append(pygame.image.load(os.path.join("assets","PlayerRun"+str(i+1)+".png")).convert_alpha())
 playerIMGs["Run"]=IMGSet
 
 
 #TEMPORARY ANIMATION
 IMGSet=[]
 for i in range(8):
-    IMGSet.append(pygame.image.load(".PlayerRun"+str(8-i)+".png").convert_alpha())
+    IMGSet.append(pygame.image.load(os.path.join("assets","PlayerRun"+str(8-i)+".png")).convert_alpha())
 playerIMGs["Backpedal"]=IMGSet
 
-playerIMGs["Falling"]=[pygame.image.load(".PlayerFalling.png").convert_alpha()]
-playerIMGs["Jumping"]=[pygame.image.load(".PlayerJumping.png").convert_alpha()]
-#playerIMGs["Sliding"]=[pygame.image.load(".PlayerSliding.png").convert_alpha()]
-playerIMGs["Arm"]=[pygame.image.load(".Arm.png").convert_alpha()]
+playerIMGs["Falling"]=[pygame.image.load(os.path.join("assets","PlayerFalling.png")).convert_alpha()]
+playerIMGs["Jumping"]=[pygame.image.load(os.path.join("assets","PlayerJumping.png")).convert_alpha()]
+#playerIMGs["Sliding"]=[pygame.image.load(os.path.join("assets","PlayerSliding.png")).convert_alpha()]
+playerIMGs["Arm"]=[pygame.image.load(os.path.join("assets","Arm.png")).convert_alpha()]
 SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
 ARM_PIVOT_X =20
