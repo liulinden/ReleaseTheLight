@@ -73,38 +73,15 @@ class LoadingBar(pygame.sprite.Sprite):
     def get_progress(self):
         return self.progress
 
-def make_blur_image(image_size: int):
-    title_background_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleBackground.webp"), (image_size, image_size))
-    title_background_glow_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleBackgroundGlow.webp"), (image_size * 2, image_size * 2))
-
-    surf_array = pygame.surfarray.pixels_alpha(title_background_glow_image)
-    surf_array //= 2
-    del surf_array    # unlock the surface
-
-    title_background_glow_image.blit(title_background_image, title_background_image.get_rect(center=title_background_glow_image.get_rect().center))
-
-    title_background_image_scaled = pygame.transform.scale(title_background_image, title_background_glow_image.get_size())
-
-    surf_array = pygame.surfarray.pixels_alpha(title_background_image_scaled)
-    surf_array //= 100
-    del surf_array
-
-    title_background_glow_image.blit(title_background_image_scaled, title_background_image_scaled.get_rect(center=title_background_glow_image.get_rect().center), special_flags=pygame.BLEND_RGBA_ADD)
-    return title_background_glow_image.convert_alpha()
-
-def make_title_image(image_size: int):
-    title_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleImage.webp"), (image_size, image_size)).convert_alpha()
-    return title_image
-
 class LoadingScreen:
     def __init__(self, surface: pygame.Surface):
 
         self.surface = surface
 
-        image_size = int(self.surface.get_height() * 0.7)
+        h = self.surface.get_height()
 
-        self.title_image = make_title_image(image_size)
-        self.title_background_image = make_blur_image(image_size)
+        self.title_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleImage.webp"), (h * 0.7, h * 0.7)).convert_alpha()
+        self.title_background_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleBackgroundWithGlow.png"), (h * 1.4, h * 1.4)).convert_alpha()
 
         self.font = pygame.font.SysFont("Arial", self.surface.get_height() // 20)
 
