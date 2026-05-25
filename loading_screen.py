@@ -87,7 +87,7 @@ class LoadingScreen:
         self.title_image = make_title_image(image_size)
         self.title_background_image = make_blur_image(image_size)
 
-        self.font = pygame.font.SysFont(None, 24)
+        self.font = pygame.font.SysFont("Arial", self.surface.get_height() // 20)
 
     def start_thread(self):
         queue = Queue()
@@ -128,9 +128,11 @@ class LoadingScreen:
                 progress = queue.get()
                 loading_bar.set_progress(progress)
 
-            text = self.font.render(f"{clock.get_fps():.2f} FPS", True, "white")
+            # text = self.font.render(f"{clock.get_fps():.2f} FPS", True, "white")
+            # self.surface.blit(text, text.get_rect(topright=self.surface.get_rect().topright))
 
-            self.surface.blit(text, text.get_rect(topright=self.surface.get_rect().topright))
+            # text = self.font.render(f"Loading... {int(progress * 100)}%", True, "white")
+            # self.surface.blit(text, text.get_rect(center=(self.surface.get_width() // 2, self.surface.get_height() // 100 * 90)))
 
             pygame.display.flip()
             clock.tick(FPS)
