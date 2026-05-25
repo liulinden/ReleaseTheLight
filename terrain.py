@@ -483,6 +483,8 @@ class Terrain:
                     self.generateNest(j * 1000 + random.randint(0, 1000), random.randint(int((self.worldHeight - 500)), self.worldHeight - 5), "Red")
                 if random.randint(1, 35) == 1:
                     self.generateNest(j * 1000 + random.randint(0, 1000), random.randint(int((self.worldHeight - 500)), self.worldHeight - 5), "Blue")
+        self.buildChunkHitboxes()
+        self.buildChunkVisuals()
         if progress_queue is not None:
             progress_queue.put(1)
 

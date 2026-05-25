@@ -21,7 +21,6 @@ class World:
         self.worldHeight = worldHeight
         self.defaultZooms = defaultZooms
 
-        # create an air pocket at x, y with specified radius
         # FIX 2: defer all image loads until after display exists.
         # Order matters: enemies.init() before nest.init() (nest imports enemies).
         # aplayer.init() must also be added to aplayer.py — see patch notes below.
@@ -45,8 +44,6 @@ class World:
         self._world_layer_size = None
 
         self.generateWorld(progress_queue)
-        self.terrain.buildChunkHitboxes()
-        self.terrain.buildChunkVisuals()
 
     # generate caves/nests/decorations
     def generateWorld(self, progress_queue=None):
