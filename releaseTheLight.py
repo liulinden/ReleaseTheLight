@@ -124,6 +124,10 @@ class Game:
                     if event.key in self.keysDown:
                         self.keysDown[event.key]=True
                     
+                    if event.key== pygame.K_ESCAPE:
+                        running=False
+                        return
+
                     # TEMPORARY - zoom in/out
                     if self.developingMode:
                         if event.key== pygame.K_z:

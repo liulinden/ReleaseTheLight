@@ -93,7 +93,7 @@ class Terrain:
             x+=r/2
         for i in range(int(self.worldHeight/100)):
             if progress_queue is not None:
-                progress_queue.put(i / (self.worldHeight/100) * (0.99 - 0.1) + 0.1)
+                progress_queue.put(i / (self.worldHeight/100) * (0.999 - 0.1) + 0.1)
             for j in range(int(self.worldWidth/1000)):
 
                 if random.randint(1,10)==1:
