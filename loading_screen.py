@@ -5,7 +5,7 @@ import pathlib
 
 ASSETS = pathlib.Path("assets")
 
-FPS = 30 # low framerate
+FPS = 15 # low FPS
 
 class TitleSpinner(pygame.sprite.Sprite):
     def __init__(self, image: pygame.Surface, center_image: pygame.Surface):
@@ -26,8 +26,7 @@ class TitleSpinner(pygame.sprite.Sprite):
         self.current_rotation += error * 0.1
 
         if abs(error) < 0.1:
-            self.current_rotation = self.goal_rotation
-            self.goal_rotation += 360 // 6
+            self.goal_rotation += 360 // 6 + 0.05
 
         self.image = pygame.transform.rotate(self.original_image, -self.current_rotation)
         self.image.blit(self.center_image, self.center_image.get_rect(center=self.image.get_rect().center))
@@ -55,17 +54,40 @@ class LoadingBar(pygame.sprite.Sprite):
     def get_progress(self):
         return self.progress
 
+def make_blur_image(image_size: int):
+    title_background_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleBackground.webp"), (image_size, image_size))
+    title_background_glow_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleBackgroundGlow.webp"), (image_size * 2, image_size * 2))
+
+    surf_array = pygame.surfarray.pixels_alpha(title_background_glow_image)
+    surf_array //= 2
+    del surf_array    # unlock the surface
+
+    title_background_glow_image.blit(title_background_image, title_background_image.get_rect(center=title_background_glow_image.get_rect().center))
+
+    title_background_image_scaled = pygame.transform.scale(title_background_image, title_background_glow_image.get_size())
+
+    surf_array = pygame.surfarray.pixels_alpha(title_background_image_scaled)
+    surf_array //= 100
+    del surf_array
+
+    title_background_glow_image.blit(title_background_image_scaled, title_background_image_scaled.get_rect(center=title_background_glow_image.get_rect().center), special_flags=pygame.BLEND_RGBA_ADD)
+    return title_background_glow_image.convert_alpha()
+
+def make_title_image(image_size: int):
+    title_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleImage.webp"), (image_size, image_size)).convert_alpha()
+    return title_image
+
 class LoadingScreen:
     def __init__(self, surface: pygame.Surface):
 
         self.surface = surface
 
-        self.title_image = pygame.image.load(ASSETS / "TitleImage.webp").convert_alpha()
-        self.title_background_image = pygame.image.load(ASSETS / "TitleBackground.webp").convert_alpha()
-
         image_size = int(self.surface.get_height() * 0.7)
-        self.title_image = pygame.transform.scale(self.title_image, (image_size, image_size))
-        self.title_background_image = pygame.transform.scale(self.title_background_image, (image_size, image_size))
+
+        self.title_image = make_title_image(image_size)
+        self.title_background_image = make_blur_image(image_size)
+
+        self.font = pygame.font.SysFont(None, 24)
 
     def start_thread(self):
         queue = Queue()
@@ -105,6 +127,10 @@ class LoadingScreen:
             if not queue.empty():
                 progress = queue.get()
                 loading_bar.set_progress(progress)
+
+            text = self.font.render(f"{clock.get_fps():.2f} FPS", True, "white")
+
+            self.surface.blit(text, text.get_rect(topright=self.surface.get_rect().topright))
 
             pygame.display.flip()
             clock.tick(FPS)
