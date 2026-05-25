@@ -9,4 +9,4 @@ loading_screen.run_threaded(end_at=0.1)
 
 from releaseTheLight import Game
 loading_screen.get_queue().put(0.05)
-Game(window,FPS=90,fullWorld=True,developingMode=True,loading_screen=loading_screen).run()
+Game(window,FPS=90,fullWorld=False,developingMode=True,loading_screen=loading_screen).run()

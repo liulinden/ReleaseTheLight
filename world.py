@@ -1,5 +1,5 @@
 # imports
-import pygame, random, terrain, decoration, aplayer,lighting,math,os, time
+import pygame, random, terrain, decoration, aplayer,lighting,math,os, time, enemies, nest
 import threading
 
 # FIX 2: background loaded in World.__init__ after display exists (removed module-level load)
@@ -21,17 +21,7 @@ class World:
         self.worldHeight = worldHeight
         self.defaultZooms = defaultZooms
 
-        # procedural generation
-        self.generateWorld(progress_queue)
-    
-    # generate caves/nests/decorations
-    def generateWorld(self, progress_queue=None):
-        if progress_queue is None:
-            self.terrain.generate()
-        else:
-            threading.Thread(target=self.terrain.generate, args=(progress_queue,), daemon=True).start()
-
-    # create an air pocket at x, y with specified radius
+        # create an air pocket at x, y with specified radius
         # FIX 2: defer all image loads until after display exists.
         # Order matters: enemies.init() before nest.init() (nest imports enemies).
         # aplayer.init() must also be added to aplayer.py — see patch notes below.
@@ -54,9 +44,16 @@ class World:
         self._world_layer = None
         self._world_layer_size = None
 
-        self.generateWorld()
+        self.generateWorld(progress_queue)
         self.terrain.buildChunkHitboxes()
         self.terrain.buildChunkVisuals()
+
+    # generate caves/nests/decorations
+    def generateWorld(self, progress_queue=None):
+        if progress_queue is None:
+            self.terrain.generate()
+        else:
+            threading.Thread(target=self.terrain.generate, args=(progress_queue,), daemon=True).start()
 
     def _getWorldLayer(self, real_window_size):
         if self._world_layer is None or self._world_layer_size != real_window_size:
