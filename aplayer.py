@@ -22,39 +22,42 @@ def rotateAndGetOffset(surface,cx,cy,angle):
     return rotated_surface, (offset_x), (offset_y)
 
 
-playerIMGs={}
 
-IMGSet=[]
-for i in range(5):
-    IMGSet.append(pygame.image.load(os.path.join("assets","PlayerIdle"+str(i+1)+".png")).convert_alpha())
-for i in range(3):
-    IMGSet.append(pygame.image.load(os.path.join("assets","PlayerIdle"+str(4-i)+".png")).convert_alpha())
-playerIMGs["Idle"]=IMGSet
-
-IMGSet=[]
-for i in range(8):
-    IMGSet.append(pygame.image.load(os.path.join("assets","PlayerRun"+str(i+1)+".png")).convert_alpha())
-playerIMGs["Run"]=IMGSet
-
-
-#TEMPORARY ANIMATION
-IMGSet=[]
-for i in range(8):
-    IMGSet.append(pygame.image.load(os.path.join("assets","PlayerRun"+str(8-i)+".png")).convert_alpha())
-playerIMGs["Backpedal"]=IMGSet
-
-playerIMGs["Falling"]=[pygame.image.load(os.path.join("assets","PlayerFalling.png")).convert_alpha()]
-playerIMGs["Jumping"]=[pygame.image.load(os.path.join("assets","PlayerJumping.png")).convert_alpha()]
-#playerIMGs["Sliding"]=[pygame.image.load(os.path.join("assets","PlayerSliding.png")).convert_alpha()]
-playerIMGs["Arm"]=[pygame.image.load(os.path.join("assets","Arm.png")).convert_alpha()]
 SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
 ARM_PIVOT_X =20
 ARM_PIVOT_Y=21
 LASER_DISTANCE=18
+
+playerIMGs={}
 animationLengths = {"Idle":8,"Run":8,"Backpedal":8,"Falling":1,"Jumping":1}
 animationFPS=13
 
+def init():
+    global playerIMGs
+
+    IMGSet=[]
+    for i in range(5):
+        IMGSet.append(pygame.image.load(os.path.join("assets","PlayerIdle"+str(i+1)+".png")).convert_alpha())
+    for i in range(3):
+        IMGSet.append(pygame.image.load(os.path.join("assets","PlayerIdle"+str(4-i)+".png")).convert_alpha())
+    playerIMGs["Idle"]=IMGSet
+
+    IMGSet=[]
+    for i in range(8):
+        IMGSet.append(pygame.image.load(os.path.join("assets","PlayerRun"+str(i+1)+".png")).convert_alpha())
+    playerIMGs["Run"]=IMGSet
+
+    #TEMPORARY ANIMATION
+    IMGSet=[]
+    for i in range(8):
+        IMGSet.append(pygame.image.load(os.path.join("assets","PlayerRun"+str(8-i)+".png")).convert_alpha())
+    playerIMGs["Backpedal"]=IMGSet
+
+    playerIMGs["Falling"]=[pygame.image.load(os.path.join("assets","PlayerFalling.png")).convert_alpha()]
+    playerIMGs["Jumping"]=[pygame.image.load(os.path.join("assets","PlayerJumping.png")).convert_alpha()]
+    #playerIMGs["Sliding"]=[pygame.image.load(os.path.join("assets","PlayerSliding.png")).convert_alpha()]
+    playerIMGs["Arm"]=[pygame.image.load(os.path.join("assets","Arm.png")).convert_alpha()]
 
 class Player:
 
@@ -104,8 +107,7 @@ class Player:
                         directionSet[animationType].append(resizedIMG)
                 zoomIMGSets[direction]=directionSet
             self.playerIMGs[zoom]=zoomIMGSets
-
-
+    
     def resetPlayer(self):
         self.x=self.spawnX
         self.y=self.spawnY
@@ -352,11 +354,22 @@ class Player:
                     break
             self.ySpeed=0
     
-    def draw(self, surface, frame,hitboxes=False,offset_x=0,offset_y=0):
+    def draw(self, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         camX,camY,zoom=frame
         if hitboxes:
             self.updateRect()
-            pygame.draw.rect(surface,self.color,pygame.Rect((self.rect.left-camX)*zoom+offset_x,(self.rect.top-camY)*zoom+offset_y,self.width*zoom,self.height*zoom))
+            l  = float(self.rect.left)
+            r  = float(self.rect.right - 1)
+            t  = float(self.rect.top)
+            b  = float(self.rect.bottom - 1)
+            step = (b - t) / 4
+            for i in range(5):
+                y = t + step * i
+                for wx, wy in [(l, y), (r, y)]:
+                    pygame.draw.circle(surface, self.color,
+                        (int((wx - camX) * zoom + offset_x),
+                         int((wy - camY) * zoom + offset_y)),
+                        max(2, int(zoom * 2)))
             for lase in self.laser:
                 lase.draw(surface,frame,self.color,hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)
         else:
