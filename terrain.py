@@ -242,9 +242,9 @@ class Terrain:
         palette = [
             (0.0,  (60,  55,  65)),   # near surface: dark desaturated grey-purple
             (0.25, (70,  50,  90)),   # upper mid: muted purple
-            (0.5,  (40,  30, 120)),   # mid: deep blue
-            (0.75, (120, 20,  80)),   # lower mid: deep magenta
-            (1.0,  (160, 15,  20)),   # bottom: vivid dark red
+            (0.5,  (40,  30, 160)),   # mid: deep blue
+            (0.75, (200, 20,  80)),   # lower mid: deep magenta
+            (1.0,  (240, 15,  20)),   # bottom: vivid dark red
         ]
 
         for i in range(len(palette) - 1):
@@ -267,7 +267,7 @@ class Terrain:
         surf.set_at((1, 0), tr)
         surf.set_at((0, 1), bl)
         surf.set_at((1, 1), br)
-        return pygame.transform.scale(surf, (width, height))
+        return pygame.transform.smoothscale(surf, (width, height))
 
     def buildChunkVisuals(self):
         """Build chunkVisuals: fill white, subtract air, multiply Rocks texture,
