@@ -242,9 +242,9 @@ class Terrain:
         palette = [
             (0.0,  (60,  55,  65)),   # near surface: dark desaturated grey-purple
             (0.25, (70,  50,  90)),   # upper mid: muted purple
-            (0.5,  (40,  30, 160)),   # mid: deep blue
-            (0.75, (200, 20,  80)),   # lower mid: deep magenta
-            (1.0,  (240, 15,  20)),   # bottom: vivid dark red
+            (0.5,  (40,  30, 120)),   # mid: deep blue
+            (0.75, (120, 20,  80)),   # lower mid: deep magenta
+            (1.0,  (160, 15,  20)),   # bottom: vivid dark red
         ]
 
         for i in range(len(palette) - 1):
@@ -268,6 +268,8 @@ class Terrain:
         surf.set_at((0, 1), bl)
         surf.set_at((1, 1), br)
         return pygame.transform.smoothscale(surf, (width, height))
+
+    _RIM_MULT = 1.7  # rim radius multiplier relative to air pocket radius
 
     def buildChunkVisuals(self):
         """Build chunkVisuals: fill white, subtract air, multiply Rocks texture,
@@ -306,8 +308,42 @@ class Terrain:
                             rock_surf.blit(rocks, (tx, ty))
                     chunk.blit(rock_surf, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
 
-                    # 4. Carve air last — subtracts from fully opaque solid surface,
-                    #    punching clean transparent holes with no colour bleed
+                    # 4. Draw rim — enlarged air pockets in ambient dark colour (0.2x depth tint)
+                    #    Drawn before air carve so the rim darkens solid rock at cave edges.
+                    #    Player-mined pockets are excluded — rims are initial generation only.
+                    rim_margin = visual_chunk_size * self._RIM_MULT
+                    for airPocket in self.airPockets:
+                        # quick AABB cull — skip pockets far from this chunk
+                        if (airPocket.x + airPocket.r * self._RIM_MULT < world_left - rim_margin or
+                                airPocket.x - airPocket.r * self._RIM_MULT > world_right + rim_margin or
+                                airPocket.y + airPocket.r * self._RIM_MULT < world_top  - rim_margin or
+                                airPocket.y - airPocket.r * self._RIM_MULT > world_bot  + rim_margin):
+                            continue
+                        # ambient dark colour at this pocket's world position
+                        dc = self._depthColor(airPocket.x, airPocket.y)
+                        rim_color = (int(dc[0] * 0.05), int(dc[1] * 0.05), int(dc[2] * 0.05))
+                        rim_r = airPocket.r * self._RIM_MULT
+                        cx = zoom * (airPocket.x - world_left)
+                        cy = zoom * (airPocket.y - world_top)
+                        if airPocket.type == "Circle":
+                            pygame.draw.circle(chunk, rim_color,
+                                               (int(cx), int(cy)),
+                                               int(rim_r * zoom))
+                        else:
+                            # for custom shapes scale the image up by RIM_MULT
+                            img = airPocket.IMGs[zoom]
+                            rim_size = (int(img.get_width() * self._RIM_MULT),
+                                        int(img.get_height() * self._RIM_MULT))
+                            rim_img = pygame.transform.scale(img, rim_size)
+                            # tint to rim color
+                            rim_surf = pygame.Surface(rim_size, pygame.SRCALPHA)
+                            rim_surf.fill(rim_color)
+                            rim_surf.blit(rim_img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                            chunk.blit(rim_surf,
+                                       (int(cx - rim_size[0] / 2),
+                                        int(cy - rim_size[1] / 2)))
+
+                    # 5. Carve air last — punches clean transparent holes through rim+rock
                     chunk.blit(airChunks[row][col], (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
 
     def drawDepthBackground(self, surface, frame, offset_x=0, offset_y=0):
@@ -323,7 +359,7 @@ class Terrain:
         bl = self._depthColor(left,  bottom)
         br = self._depthColor(right, bottom)
         # substantially darker than terrain — multiply by 0.2
-        def darken(c): return (int(c[0]*0.2), int(c[1]*0.2), int(c[2]*0.2))
+        def darken(c): return (int(c[0]*0.05), int(c[1]*0.05), int(c[2]*0.05))
         grad = self._makeGradientSurf(darken(tl), darken(tr), darken(bl), darken(br), w, h)
         surface.blit(grad, (offset_x, offset_y))
 
