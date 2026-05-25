@@ -20,8 +20,8 @@ class Laser:
         self.damageFrame = False
         self.hitboxes = []
 
-        # step size for ray march — small enough to never skip thin terrain
-        self._step = 3
+        # step size for ray march — 9px won't skip through any realistic terrain
+        self._step = 5
 
     def getLaserPoints(self, n_points):
         n_points = max(3, 1 + round(self.length / 40))

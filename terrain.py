@@ -1,12 +1,18 @@
 import pygame, random, math, nest, particles, os
 
+hitbox_chunk_size = 125
+max_airpocket_radius = 120
+visual_chunk_size = 500  # world-space size of visual chunks (unchanged)
+rocks_world_span = 8 * hitbox_chunk_size  # 1000px — Rocks.png spans 8 hitbox chunks
+
 # load images — call terrain.init() after pygame.display.set_mode()
 airIMGs = {}
 circleIMGs = []
 airHitboxIMGs = {}
+rocksIMG = {}  # keyed by zoom: pre-scaled rocks texture tiles
 
 def init():
-    global airIMGs, circleIMGs, airHitboxIMGs
+    global airIMGs, circleIMGs, airHitboxIMGs, rocksIMG
     circleIMGs = []
     for i in range(4):
         circleIMGs.append(pygame.image.load(os.path.join("assets", "AirPocket" + str(i + 1) + ".png")).convert_alpha())
@@ -15,6 +21,10 @@ def init():
     for customPocket in ["C1"]:
         airIMGs[customPocket] = [pygame.image.load(os.path.join("assets", "AirPocket" + customPocket + ".png")).convert_alpha()]
         airHitboxIMGs[customPocket] = pygame.image.load(os.path.join("assets", "AirPocket" + customPocket + "Hitbox.png")).convert_alpha()
+
+    rocks_raw = pygame.image.load(os.path.join("assets", "Rocks.png")).convert()
+    # rocksIMG is stored at world scale (zoom=1) only; zoomed versions built in Terrain.__init__
+    rocksIMG["raw"] = rocks_raw
 
 
 def distance(coord1: int, coord2: int):
@@ -25,10 +35,6 @@ def distance(coord1: int, coord2: int):
 
 def rectToCircle(left, top, width, height):
     return left + width / 2, top + height / 2, distance((0, 0), (width, height)) / 2
-
-
-hitbox_chunk_size = 125
-max_airpocket_radius = 120
 
 
 class Terrain:
@@ -65,6 +71,25 @@ class Terrain:
                     layer = pygame.Surface((hitbox_chunk_size * zoom, hitbox_chunk_size * zoom), pygame.SRCALPHA)
                     rowList.append(layer)
                 self.airPocketsHitboxesSurfaces[zoom].append(rowList)
+
+        # chunkVisuals: pre-baked colored+textured terrain for rendering.
+        # Indexed [zoom][row][col]. Built once after generate(), updated on mining.
+        # Textured rock pixels where solid, transparent where air.
+        self.chunkVisuals = {}
+        for zoom in defaultZooms:
+            self.chunkVisuals[zoom] = []
+            for row in range(math.ceil(worldHeight / visual_chunk_size) + 1):
+                rowList = []
+                for col in range(math.ceil(worldWidth / visual_chunk_size)):
+                    layer = pygame.Surface((visual_chunk_size * zoom, visual_chunk_size * zoom), pygame.SRCALPHA)
+                    rowList.append(layer)
+                self.chunkVisuals[zoom].append(rowList)
+
+        # pre-scale Rocks.png to rocks_world_span at each zoom so baking is fast
+        self._rocksScaled = {}
+        for zoom in defaultZooms:
+            scaled_span = int(rocks_world_span * zoom)
+            self._rocksScaled[zoom] = pygame.transform.scale(rocksIMG["raw"], (scaled_span, scaled_span))
 
         # chunkHitboxes: pre-baked solid ground with air carved out and nests blitted in.
         # Indexed [zoom][row][col]. Built once after generate(), updated on mining.
@@ -111,6 +136,11 @@ class Terrain:
                             airPocket.IMGs[zoom],
                             (zoom * (airPocket.left - left), zoom * (airPocket.top - top))
                         )
+                    # carve chunkVisuals — only remove, no re-texturing needed
+                    if self.chunkVisuals:
+                        for zoom in self.defaultZooms:
+                            if row < len(self.chunkVisuals[zoom]) and col < len(self.chunkVisuals[zoom][row]):
+                                self._carveVisualChunk(airPocket, row, col, zoom)
 
         baseRow = math.floor(airPocket.y / hitbox_chunk_size)
         baseCol = math.floor(airPocket.x / hitbox_chunk_size)
@@ -185,6 +215,133 @@ class Terrain:
                         # also blit into chunkHitboxes if already built
                         if self.chunkHitboxes[zoom] and row < len(self.chunkHitboxes[zoom]) and col < len(self.chunkHitboxes[zoom][row]):
                             self.chunkHitboxes[zoom][row][col].blit(img, offset)
+
+    def _noiseVal(self, x, y, scale=1.0):
+        """Cheap layered sine/cosine noise returning a value roughly in [-1, 1].
+        Not true Perlin but gives organic-looking spatial variation."""
+        x, y = x * scale, y * scale
+        v  =  math.sin(x * 0.017 + y * 0.011) * 0.4
+        v +=  math.cos(x * 0.031 - y * 0.023) * 0.3
+        v +=  math.sin(x * 0.053 + y * 0.047 + 1.3) * 0.2
+        v +=  math.cos(x * 0.079 - y * 0.061 + 2.7) * 0.1
+        return max(-1.0, min(1.0, v))
+
+    def _depthColor(self, worldX, worldY):
+        """Return an RGB tint for a world-space position.
+        Top of world = desaturated grey. Bottom = vivid reds/blues/purples.
+        Noise offsets the hue laterally so colors vary at the same depth.
+        Easily tweakable: adjust the palette list or depth curve below."""
+        depth = max(0.0, min(1.0, worldY / self.worldHeight))
+
+        # noise shifts the effective depth slightly for lateral variation
+        noise = self._noiseVal(worldX, worldY) * 0.15
+        d = max(0.0, min(1.0, depth + noise))
+
+        # palette: list of (depth_fraction, (r, g, b)) keyframes
+        # interpolated linearly between adjacent keyframes
+        palette = [
+            (0.0,  (60,  55,  65)),   # near surface: dark desaturated grey-purple
+            (0.25, (70,  50,  90)),   # upper mid: muted purple
+            (0.5,  (40,  30, 120)),   # mid: deep blue
+            (0.75, (120, 20,  80)),   # lower mid: deep magenta
+            (1.0,  (160, 15,  20)),   # bottom: vivid dark red
+        ]
+
+        for i in range(len(palette) - 1):
+            d0, c0 = palette[i]
+            d1, c1 = palette[i + 1]
+            if d <= d1:
+                t = (d - d0) / (d1 - d0)
+                r = int(c0[0] + (c1[0] - c0[0]) * t)
+                g = int(c0[1] + (c1[1] - c0[1]) * t)
+                b = int(c0[2] + (c1[2] - c0[2]) * t)
+                return (r, g, b)
+        return palette[-1][1]
+
+    def _makeGradientSurf(self, tl, tr, bl, br, width, height):
+        """Build a bilinearly-interpolated colour gradient surface from 4 corner colours.
+        Creates a 2x2 pixel surface with corner colours then scales it up — pygame's
+        transform.scale bilinearly interpolates, giving a smooth seamless gradient."""
+        surf = pygame.Surface((2, 2))
+        surf.set_at((0, 0), tl)
+        surf.set_at((1, 0), tr)
+        surf.set_at((0, 1), bl)
+        surf.set_at((1, 1), br)
+        return pygame.transform.scale(surf, (width, height))
+
+    def buildChunkVisuals(self):
+        """Build chunkVisuals: fill white, subtract air, multiply Rocks texture,
+        multiply bilinear depth+noise gradient. Called once after generate()."""
+        for zoom in self.defaultZooms:
+            airChunks = self.airPocketsSurfaces[zoom]
+            rocks = self._rocksScaled[zoom]
+            rocks_span_px = int(rocks_world_span * zoom)
+            chunk_px = int(visual_chunk_size * zoom)
+
+            for row, rowList in enumerate(self.chunkVisuals[zoom]):
+                for col, chunk in enumerate(rowList):
+                    world_left  = col * visual_chunk_size
+                    world_top   = row * visual_chunk_size
+                    world_right = world_left + visual_chunk_size
+                    world_bot   = world_top  + visual_chunk_size
+
+                    # Sample 4 corner colours — shared with adjacent chunks for seamless transitions
+                    tl = self._depthColor(world_left,  world_top)
+                    tr = self._depthColor(world_right, world_top)
+                    bl = self._depthColor(world_left,  world_bot)
+                    br = self._depthColor(world_right, world_bot)
+
+                    # 1. Set all pixels fully opaque solid — alpha=255, RGB=0
+                    chunk.fill((0, 0, 0, 255))
+
+                    # 2. Blit bilinear depth gradient onto RGB channels only
+                    chunk.blit(self._makeGradientSurf(tl, tr, bl, br, chunk_px, chunk_px), (0, 0), special_flags=pygame.BLEND_RGB_MAX)
+
+                    # 3. Multiply Rocks.png tile
+                    rock_x = int((world_left * zoom) % rocks_span_px)
+                    rock_y = int((world_top  * zoom) % rocks_span_px)
+                    rock_surf = pygame.Surface((chunk_px, chunk_px))
+                    for ty in range(-rock_y, chunk_px, rocks_span_px):
+                        for tx in range(-rock_x, chunk_px, rocks_span_px):
+                            rock_surf.blit(rocks, (tx, ty))
+                    chunk.blit(rock_surf, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+
+                    # 4. Carve air last — subtracts from fully opaque solid surface,
+                    #    punching clean transparent holes with no colour bleed
+                    chunk.blit(airChunks[row][col], (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+
+    def drawDepthBackground(self, surface, frame, offset_x=0, offset_y=0):
+        """Fill the layer with a smooth depth-colour gradient matching the terrain tint.
+        Replaces layer.fill((0,0,0)) — samples _depthColor at the 4 world-space corners
+        of the current view so rock colour and background colour are always in sync."""
+        left, top, zoom = frame
+        w, h = surface.get_size()
+        right  = left + w / zoom
+        bottom = top  + h / zoom
+        tl = self._depthColor(left,  top)
+        tr = self._depthColor(right, top)
+        bl = self._depthColor(left,  bottom)
+        br = self._depthColor(right, bottom)
+        # substantially darker than terrain — multiply by 0.2
+        def darken(c): return (int(c[0]*0.2), int(c[1]*0.2), int(c[2]*0.2))
+        grad = self._makeGradientSurf(darken(tl), darken(tr), darken(bl), darken(br), w, h)
+        surface.blit(grad, (offset_x, offset_y))
+
+    def _carveVisualChunk(self, airPocket, row, col, zoom):
+        """Carve a newly-mined air pocket out of a single chunkVisuals chunk.
+        No re-texturing needed — we only remove solid pixels."""
+        left, top = col * visual_chunk_size, row * visual_chunk_size
+        chunk = self.chunkVisuals[zoom][row][col]
+        if airPocket.type == "Circle":
+            pygame.draw.circle(
+                chunk, (0, 0, 0, 0),
+                (int(zoom * (airPocket.x - left)), int(zoom * (airPocket.y - top))),
+                int(airPocket.r * zoom)
+            )
+        else:
+            eraser = pygame.Surface(airPocket.IMGs[zoom].get_size(), pygame.SRCALPHA)
+            eraser.fill((0, 0, 0, 0))
+            chunk.blit(eraser, (zoom * (airPocket.left - left), zoom * (airPocket.top - top)))
 
     def buildChunkHitboxes(self):
         """Build chunkHitboxes from scratch: fill solid white, subtract air, blit nests.
@@ -458,8 +615,8 @@ class Terrain:
         t  = float(rect.top)
         b  = float(rect.bottom - 1)
         # 5 evenly spaced y values from top to bottom
-        step = (b - t) / 4
-        for i in range(5):
+        step = (b - t) / 9
+        for i in range(10):
             y = t + step * i
             if self._sampleChunk(l, y) or self._sampleChunk(r, y):
                 return True
@@ -510,8 +667,8 @@ class Terrain:
         r  = float(rect.right - 1)
         t  = float(rect.top)
         b  = float(rect.bottom - 1)
-        step = (b - t) / 4
-        for i in range(5):
+        step = (b - t) / 9
+        for i in range(10):
             y = t + step * i
             for wx, wy in [(l, y), (r, y)]:
                 pygame.draw.circle(surface, color,
@@ -560,6 +717,42 @@ class Terrain:
                 dy = y - enemy.y
                 if dx * dx + dy * dy < (r + enemy.r) ** 2:
                     enemy.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
+
+    def drawTerrain(self, window_size, surface: pygame.Surface, frame: list, hitboxes=False, real_window_size=None, offset_x=0, offset_y=0):
+        """Drop-in replacement for the getTerrainLayer blit in getSurface.
+        Hitbox mode: blits chunkHitboxes for collision debug display.
+        Visual mode: blits pre-baked chunkVisuals directly — textured, depth-tinted rock."""
+        if real_window_size is None:
+            real_window_size = window_size
+        left, top, zoom = frame
+        w_width, w_height = window_size
+
+        if zoom not in self.defaultZooms:
+            return
+
+        if hitboxes:
+            # reuse existing getTerrainLayer hitbox path for debug display
+            surface.blit(
+                self.getTerrainLayer(window_size, frame, hitboxes=True,
+                                     real_window_size=real_window_size,
+                                     offset_x=offset_x, offset_y=offset_y),
+                (0, 0), special_flags=pygame.BLEND_RGBA_SUB
+            )
+        else:
+            topChunk    = math.floor(max(0, min(self.worldHeight, top)) / visual_chunk_size)
+            leftChunk   = math.floor(max(0, min(self.worldWidth - visual_chunk_size, left)) / visual_chunk_size)
+            bottomChunk = math.ceil(max(0, min(self.worldHeight, top + w_height / zoom - visual_chunk_size)) / visual_chunk_size)
+            rightChunk  = math.ceil(max(0, min(self.worldWidth - visual_chunk_size, left + w_width / zoom - visual_chunk_size)) / visual_chunk_size)
+
+            chunks = self.chunkVisuals[zoom]
+            for row in range(topChunk, bottomChunk + 1):
+                for col in range(leftChunk, rightChunk + 1):
+                    if row < len(chunks) and col < len(chunks[row]):
+                        surface.blit(
+                            chunks[row][col],
+                            ((col * visual_chunk_size - left) * zoom + offset_x,
+                             (row * visual_chunk_size - top) * zoom + offset_y)
+                        )
 
     def getTerrainLayer(self, window_size, frame: list, hitboxes=False, real_window_size=None, offset_x=0, offset_y=0):
         if real_window_size is None:

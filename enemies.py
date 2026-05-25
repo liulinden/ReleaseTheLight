@@ -182,8 +182,8 @@ class Enemy:
                 r  = float(self.rect.right - 1)
                 t  = float(self.rect.top)
                 b  = float(self.rect.bottom - 1)
-                step = (b - t) / 4
-                for i in range(5):
+                step = (b - t) / 9
+                for i in range(10):
                     y = t + step * i
                     for wx, wy in [(l, y), (r, y)]:
                         pygame.draw.circle(surface, (0, 0, 0),
@@ -221,13 +221,15 @@ class Enemy:
                 dx = self.x - knockbackCircle[0]
                 dy = self.y - knockbackCircle[1]
                 d = math.sqrt(dx ** 2 + dy ** 2)
-                if 50 > d:
+                """if 50 > d:
                     dx *= 50 / d
                     dy *= 50 / d
                     d = 50
-                knockback = knockbackCircle[2] / d ** 2 / 1.5
-                self.xSpeed += frameLength * dx / d * knockback
-                self.ySpeed += frameLength * dy / d * knockback
+                knockback = knockbackCircle[2] / d ** 2 / 1.5"""
+                if d < 20+self.r:
+                    knockback = knockbackCircle[2] / 50
+                    self.xSpeed += frameLength * dx / d / self.size * knockback
+                    self.ySpeed += frameLength * dy / d / self.size * knockback
                 # FIX 2 (minor): removed print(dx,dy,d) — was printing every frame per enemy
 
             for damageCircle in cTerrain.playerDamageCircles:

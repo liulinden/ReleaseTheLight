@@ -242,13 +242,15 @@ class Player:
             dx = self.x-knockbackCircle[0]
             dy = self.y-knockbackCircle[1]
             distance=math.sqrt(dx**2+dy**2)
-            if distance<30:
+            """if distance<30:
                 dx*=30/distance
                 dy*=30/distance
                 distance=30
-            knockback=knockbackCircle[2]/distance/100
-            self.xSpeed+=frameLength*dx/distance*knockback
-            self.ySpeed+=frameLength*dy/distance*knockback
+            knockback=knockbackCircle[2]/distance/100"""
+            knockback=knockbackCircle[2]/2000
+            if distance < 100:
+                self.xSpeed+=frameLength*dx/distance*knockback
+                self.ySpeed+=frameLength*dy/distance*knockback
             #should probably do this from the enemy not in the player tick
 
         for nest in cTerrain.nests:
@@ -362,8 +364,8 @@ class Player:
             r  = float(self.rect.right - 1)
             t  = float(self.rect.top)
             b  = float(self.rect.bottom - 1)
-            step = (b - t) / 4
-            for i in range(5):
+            step = (b - t) / 9
+            for i in range(10):
                 y = t + step * i
                 for wx, wy in [(l, y), (r, y)]:
                     pygame.draw.circle(surface, self.color,

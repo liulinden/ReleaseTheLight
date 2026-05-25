@@ -42,6 +42,7 @@ class World:
 
         self.generateWorld()
         self.terrain.buildChunkHitboxes()
+        self.terrain.buildChunkVisuals()
 
     def _getWorldLayer(self, real_window_size):
         if self._world_layer is None or self._world_layer_size != real_window_size:
@@ -129,7 +130,7 @@ class World:
         if kindVisibility:
             layer.fill((200, 200, 200))
         else:
-            layer.fill((0, 0, 0))
+            self.terrain.drawDepthBackground(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.light.drawEffects(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
@@ -151,6 +152,6 @@ class World:
 
         self.terrain.drawNests(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
-        layer.blit(self.terrain.getTerrainLayer(window_size, frame, hitboxes=hitboxes, real_window_size=real_window_size, offset_x=offset_x, offset_y=offset_y), (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+        self.terrain.drawTerrain(window_size, layer, frame, hitboxes=hitboxes, real_window_size=real_window_size, offset_x=offset_x, offset_y=offset_y)
 
         return layer

@@ -197,7 +197,7 @@ class Game:
             # tick game
             self.clock.tick(self.FPS)
             practicalFPS= max(1,round(1000/(pygame.time.get_ticks()-previousTime)))
-            if random.randint(1,10)==1:
+            if random.randint(1,20)==1:
                 print("fps:", practicalFPS)
             practicalFPS=max(30,practicalFPS)
             previousTime=pygame.time.get_ticks()
