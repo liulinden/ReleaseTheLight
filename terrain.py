@@ -1,4 +1,4 @@
-import pygame, random, math, nest,particles,os
+import pygame, random, math, nest,particles,os, time, queue
 
 # load images
 airIMGs={}
@@ -85,13 +85,14 @@ class Terrain:
                         self.airPocketsHitboxesSurfaces[zoom][row][column].blit(airPocket.hitboxIMGs[zoom],(zoom*(airPocket.left-left),zoom*(airPocket.top-top)))
 
     # generate caves/nests/decorations
-    def generate(self):
+    def generate(self, progress_queue: queue.Queue):
         x=-500
         while x<self.worldWidth+500:
             r=random.randint(10,30)
             self.addAirPocketClump(x,0,r,playerMade=True)
             x+=r/2
         for i in range(int(self.worldHeight/100)):
+            progress_queue.put(i / (self.worldHeight/100) * (0.99 - 0.2) + 0.2)
             for j in range(int(self.worldWidth/1000)):
 
                 if random.randint(1,10)==1:

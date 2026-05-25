@@ -1,11 +1,13 @@
 # imports
-import pygame,world, random,UI
+import pygame ,world, random,UI, queue
 
 class Game:
-    def __init__(self,window,FPS=60,fullWorld=True,developingMode=False):
+    def __init__(self,window,FPS=60,fullWorld=True,developingMode=False, loading_status_queue=None):
 
         self.window = window
         self.window_width,self.window_height=window.get_size()
+
+        self.loading_status_queue = loading_status_queue or queue.Queue()
 
         # constants
         self.FPS = FPS
@@ -61,14 +63,16 @@ class Game:
         self.camX += (self.camOffsetX+goalX-self.camX-self.window_width/zoom/2)*frameLength/200
         self.camY += (self.camOffsetY+goalY-self.camY-self.window_height/zoom/2)*frameLength/200
 
-
     def run(self):
     
         #self.window = pygame.display.set_mode([self.window.get_width(),self.window.get_height()])
         #self.window.get_width(),self.window.get_height()=self.window.get_size()
-        
+
+        self.loading_status_queue.put(0.15)
         self.chargeDisplay=UI.ChargeDisplay(self.WORLD_HEIGHT)
-        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,defaultZooms=self.DEFAULT_ZOOMS)
+        self.loading_status_queue.put(0.2)
+        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,progress_queue=self.loading_status_queue,defaultZooms=self.DEFAULT_ZOOMS)
+        self.loading_status_queue.put(0.99)
         self.clock = pygame.time.Clock()
         self.keysDown = {pygame.K_w:False,
                          pygame.K_a:False,
@@ -90,6 +94,7 @@ class Game:
         self.visibleHitboxes=False
         self.loadingDebug=False
 
+        self.loading_status_queue.put(1)
         while running:
 
             # get mouse pos
