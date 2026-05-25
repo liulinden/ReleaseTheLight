@@ -1,5 +1,6 @@
 # imports
 import pygame, random, terrain, decoration, aplayer,lighting,math,os, time
+import threading
 
 background=pygame.image.load(os.path.join("assets","Background.png")).convert()
 
@@ -13,7 +14,7 @@ def distance(coord1:int,coord2:int):
 class World:
 
     # set up and create world
-    def __init__(self, worldWidth, worldHeight, progress_queue=None, defaultZooms=[0.1,2]):
+    def __init__(self, worldWidth, worldHeight, defaultZooms=[0.1,2], progress_queue=None):
 
         # set up world data
         self.terrain = terrain.Terrain(worldWidth,worldHeight,defaultZooms=defaultZooms)
@@ -30,9 +31,12 @@ class World:
         self.generateWorld(progress_queue)
     
     # generate caves/nests/decorations
-    def generateWorld(self, progress_queue):
-        self.terrain.generate(progress_queue)
-    
+    def generateWorld(self, progress_queue=None):
+        if progress_queue is None:
+            self.terrain.generate()
+        else:
+            threading.Thread(target=self.terrain.generate, args=(progress_queue,), daemon=True).start()
+
     # create an air pocket at x, y with specified radius
     def addAirPocket(self, x, y, radius):
         self.terrain.addAirPocket(x,y,radius)

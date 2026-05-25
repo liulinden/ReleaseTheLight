@@ -2,12 +2,10 @@
 import pygame ,world, random,UI, queue
 
 class Game:
-    def __init__(self,window,FPS=60,fullWorld=True,developingMode=False, loading_status_queue=None):
+    def __init__(self,window,FPS=60,fullWorld=True,developingMode=False,loading_screen=None):
 
         self.window = window
         self.window_width,self.window_height=window.get_size()
-
-        self.loading_status_queue = loading_status_queue or queue.Queue()
 
         # constants
         self.FPS = FPS
@@ -29,7 +27,7 @@ class Game:
         self.mode = "play"
 
         self.developingMode= developingMode
-        
+        self.loading_screen= loading_screen
     
     def coordsWindowToWorld(self,coords:list[int]):
         return self.camX+(coords[0]-self.offset_x)/self.zoom,self.camY+(coords[1]-self.offset_y)/self.zoom
@@ -68,11 +66,15 @@ class Game:
         #self.window = pygame.display.set_mode([self.window.get_width(),self.window.get_height()])
         #self.window.get_width(),self.window.get_height()=self.window.get_size()
 
-        self.loading_status_queue.put(0.15)
         self.chargeDisplay=UI.ChargeDisplay(self.WORLD_HEIGHT)
-        self.loading_status_queue.put(0.2)
-        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,progress_queue=self.loading_status_queue,defaultZooms=self.DEFAULT_ZOOMS)
-        self.loading_status_queue.put(0.99)
+
+        self.loading_screen.get_queue().put(0.1)
+        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,defaultZooms=self.DEFAULT_ZOOMS,progress_queue=self.loading_screen.get_queue() if self.loading_screen is not None else None)
+
+        running = True
+        if self.loading_screen is not None:
+            running = self.loading_screen.run()
+
         self.clock = pygame.time.Clock()
         self.keysDown = {pygame.K_w:False,
                          pygame.K_a:False,
@@ -88,13 +90,11 @@ class Game:
         self.shake=0
 
         previousTime=pygame.time.get_ticks()
-        running = True
         self.kindVisibility=False
         practicalFPS=self.FPS
         self.visibleHitboxes=False
         self.loadingDebug=False
 
-        self.loading_status_queue.put(1)
         while running:
 
             # get mouse pos
@@ -206,3 +206,5 @@ class Game:
                 print("fps:", practicalFPS)
             practicalFPS=max(30,practicalFPS)
             previousTime=pygame.time.get_ticks()
+
+        pygame.quit()

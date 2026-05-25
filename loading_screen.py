@@ -1,7 +1,7 @@
 import pygame
+import pathlib
 import threading
 from queue import Queue
-import pathlib
 
 ASSETS = pathlib.Path("assets")
 
@@ -18,19 +18,38 @@ class TitleSpinner(pygame.sprite.Sprite):
         self.current_rotation = -1
         self.goal_rotation = 0
 
+        self.last_time = pygame.time.get_ticks()
+
     def set_position(self, position):
         self.rect.center = position
 
+    def get_image_for_rotation(self, rotation, exact, _memo={}):
+
+        if not exact:
+            rotation = int(rotation)
+        rotation = rotation % 360
+
+        if rotation not in _memo:
+            image = pygame.transform.rotate(self.original_image, -rotation)
+            image.blit(self.center_image, self.center_image.get_rect(center=image.get_rect().center))
+            if exact:
+                return image
+            _memo[rotation] = image
+        return _memo[rotation]
+
     def update(self):
         error = self.goal_rotation - self.current_rotation
-        self.current_rotation += error * 0.1
+
+        current_time = pygame.time.get_ticks()
+        time_delta = current_time - self.last_time
+        self.last_time = current_time
+
+        self.current_rotation += error * 0.0025 * time_delta 
 
         if abs(error) < 0.1:
-            self.goal_rotation += 360 // 6 + 0.05
+            self.goal_rotation += 360 // 6
 
-        self.image = pygame.transform.rotate(self.original_image, -self.current_rotation)
-        self.image.blit(self.center_image, self.center_image.get_rect(center=self.image.get_rect().center))
-
+        self.image = self.get_image_for_rotation(self.current_rotation, exact = error < 1)
         self.rect = self.image.get_rect(center=self.rect.center)
 
 class LoadingBar(pygame.sprite.Sprite):
@@ -89,28 +108,32 @@ class LoadingScreen:
 
         self.font = pygame.font.SysFont("Arial", self.surface.get_height() // 20)
 
-    def start_thread(self):
-        queue = Queue()
-        self.process = threading.Thread(target=self.run, args=(queue,), daemon=True)
-        self.process.start()
-        return queue
+        self.loading_bar = LoadingBar((self.surface.get_width() // 3, self.surface.get_height() // 20))
+        self.title_spinner = TitleSpinner(self.title_background_image, self.title_image)
 
-    def run(self, queue: Queue):
+        self.queue = Queue()
+
+    def get_queue(self):
+        return self.queue
+    
+    def run_threaded(self, end_at = 1):
+        thread = threading.Thread(target=self.run, args=(end_at,))
+        thread.start()
+        return thread
+
+    def run(self, end_at = 1):
         going = True
 
         clock = pygame.time.Clock()
 
-        spinner = TitleSpinner(self.title_background_image, self.title_image)
-        loading_bar = LoadingBar((self.surface.get_width() // 3, self.surface.get_height() // 20))
+        sprites = pygame.sprite.Group(self.title_spinner, self.loading_bar)
 
-        sprites = pygame.sprite.Group(spinner, loading_bar)
-
-        spinner.rect.center =(self.surface.get_width() // 2, self.surface.get_height() // 100 * 35)
-        loading_bar.rect.center = (self.surface.get_width() // 2, self.surface.get_height() // 100 * 80)
+        self.title_spinner.rect.center =(self.surface.get_width() // 2, self.surface.get_height() // 100 * 35)
+        self.loading_bar.rect.center = (self.surface.get_width() // 2, self.surface.get_height() // 100 * 80)
 
         progress = 0
 
-        while going and progress < 1:
+        while going and progress < end_at:
 
             self.surface.fill("black")
 
@@ -124,9 +147,9 @@ class LoadingScreen:
             sprites.update()
             sprites.draw(self.surface)
 
-            if not queue.empty():
-                progress = queue.get()
-                loading_bar.set_progress(progress)
+            if not self.queue.empty():
+                progress = self.queue.get()
+                self.loading_bar.set_progress(progress)
 
             # text = self.font.render(f"{clock.get_fps():.2f} FPS", True, "white")
             # self.surface.blit(text, text.get_rect(topright=self.surface.get_rect().topright))
@@ -136,3 +159,5 @@ class LoadingScreen:
 
             pygame.display.flip()
             clock.tick(FPS)
+        
+        return going
