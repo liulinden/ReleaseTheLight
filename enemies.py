@@ -56,6 +56,8 @@ class Enemy:
         self.damage=self.maxHealth/3
         self.speed=1.5
         self.canFly=True
+        if random.randint(1,2)==1:
+            self.canFly=not self.canFly
         self.variantID='1'
         self.attackFrames=enemyAttackFrames[self.variantID]
         self.animationLengths=enemyAnimationLengths[self.variantID]

@@ -23,7 +23,7 @@ class Lighting:
                 self.resizedLightIMGs["Gradient"+str(size)][zoom]=pygame.transform.scale(lightGradient,(zoom*size,zoom*size))
 
     def addMistParticle(self,x,y,color=(255,255,255)):
-        newParticle=MistParticle(x,y,self.resizedLightIMGs["MistParticles"][random.randint(0,len(self.resizedLightIMGs)-1)],color)
+        newParticle=MistParticle(x,y,self.resizedLightIMGs["MistParticles"][random.randint(0,len(self.resizedLightIMGs["MistParticles"])-1)],color)
         self.particles.append(newParticle)
 
     def tickEffects(self,frameLength):
