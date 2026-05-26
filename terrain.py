@@ -295,7 +295,7 @@ class Terrain:
             for row, rowList in enumerate(self.chunkVisuals[zoom]):
 
                 if progress_queue is not None:
-                    progress_queue.put((i + 1) / len(self.defaultZooms) * (row + 1) / len(self.chunkVisuals[zoom]) * 0.275 + 0.75)
+                    progress_queue.put(min((i + 1) / len(self.defaultZooms) * (row + 1) / len(self.chunkVisuals[zoom]) * 0.272 + 0.75, 0.999))
 
                 for col, chunk in enumerate(rowList):
                     world_left  = col * visual_chunk_size
