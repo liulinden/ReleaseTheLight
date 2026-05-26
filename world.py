@@ -96,12 +96,15 @@ class World:
 
         for nest in self.terrain.nests:
             nest.updateVisuals(frameLength)
-            for particleCoords in nest.applyDamageFromCircles(self.terrain, self.player):
-                self.terrain.particles.spawnMiningParticles(10, nest.color, particleCoords[2], particleCoords[0], particleCoords[1])
+            if self.terrain.playerDamageCircles:
+                for particleCoords in nest.applyDamageFromCircles(self.terrain, self.player):
+                    self.terrain.particles.spawnMiningParticles(10, nest.color, particleCoords[2], particleCoords[0], particleCoords[1])
 
             if nest.stage != nest.maxStage:
-                d = distance((self.player.x, self.player.y), (nest.x, nest.y))
-                if d < 300 and random.randint(1, int(200 + 0.1 * int(d / 2) ** 2)) < frameLength:
+                ndx = self.player.x - nest.x
+                ndy = self.player.y - nest.y
+                d_sq = ndx * ndx + ndy * ndy
+                if d_sq < 300 * 300 and random.randint(1, int(200 + 0.1 * int(math.sqrt(d_sq) / 2) ** 2)) < frameLength:
                     nest.addEnemy(self.terrain, self.player)
                 for i in range(len(nest.enemies) - 1, -1, -1):
                     enemy = nest.enemies[i]
