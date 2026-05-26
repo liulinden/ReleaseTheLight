@@ -22,19 +22,23 @@ def rotateAndGetOffset(surface,cx,cy,angle):
     return rotated_surface, (offset_x), (offset_y)
 
 
-
 SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
 ARM_PIVOT_X =20
 ARM_PIVOT_Y=21
 LASER_DISTANCE=18
 
+IMPACT_SIZE = 100   # world-space size in px — easy to change
+IMPACT_FPS = 24
+IMPACT_FRAMES = 7
+
 playerIMGs={}
+laserImpactIMGsRaw=[]  # raw unscaled images, loaded in init()
 animationLengths = {"Idle":8,"Run":8,"Backpedal":8,"Falling":1,"Jumping":1}
 animationFPS=13
 
 def init():
-    global playerIMGs
+    global playerIMGs, laserImpactIMGsRaw
 
     IMGSet=[]
     for i in range(5):
@@ -58,6 +62,62 @@ def init():
     playerIMGs["Jumping"]=[pygame.image.load(os.path.join("assets","PlayerJumping.png")).convert_alpha()]
     #playerIMGs["Sliding"]=[pygame.image.load(os.path.join("assets","PlayerSliding.png")).convert_alpha()]
     playerIMGs["Arm"]=[pygame.image.load(os.path.join("assets","Arm.png")).convert_alpha()]
+
+    laserImpactIMGsRaw = []
+    for i in range(1, IMPACT_FRAMES + 1):
+        laserImpactIMGsRaw.append(
+            pygame.image.load(os.path.join("assets", f"LaserImpact{i}.png")).convert_alpha()
+        )
+
+
+class LaserImpact:
+    """Single impact animation instance. Follows the live laser endpoint while
+    the laser is active, then freezes at its last known position."""
+    _frameDuration = 1000 / IMPACT_FPS
+
+    def __init__(self, x, y, angle, sourceLaser, scaledIMGs):
+        self.x = x
+        self.y = y
+        self.angle = angle
+        self.sourceLaser = sourceLaser  # reference to spawning Laser; set to None when gone
+        self.scaledIMGs = scaledIMGs    # pre-scaled images for all zooms
+        self.timer = 0.0
+
+    def tick(self, frameLength, activeLasers):
+        # update position if source laser is still active
+        if self.sourceLaser is not None:
+            if self.sourceLaser in activeLasers:
+                lase = self.sourceLaser
+                self.x = lase.startX + math.cos(lase.angle) * lase.length
+                self.y = lase.startY + math.sin(lase.angle) * lase.length
+                self.angle = lase.angle
+            else:
+                self.sourceLaser = None  # laser gone — freeze position
+
+        self.timer += frameLength
+        return self.timer >= self._frameDuration * IMPACT_FRAMES  # True = finished
+
+    def draw(self, surface, frame, color, zoom):
+        left, top, _ = frame
+        frameIndex = min(IMPACT_FRAMES - 1, int(self.timer / self._frameDuration))
+        img = self.scaledIMGs[zoom][frameIndex]
+
+        size = img.get_size()
+        tinted = img.copy()
+        colorSurf = pygame.Surface(size, pygame.SRCALPHA)
+        colorSurf.fill((color[0], color[1], color[2], 255))
+        tinted.blit(colorSurf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+        cx = size[0] / 2
+        cy = size[1] / 2
+        rotAngle = math.pi - self.angle
+        rotated, offX, offY = rotateAndGetOffset(tinted, cx, cy, rotAngle)
+
+        halfH = size[1] / 2
+        screenX = (self.x - left) * zoom - cx + offX - math.cos(self.angle) * halfH
+        screenY = (self.y - top)  * zoom - cy + offY - math.sin(self.angle) * halfH
+        surface.blit(rotated, (screenX, screenY))
+
 
 class Player:
 
@@ -85,6 +145,7 @@ class Player:
         self.laserCooldown=400
         self.laserTimer=0
         self.laser=[]
+        self.impacts=[]  # active LaserImpact instances
         self.chargeDistribution=(1,0,0)
         self.charge=150
         self.maxCharge=500
@@ -97,7 +158,6 @@ class Player:
             zoomIMGSets={}
             for direction in ["Left","Right"]:
                 directionSet={}
-                
                 for animationType in playerIMGs:
                     directionSet[animationType]=[]
                     for img in playerIMGs[animationType]:
@@ -107,7 +167,15 @@ class Player:
                         directionSet[animationType].append(resizedIMG)
                 zoomIMGSets[direction]=directionSet
             self.playerIMGs[zoom]=zoomIMGSets
-    
+
+        # pre-scale impact images for each zoom — done here since defaultZooms is available
+        self._impactIMGs = {}
+        for zoom in self.defaultZooms:
+            size = int(IMPACT_SIZE * zoom)
+            self._impactIMGs[zoom] = [
+                pygame.transform.scale(img, (size, size)) for img in laserImpactIMGsRaw
+            ]
+
     def resetPlayer(self):
         self.x=self.spawnX
         self.y=self.spawnY
@@ -151,7 +219,6 @@ class Player:
             self.animationFrame=0
         else:
             self.animationFrame=math.floor(self.animationTimer/(1000/animationFPS))
-
 
     def updateRect(self):
         self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2
@@ -237,6 +304,15 @@ class Player:
                     cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower])
                 if self.loseCharge(1):
                     return True
+                # spawn impact — position follows live laser, freezes when laser released
+                endX = lase.startX + math.cos(lase.angle) * lase.length
+                endY = lase.startY + math.sin(lase.angle) * lase.length
+                self.impacts.append(LaserImpact(endX, endY, lase.angle, lase, self._impactIMGs))
+
+        # tick impacts, passing current active lasers so they can track position
+        for i in range(len(self.impacts) - 1, -1, -1):
+            if self.impacts[i].tick(frameLength, self.laser):
+                del self.impacts[i]
 
         for knockbackCircle in cTerrain.knockbackCircles:
             dx = self.x-knockbackCircle[0]
@@ -321,7 +397,6 @@ class Player:
                     break
             self.xSpeed=0
     
-
     def moveVertical(self, frameLength,cTerrain:terrain.Terrain):
         self.onGround=False
         self.y+=frameLength*self.ySpeed
@@ -386,14 +461,15 @@ class Player:
             width,height=arm.get_size()
             armSurface=pygame.Surface((width,height),flags=pygame.SRCALPHA)
             armSurface.fill((self.color[0],self.color[1],self.color[2],255))
-            
             armSurface.blit(arm,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
 
             surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offset_y))
             surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY+offset_y))
             for lase in self.laser:
                 lase.draw(surface,frame,self.color,offset_x=offset_x,offset_y=offset_y)
-
+            # draw impact animations — rendered after laser so they appear on top
+            for impact in self.impacts:
+                impact.draw(surface, frame, self.color, zoom)
 
     def collidingWithTerrain(self, cTerrain):
         return cTerrain.collideRect(self.rect)

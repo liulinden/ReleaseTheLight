@@ -1,5 +1,8 @@
 import pygame, math, random
 
+def init(defaultZooms):
+    pass  # impact images now loaded in aplayer.init() and scaled in Player.__init__
+
 
 class Laser:
     def __init__(self):
@@ -20,7 +23,7 @@ class Laser:
         self.damageFrame = False
         self.hitboxes = []
 
-        # step size for ray march — 9px won't skip through any realistic terrain
+        # step size for ray march — 5px won't skip through any realistic terrain
         self._step = 5
 
     def getLaserPoints(self, n_points):
@@ -49,14 +52,12 @@ class Laser:
             wy = self.startY + dy * distance
 
             if terrain.laserCollideRect(pygame.Rect(wx, wy, 1, 1)):
-                # hit — classify what was hit
                 hitRect = pygame.Rect(wx - self.laserWidth / 2,
                                       wy - self.laserWidth / 2,
                                       self.laserWidth, self.laserWidth)
                 if terrain.nestsCollideRect(hitRect):
                     self.collision = [(wx, wy), "nests"]
                 else:
-                    # check enemies via AABB
                     hitEnemy = False
                     for n in terrain.nests:
                         for enemy in n.enemies:
@@ -70,7 +71,7 @@ class Laser:
                         self.collision = [(wx, wy), "ground"]
                 break
 
-            self.hitboxes.append((wx, wy))  # store centre point for debug drawing
+            self.hitboxes.append((wx, wy))
             distance += step
 
         return distance + step / 2
@@ -111,7 +112,6 @@ class Laser:
     def draw(self, surface, frame, color, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
         if hitboxes:
-            # draw each sampled point as a small dot
             for wx, wy in self.hitboxes:
                 pygame.draw.circle(surface, color,
                     (int((wx - left) * zoom + offset_x),

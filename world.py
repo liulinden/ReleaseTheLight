@@ -1,5 +1,5 @@
 # imports
-import pygame, random, terrain, decoration, aplayer,lighting,math,os, time, enemies, nest
+import pygame, random, terrain, decoration, aplayer,lighting,math,os, time, enemies, nest, laser
 import threading
 
 # FIX 2: background loaded in World.__init__ after display exists (removed module-level load)
@@ -23,12 +23,12 @@ class World:
 
         # FIX 2: defer all image loads until after display exists.
         # Order matters: enemies.init() before nest.init() (nest imports enemies).
-        # aplayer.init() must also be added to aplayer.py — see patch notes below.
         lighting.init()
         enemies.init()
         nest.init()
         terrain.init()
-        aplayer.init()  # requires adding init() to aplayer.py
+        aplayer.init()
+        laser.init(defaultZooms)
 
         self.terrain = terrain.Terrain(worldWidth, worldHeight, defaultZooms=defaultZooms)
         self.decorations = []
