@@ -247,7 +247,7 @@ class Enemy:
                         dy = self.y - y
                         if d < r + self.r:
                             cTerrain.particles.spawnMiningParticles(5, self.color, r / 6, x, y)
-                            if self.dealDamage(r / 5):
+                            if self.dealDamage(r / 6):
                                 return True
 
             if self.x < 50:

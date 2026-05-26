@@ -97,7 +97,7 @@ class World:
         for nest in self.terrain.nests:
             nest.updateVisuals(frameLength)
             for particleCoords in nest.applyDamageFromCircles(self.terrain, self.player):
-                self.terrain.particles.spawnMiningParticles(10, nest.color, self.player.laserPower / 2, particleCoords[0], particleCoords[1])
+                self.terrain.particles.spawnMiningParticles(10, nest.color, particleCoords[2], particleCoords[0], particleCoords[1])
 
             if nest.stage != nest.maxStage:
                 d = distance((self.player.x, self.player.y), (nest.x, nest.y))
