@@ -10,9 +10,10 @@ airIMGs = {}
 circleIMGs = []
 airHitboxIMGs = {}
 rocksIMG = {}  # keyed by zoom: pre-scaled rocks texture tiles
+vignetteIMG = None  # loaded in init(), smoothscaled to window size in drawVignette
 
 def init():
-    global airIMGs, circleIMGs, airHitboxIMGs, rocksIMG
+    global airIMGs, circleIMGs, airHitboxIMGs, rocksIMG, vignetteIMG
     circleIMGs = []
     for i in range(4):
         circleIMGs.append(pygame.image.load(os.path.join("assets", "AirPocket" + str(i + 1) + ".png")).convert_alpha())
@@ -25,6 +26,8 @@ def init():
     rocks_raw = pygame.image.load(os.path.join("assets", "Rocks.png")).convert()
     # rocksIMG is stored at world scale (zoom=1) only; zoomed versions built in Terrain.__init__
     rocksIMG["raw"] = rocks_raw
+
+    vignetteIMG = pygame.image.load(os.path.join("assets", "VignetteGradient.png")).convert_alpha()
 
 
 def distance(coord1: int, coord2: int):
@@ -113,6 +116,13 @@ class Terrain:
         # collision rects are at most a few hundred px; 512 covers all cases
         self._collide_scratch = pygame.Surface((512, 512), pygame.SRCALPHA)
         self._collide_scratch_hitbox = pygame.Surface((512, 512), pygame.SRCALPHA)
+
+        # vignette: pre-baked screen-fixed darkening, rebuilt only on window resize
+        self._vignetteSurf = None
+        self._vignetteSize = None
+        # stencil surface for vignette clipping — reused across frames, reallocated on resize
+        self._vignette_stencil = None
+        self._vignette_stencil_size = None
 
     def _getTerrainLayerSurface(self, real_window_size):
         """Return a cleared reusable terrain layer, reallocating only on resize."""
@@ -241,10 +251,12 @@ class Terrain:
         # interpolated linearly between adjacent keyframes
         palette = [
             (0.0,  (60,  55,  65)),   # near surface: dark desaturated grey-purple
-            (0.25, (70,  50,  90)),   # upper mid: muted purple
-            (0.5,  (40,  30, 120)),   # mid: deep blue
-            (0.75, (120, 20,  80)),   # lower mid: deep magenta
-            (1.0,  (160, 15,  20)),   # bottom: vivid dark red
+            (0.2, (70,  50,  90)),   # upper mid: muted purple
+            (0.4,  (40,  30, 120)),   # mid: deep blue
+            (0.5, (60, 200,  100)),
+            (0.6, (120, 10,  50)),   # lower mid: deep magenta
+            (0.8,  (250, 15,  20)),   # bottom: vivid dark red
+            (1.0,  (255, 255,  255)),
         ]
 
         for i in range(len(palette) - 1):
@@ -308,8 +320,9 @@ class Terrain:
                             rock_surf.blit(rocks, (tx, ty))
                     chunk.blit(rock_surf, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
 
-                    # 4. Draw rim — enlarged air pockets in ambient dark colour (0.2x depth tint)
-                    #    Drawn before air carve so the rim darkens solid rock at cave edges.
+                    # 4. Draw rim — enlarged air pockets using their own visual image,
+                    #    tinted to ambient dark colour. Drawn before air carve so the
+                    #    rim darkens solid rock at cave edges.
                     #    Player-mined pockets are excluded — rims are initial generation only.
                     rim_margin = visual_chunk_size * self._RIM_MULT
                     for airPocket in self.airPockets:
@@ -322,26 +335,19 @@ class Terrain:
                         # ambient dark colour at this pocket's world position
                         dc = self._depthColor(airPocket.x, airPocket.y)
                         rim_color = (int(dc[0] * 0.05), int(dc[1] * 0.05), int(dc[2] * 0.05))
-                        rim_r = airPocket.r * self._RIM_MULT
                         cx = zoom * (airPocket.x - world_left)
                         cy = zoom * (airPocket.y - world_top)
-                        if airPocket.type == "Circle":
-                            pygame.draw.circle(chunk, rim_color,
-                                               (int(cx), int(cy)),
-                                               int(rim_r * zoom))
-                        else:
-                            # for custom shapes scale the image up by RIM_MULT
-                            img = airPocket.IMGs[zoom]
-                            rim_size = (int(img.get_width() * self._RIM_MULT),
-                                        int(img.get_height() * self._RIM_MULT))
-                            rim_img = pygame.transform.scale(img, rim_size)
-                            # tint to rim color
-                            rim_surf = pygame.Surface(rim_size, pygame.SRCALPHA)
-                            rim_surf.fill(rim_color)
-                            rim_surf.blit(rim_img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-                            chunk.blit(rim_surf,
-                                       (int(cx - rim_size[0] / 2),
-                                        int(cy - rim_size[1] / 2)))
+                        # use the pocket's own visual image scaled up by RIM_MULT for all types
+                        img = airPocket.IMGs[zoom]
+                        rim_size = (int(img.get_width() * self._RIM_MULT),
+                                    int(img.get_height() * self._RIM_MULT))
+                        rim_img = pygame.transform.scale(img, rim_size)
+                        rim_surf = pygame.Surface(rim_size, pygame.SRCALPHA)
+                        rim_surf.fill(rim_color)
+                        rim_surf.blit(rim_img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                        chunk.blit(rim_surf,
+                                   (int(cx - rim_size[0] / 2),
+                                    int(cy - rim_size[1] / 2)))
 
                     # 5. Carve air last — punches clean transparent holes through rim+rock
                     chunk.blit(airChunks[row][col], (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
@@ -358,10 +364,19 @@ class Terrain:
         tr = self._depthColor(right, top)
         bl = self._depthColor(left,  bottom)
         br = self._depthColor(right, bottom)
-        # substantially darker than terrain — multiply by 0.2
+        # substantially darker than terrain — multiply by 0.05
         def darken(c): return (int(c[0]*0.05), int(c[1]*0.05), int(c[2]*0.05))
         grad = self._makeGradientSurf(darken(tl), darken(tr), darken(bl), darken(br), w, h)
         surface.blit(grad, (offset_x, offset_y))
+
+    def drawVignette(self, surface, window_size, offset_x=0, offset_y=0):
+        """Blit a screen-fixed vignette (white centre -> black edges) using BLEND_RGB_MULT.
+        Pre-baked and only rebuilt on window resize."""
+        w, h = window_size
+        if self._vignetteSurf is None or self._vignetteSize != window_size:
+            self._vignetteSurf = pygame.transform.smoothscale(vignetteIMG, (w, h))
+            self._vignetteSize = window_size
+        surface.blit(self._vignetteSurf, (offset_x, offset_y), special_flags=pygame.BLEND_RGB_MULT)
 
     def _carveVisualChunk(self, airPocket, row, col, zoom):
         """Carve a newly-mined air pocket out of a single chunkVisuals chunk.
@@ -787,15 +802,30 @@ class Terrain:
             bottomChunk = math.ceil(max(0, min(self.worldHeight, top + w_height / zoom - visual_chunk_size)) / visual_chunk_size)
             rightChunk  = math.ceil(max(0, min(self.worldWidth - visual_chunk_size, left + w_width / zoom - visual_chunk_size)) / visual_chunk_size)
 
+            # use a stencil surface so the vignette only darkens solid terrain pixels:
+            # 1. blit terrain chunks onto a cleared SRCALPHA stencil (transparent = air)
+            # 2. multiply the vignette into the stencil (only affects opaque rock pixels)
+            # 3. blit the stencil onto the layer normally
+            if self._vignette_stencil is None or self._vignette_stencil_size != real_window_size:
+                self._vignette_stencil = pygame.Surface(real_window_size, pygame.SRCALPHA)
+                self._vignette_stencil_size = real_window_size
+            self._vignette_stencil.fill((0, 0, 0, 0))
+
             chunks = self.chunkVisuals[zoom]
             for row in range(topChunk, bottomChunk + 1):
                 for col in range(leftChunk, rightChunk + 1):
                     if row < len(chunks) and col < len(chunks[row]):
-                        surface.blit(
+                        self._vignette_stencil.blit(
                             chunks[row][col],
                             ((col * visual_chunk_size - left) * zoom + offset_x,
                              (row * visual_chunk_size - top) * zoom + offset_y)
                         )
+
+            # multiply vignette into stencil — transparent air pixels unaffected
+            self.drawVignette(self._vignette_stencil, window_size, offset_x=offset_x, offset_y=offset_y)
+
+            # blit finished stencil onto the main layer
+            surface.blit(self._vignette_stencil, (0, 0))
 
     def getTerrainLayer(self, window_size, frame: list, hitboxes=False, real_window_size=None, offset_x=0, offset_y=0):
         if real_window_size is None:
