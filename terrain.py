@@ -334,7 +334,7 @@ class Terrain:
                             continue
                         # ambient dark colour at this pocket's world position
                         dc = self._depthColor(airPocket.x, airPocket.y)
-                        rim_color = (int(dc[0] * 0.05), int(dc[1] * 0.05), int(dc[2] * 0.05))
+                        rim_color = (int(dc[0] * 0), int(dc[1] * 0), int(dc[2] * 0))
                         cx = zoom * (airPocket.x - world_left)
                         cy = zoom * (airPocket.y - world_top)
                         # use the pocket's own visual image scaled up by RIM_MULT for all types
