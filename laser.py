@@ -22,6 +22,7 @@ class Laser:
         self.collision = []
         self.damageFrame = False
         self.hitboxes = []
+        self.laserTarget = None
 
         # step size for ray march — 5px won't skip through any realistic terrain
         self._step = 5
@@ -46,6 +47,7 @@ class Laser:
         dy = math.sin(angle)
         step = self._step
         distance = 0
+        self.laserTarget = None
 
         while distance < self.maxLength:
             wx = self.startX + dx * distance
@@ -63,6 +65,7 @@ class Laser:
                         for enemy in n.enemies:
                             if enemy.mode != "Spawn" and hitRect.colliderect(enemy.rect):
                                 self.collision = [(wx, wy), "enemies"]
+                                self.laserTarget = enemy
                                 hitEnemy = True
                                 break
                         if hitEnemy:
