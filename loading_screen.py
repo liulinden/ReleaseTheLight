@@ -127,6 +127,8 @@ class LoadingScreen:
             if not self.queue.empty():
                 progress = self.queue.get()
                 self.loading_bar.set_progress(progress)
+                if progress >= end_at:
+                    break
 
             # text = self.font.render(f"{clock.get_fps():.2f} FPS", True, "white")
             # self.surface.blit(text, text.get_rect(topright=self.surface.get_rect().topright))
@@ -137,4 +139,5 @@ class LoadingScreen:
             pygame.display.flip()
             clock.tick(FPS)
         
+        print("Loading screen done with progress", progress)
         return going

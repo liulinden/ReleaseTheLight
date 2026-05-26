@@ -283,16 +283,20 @@ class Terrain:
 
     _RIM_MULT = 1.7  # rim radius multiplier relative to air pocket radius
 
-    def buildChunkVisuals(self):
+    def buildChunkVisuals(self, progress_queue=None):
         """Build chunkVisuals: fill white, subtract air, multiply Rocks texture,
         multiply bilinear depth+noise gradient. Called once after generate()."""
-        for zoom in self.defaultZooms:
+        for i, zoom in enumerate(self.defaultZooms):
             airChunks = self.airPocketsSurfaces[zoom]
             rocks = self._rocksScaled[zoom]
             rocks_span_px = int(rocks_world_span * zoom)
             chunk_px = int(visual_chunk_size * zoom)
 
             for row, rowList in enumerate(self.chunkVisuals[zoom]):
+
+                if progress_queue is not None:
+                    progress_queue.put((i + 1) / len(self.defaultZooms) * (row + 1) / len(self.chunkVisuals[zoom]) * 0.275 + 0.75)
+
                 for col, chunk in enumerate(rowList):
                     world_left  = col * visual_chunk_size
                     world_top   = row * visual_chunk_size
@@ -394,11 +398,11 @@ class Terrain:
             eraser.fill((0, 0, 0, 0))
             chunk.blit(eraser, (zoom * (airPocket.left - left), zoom * (airPocket.top - top)))
 
-    def buildChunkHitboxes(self):
+    def buildChunkHitboxes(self, progress_queue=None):
         """Build chunkHitboxes from scratch: fill solid white, subtract air, blit nests.
         Called once after generate() completes. Never called again — updates happen
         incrementally via addAirPocketToSurfaces and addNestToHitboxSurfaces."""
-        for zoom in self.defaultZooms:
+        for i, zoom in enumerate(self.defaultZooms):
             airChunks = self.airPocketsHitboxesSurfaces[zoom]
             for row, rowList in enumerate(self.chunkHitboxes[zoom]):
                 for col, chunk in enumerate(rowList):
@@ -406,6 +410,8 @@ class Terrain:
                     chunk.fill((255, 255, 255, 255))
                     # carve out air pockets already baked into airPocketsHitboxesSurfaces
                     chunk.blit(airChunks[row][col], (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+                if progress_queue is not None:
+                    progress_queue.put((i + 1) / len(self.defaultZooms) * row / len(self.chunkHitboxes[zoom]) * 0.25 + 0.5)
             # blit all nests on top (nests are solid, may overlap carved-out air)
             for n in self.nests:
                 self._blitNestOnChunkHitboxes(n, zoom)
@@ -449,6 +455,8 @@ class Terrain:
 
     # generate caves/nests/decorations
     def generate(self, progress_queue=None):
+        if progress_queue is not None:
+            progress_queue.put(0.11)
         x=-500
         while x<self.worldWidth+500:
             r=random.randint(10,30)
@@ -456,7 +464,7 @@ class Terrain:
             x+=r/2
         for i in range(int(self.worldHeight/100)):
             if progress_queue is not None:
-                progress_queue.put(i / (self.worldHeight/100) * (0.999 - 0.1) + 0.1)
+                progress_queue.put(i / (self.worldHeight/100) * (0.5 - 0.1) + 0.1)
             for j in range(int(self.worldWidth/1000)):
 
                 if random.randint(1, 10) == 1:
@@ -498,8 +506,8 @@ class Terrain:
                     self.generateNest(j * 1000 + random.randint(0, 1000), random.randint(int((self.worldHeight - 500)), self.worldHeight - 5), "Red")
                 if random.randint(1, 35) == 1:
                     self.generateNest(j * 1000 + random.randint(0, 1000), random.randint(int((self.worldHeight - 500)), self.worldHeight - 5), "Blue")
-        self.buildChunkHitboxes()
-        self.buildChunkVisuals()
+        self.buildChunkHitboxes(progress_queue=progress_queue)
+        self.buildChunkVisuals(progress_queue=progress_queue)
         if progress_queue is not None:
             progress_queue.put(1)
 

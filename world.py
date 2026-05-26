@@ -50,6 +50,7 @@ class World:
         if progress_queue is None:
             self.terrain.generate()
         else:
+            progress_queue.put(0.1)
             threading.Thread(target=self.terrain.generate, args=(progress_queue,), daemon=True).start()
 
     def _getWorldLayer(self, real_window_size):
