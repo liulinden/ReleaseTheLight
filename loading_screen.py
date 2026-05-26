@@ -94,7 +94,7 @@ class LoadingScreen:
         return self.queue
     
     def run_threaded(self, end_at = 1):
-        thread = threading.Thread(target=self.run, args=(end_at,))
+        thread = threading.Thread(target=self.run, args=(end_at,), daemon=True)
         thread.start()
         return thread
 
