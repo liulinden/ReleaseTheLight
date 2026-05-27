@@ -83,7 +83,7 @@ class LoadingScreen:
 
         self.title_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleImage.webp"), (h * 0.7, h * 0.7)).convert_alpha()
         self.title_background_image = pygame.transform.scale(pygame.image.load(ASSETS / "LoadingStar.webp"), (h * 0.75, h * 0.75)).convert_alpha()
-        self.title_glow = pygame.transform.scale(pygame.image.load(ASSETS / "VignetteGradient.webp"), (h * 1, h * 1)).convert_alpha()
+        self.title_glow = pygame.transform.scale(pygame.image.load(ASSETS / "VignetteGradient.png"), (h * 1.2, h * 1.19)).convert_alpha()
 
         self.font = pygame.font.SysFont("Arial", self.surface.get_height() // 20)
 
