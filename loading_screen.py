@@ -44,12 +44,13 @@ class TitleSpinner(pygame.sprite.Sprite):
         time_delta = current_time - self.last_time
         self.last_time = current_time
 
-        self.current_rotation += error * 0.0025 * time_delta 
+        rotational_speed = error * 0.0025 * time_delta
+        self.current_rotation += rotational_speed
 
         if abs(error) < 0.1:
             self.goal_rotation += 360 // 6
 
-        self.image = self.get_image_for_rotation(self.current_rotation, exact = error < 1)
+        self.image = self.get_image_for_rotation(self.current_rotation, exact = rotational_speed < 2)
         self.rect = self.image.get_rect(center=self.rect.center)
 
 class LoadingBar(pygame.sprite.Sprite):
@@ -81,7 +82,8 @@ class LoadingScreen:
         h = self.surface.get_height()
 
         self.title_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleImage.webp"), (h * 0.7, h * 0.7)).convert_alpha()
-        self.title_background_image = pygame.transform.scale(pygame.image.load(ASSETS / "TitleBackgroundWithGlow.png"), (h * 1.4, h * 1.4)).convert_alpha()
+        self.title_background_image = pygame.transform.scale(pygame.image.load(ASSETS / "LoadingStar.webp"), (h * 0.75, h * 0.75)).convert_alpha()
+        self.title_glow = pygame.transform.scale(pygame.image.load(ASSETS / "VignetteGradient.webp"), (h * 1, h * 1)).convert_alpha()
 
         self.font = pygame.font.SysFont("Arial", self.surface.get_height() // 20)
 
@@ -113,6 +115,7 @@ class LoadingScreen:
         while going and progress < end_at:
 
             self.surface.fill("black")
+            self.surface.blit(self.title_glow, self.title_glow.get_rect(center=self.title_spinner.rect.center))
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -139,5 +142,5 @@ class LoadingScreen:
             pygame.display.flip()
             clock.tick(FPS)
         
-        print("Loading screen done with progress", progress)
+        # print("Loading screen done with progress", progress)
         return going
