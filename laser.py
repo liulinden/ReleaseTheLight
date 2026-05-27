@@ -22,6 +22,7 @@ class Laser:
         self.collision = []
         self.damageFrame = False
         self.hitboxes = []
+        self.laserTarget = None
 
         # step size for ray march — 5px won't skip through any realistic terrain
         self._step = 5
@@ -41,7 +42,7 @@ class Laser:
     def getLength(self, terrain, angle):
         self.hitboxes = []
         self.collision = []
-
+        self.laserTarget = None
         dx = math.cos(angle)
         dy = math.sin(angle)
         step = self._step
@@ -55,14 +56,27 @@ class Laser:
                 hitRect = pygame.Rect(wx - self.laserWidth / 2,
                                       wy - self.laserWidth / 2,
                                       self.laserWidth, self.laserWidth)
-                if terrain.nestsCollideRect(hitRect):
+                # nest check: AABB pre-screen then precise pixel sample from nest's hitbox image
+                hitNest = None
+                for n in terrain.nests:
+                    if n.close(wx, wy, self.laserWidth / 2):
+                        # precise: sample nest's zoom=1 hitbox at local coordinates
+                        lx = int(wx - n.left)
+                        ly = int(wy - n.top)
+                        if 0 <= lx < int(n.size) and 0 <= ly < int(n.size):
+                            if n.resizedHitboxes[1].get_at((lx, ly))[3] > 128:
+                                hitNest = n
+                                break
+                if hitNest is not None:
                     self.collision = [(wx, wy), "nests"]
+                    self.laserTarget = hitNest
                 else:
                     hitEnemy = False
                     for n in terrain.nests:
                         for enemy in n.enemies:
                             if enemy.mode != "Spawn" and hitRect.colliderect(enemy.rect):
                                 self.collision = [(wx, wy), "enemies"]
+                                self.laserTarget = enemy
                                 hitEnemy = True
                                 break
                         if hitEnemy:

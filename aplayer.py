@@ -463,6 +463,9 @@ class Player:
             armSurface.fill((self.color[0],self.color[1],self.color[2],255))
             armSurface.blit(arm,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
 
+            # brighten player and arm before normal blit
+            #playerSurface.fill((40, 40, 40), special_flags=pygame.BLEND_RGB_ADD)
+            #armSurface.fill((40, 40, 40), special_flags=pygame.BLEND_RGB_ADD)
             surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offset_y))
             surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY+offset_y))
             for lase in self.laser:

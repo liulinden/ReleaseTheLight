@@ -177,8 +177,11 @@ class Nest:
             for circle in cTerrain.playerDamageCircles:
                 x, y, r = circle
                 if self.close(x, y, 0):
-                    self.dealDamage(r / 2, cTerrain, player)
-                    newParticles.append([x, y])
+                    # direct hit: full damage; splash: reduced damage
+                    directHit = any(lase.laserTarget is self for lase in player.laser)
+                    damage = r / 2 if directHit else r / 6
+                    self.dealDamage(damage, cTerrain, player)
+                    newParticles.append([x, y, damage])
         return newParticles
 
     def dealDamage(self, damage, cTerrain, player):

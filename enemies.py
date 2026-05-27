@@ -1,5 +1,6 @@
 import pygame, math, random, os
 
+
 # FIX 2: images loaded in init() after display exists
 lightGradient = None
 enemyAnimations = {}
@@ -231,16 +232,23 @@ class Enemy:
                     self.xSpeed += frameLength * dx / d / self.size * knockback
                     self.ySpeed += frameLength * dy / d / self.size * knockback
                 # FIX 2 (minor): removed print(dx,dy,d) — was printing every frame per enemy
-
+            
             for damageCircle in cTerrain.playerDamageCircles:
                 x, y, r = damageCircle
-                dx = self.x - x
-                dy = self.y - y
-                d = math.sqrt(dx ** 2 + dy ** 2)
-                if d < r + self.r:
-                    cTerrain.particles.spawnMiningParticles(10, self.color, r / 2, x, y)
-                    if self.dealDamage(r / 2):
-                        return True
+                
+                for lase in player.laser:
+                    if lase.laserTarget is self:
+                        cTerrain.particles.spawnMiningParticles(10, self.color, r/2, x, y)
+                        if self.dealDamage(r/2):
+                            return True
+                    else:
+                        d = math.sqrt(dx ** 2 + dy ** 2)
+                        dx = self.x - x
+                        dy = self.y - y
+                        if d < r + self.r:
+                            cTerrain.particles.spawnMiningParticles(5, self.color, r / 6, x, y)
+                            if self.dealDamage(r / 6):
+                                return True
 
             if self.x < 50:
                 self.xSpeed += (50 - self.x) / 10000 * frameLength
