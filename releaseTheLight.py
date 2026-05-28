@@ -15,9 +15,9 @@ class Game:
             self.DEFAULT_ZOOMS = [1,1.5]
         #self.HITBOX_ZOOM=0.2 -- add later
         self.WORLD_WIDTH = 4000
-        self.WORLD_HEIGHT = 20000
+        self.WORLD_HEIGHT = 50000
         if not fullWorld:
-            self.WORLD_HEIGHT=8000
+            self.WORLD_HEIGHT=20000
         #high temporarily
 
         self.offset_x=0
@@ -205,8 +205,8 @@ class Game:
             # tick game
             self.clock.tick(self.FPS)
             practicalFPS= max(1,round(1000/(pygame.time.get_ticks()-previousTime)))
-            if random.randint(1,20)==1:
-                print("fps:", practicalFPS)
+            #if random.randint(1,20)==1:
+            #    print("fps:", practicalFPS)
             practicalFPS=max(30,practicalFPS)
             previousTime=pygame.time.get_ticks()
 
