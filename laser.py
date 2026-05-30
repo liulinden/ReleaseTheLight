@@ -25,7 +25,7 @@ class Laser:
         self.laserTarget = None
 
         # step size for ray march — 5px won't skip through any realistic terrain
-        self._step = 5
+        self._step = 3
 
     def getLaserPoints(self, n_points):
         n_points = max(3, 1 + round(self.length / 40))
@@ -58,7 +58,7 @@ class Laser:
                                       self.laserWidth, self.laserWidth)
                 # nest check: AABB pre-screen then precise pixel sample from nest's hitbox image
                 hitNest = None
-                for n in terrain.nests:
+                for n in terrain._activeNests():
                     if n.close(wx, wy, self.laserWidth / 2):
                         # precise: sample nest's zoom=1 hitbox at local coordinates
                         lx = int(wx - n.left)
@@ -72,7 +72,7 @@ class Laser:
                     self.laserTarget = hitNest
                 else:
                     hitEnemy = False
-                    for n in terrain.nests:
+                    for n in terrain._activeNests():
                         for enemy in n.enemies:
                             if enemy.mode != "Spawn" and hitRect.colliderect(enemy.rect):
                                 self.collision = [(wx, wy), "enemies"]

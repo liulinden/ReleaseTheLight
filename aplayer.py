@@ -297,7 +297,7 @@ class Player:
                 if lase.collision:
                     point= lase.collision[0]
                     x,y=point
-                    cTerrain.addAirPocketClump(x, y, self.laserPower, playerMade=True,spreading=1/5)
+                    cTerrain.addAirPocketClump(x, y, self.laserPower, layerIndex=cTerrain._layerForY(y), playerMade=True, spreading=1/5)
                     if lase.collision[1]=="ground":
                         cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower,x,y)
                     cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback])
@@ -329,10 +329,11 @@ class Player:
                 self.ySpeed+=frameLength*dy/distance*knockback
             #should probably do this from the enemy not in the player tick
 
-        for nest in cTerrain.nests:
-            if nest.stage==nest.maxStage and nest.withinEffectRadius(self.x,self.y) and nest.charge>0:
-                chargeGain=self.addCharge(nest.chargeRate*frameLength, nest.charging,nest.maxCharge)
-                nest.loseCharge(chargeGain)
+        for li in cTerrain.activeLayers:
+            for nest in cTerrain.nests[li]:
+                if nest.stage==nest.maxStage and nest.withinEffectRadius(self.x,self.y) and nest.charge>0:
+                    chargeGain=self.addCharge(nest.chargeRate*frameLength, nest.charging,nest.maxCharge)
+                    nest.loseCharge(chargeGain)
         self.updateLaserStats()
 
         if self.x<50:
@@ -464,8 +465,8 @@ class Player:
             armSurface.blit(arm,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
 
             # brighten player and arm before normal blit
-            #playerSurface.fill((40, 40, 40), special_flags=pygame.BLEND_RGB_ADD)
-            #armSurface.fill((40, 40, 40), special_flags=pygame.BLEND_RGB_ADD)
+            playerSurface.fill((40, 40, 40), special_flags=pygame.BLEND_RGB_ADD)
+            armSurface.fill((40, 40, 40), special_flags=pygame.BLEND_RGB_ADD)
             surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offset_y))
             surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY+offset_y))
             for lase in self.laser:

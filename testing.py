@@ -1,4 +1,7 @@
-import pygame, laser
+import pygame, laser, terrain
+for i in range(10):
+    print(terrain.chooseUniqueRandoms(10,1,10))
+"""
 w=pygame.display.set_mode([500,500])
 
 thelaser=laser.Laser()
@@ -33,4 +36,4 @@ while running:
     thelaser2.draw(w,[0,0,1])
 
     c.tick(60)
-    pygame.display.flip()
+    pygame.display.flip()"""
