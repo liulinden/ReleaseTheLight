@@ -148,6 +148,8 @@ class Player:
         self.impacts=[]  # active LaserImpact instances
         self.chargeDistribution=(1,0,0)
         self.charge=150
+        self.charges={"white":150,"blue":0,"red":0}
+        self.chargeCapacity=150
         self.maxCharge=500
         self.immunityTimer=0
         self.immunityTime=500
@@ -183,7 +185,8 @@ class Player:
         self.ySpeed=0
         self.chargeDistribution=(1,0,0)
         self.charge=150
-                
+        self.setCharges(max(150,self.chargeCapacity*2/3),0,0)
+      
     def updateCostume(self,frameLength, mousePos):
         self.animationTimer=(self.animationTimer+frameLength)%(1000/animationFPS*(animationLengths[self.animationType]))
         previousAnimationType=self.animationType
@@ -242,12 +245,21 @@ class Player:
         self.laserKnockback=8+cw/35+cr/35+cb/10
         self.laserCooldown=500-cw/5-cb/5+cr/5
 
+    def setCharges(self, white, blue, red):
+        self.charges["white"]=white
+        self.charges["blue"]=blue
+        self.charges["red"]=red
+
     def addCharge(self, addedCharge, chargeDistribution, maxCharge):
-        w,b,r=self.chargeDistribution
-        w,b,r=w*self.charge,b*self.charge,r*self.charge
-        w+=chargeDistribution[0]*addedCharge
-        b+=chargeDistribution[1]*addedCharge
-        r+=chargeDistribution[2]*addedCharge
+        totalCharge=sum(self.charges.values())
+        trueAdded=addedCharge
+        if totalCharge+addedCharge>self.chargeCapacity:
+            self.chargeCapacity=min(maxCharge, totalCharge+addedCharge)
+            trueAdded=self.chargeCapacity-totalCharge
+    
+        self.charges["white"]+=chargeDistribution[0]*trueAdded
+        self.charges["blue"]+=chargeDistribution[1]*trueAdded
+        self.charges["red"]+=chargeDistribution[2]*trueAdded
         total=w+b+r
         self.chargeDistribution=(w/total,b/total,r/total)
         originalCharge=self.charge
@@ -477,3 +489,4 @@ class Player:
 
     def collidingWithTerrain(self, cTerrain):
         return cTerrain.collideRect(self.rect)
+        
