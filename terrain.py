@@ -48,6 +48,14 @@ def _layerYBounds(layerIndex, worldHeight):
     yBottom = GATEWAY_Y_POSITIONS[layerIndex] if layerIndex < NUM_LAYERS - 1 else worldHeight
     return yTop, yBottom
 
+def chooseUniqueRandoms(n, low, high, excluded=[]):
+    while True:
+        r=random.randint(low,high)
+        if not r in excluded:
+            if n==1:
+                return [r]
+            return [r] + chooseUniqueRandoms(n-1,low,high,excluded+[r]) 
+    
 
 class Terrain:
 
@@ -78,8 +86,10 @@ class Terrain:
         self.gateways = []
         for gi in range(NUM_LAYERS - 1):
             numTiles  = math.ceil(worldWidth / visual_chunk_size)
-            entryCols = [numTiles // 4, numTiles // 2]
-            exitCols  = [numTiles * 3 // 4]
+            nExits = random.randint(math.ceil(numTiles/4),math.ceil(numTiles/2))
+            nEntries = random.randint(1,math.ceil((numTiles-nExits)/2))
+            entryCols = chooseUniqueRandoms(nEntries,1,numTiles-2)
+            exitCols  = chooseUniqueRandoms(nExits,1,numTiles-2,entryCols)
             gw = Gateway(gi, worldWidth, visual_chunk_size, defaultZooms,
                          entryColumns=entryCols, exitColumns=exitCols,
                          maxChargePerEntry=GATEWAY_CHARGE[gi])
@@ -207,8 +217,9 @@ class Terrain:
     # Structure collision baking
     # ------------------------------------------------------------------
 
-    def reblitStructureOnChunks(self, structure):
+    def reblitStructureOnChunks(self, structure, erase=True):
         for zoom in self.defaultZooms:
+            eraseHitboxSurf = structure.getEraseHitboxSurface(zoom)
             hitboxSurf = structure.getHitboxSurface(zoom)
             if hitboxSurf is None:
                 continue
@@ -222,6 +233,13 @@ class Terrain:
                 for col in range(colStart, colEnd + 1):
                     chunkLeft = col * hitbox_chunk_size
                     chunkTop  = row * hitbox_chunk_size
+                    if erase and eraseHitboxSurf:
+                        self.chunkHitboxes[zoom][row][col].blit(
+                        eraseHitboxSurf,
+                        (zoom * (structure.left - chunkLeft),
+                         zoom * (structure.top  - chunkTop)),
+                         special_flags=pygame.BLEND_RGBA_SUB
+                        )
                     self.chunkHitboxes[zoom][row][col].blit(
                         hitboxSurf,
                         (zoom * (structure.left - chunkLeft),
@@ -231,7 +249,7 @@ class Terrain:
 
     def _bakeGatewayIntoChunks(self, gateway):
         for tile in gateway.tiles:
-            self.reblitStructureOnChunks(tile)
+            self.reblitStructureOnChunks(tile,True)
 
     # ------------------------------------------------------------------
     # Surface helpers
@@ -359,6 +377,33 @@ class Terrain:
                                 hitboxSurf,
                                 (zoom * (tile.left - chunkLeft), zoom * (tile.top - chunkTop)),
                                 special_flags=pygame.BLEND_RGBA_MAX
+                            )
+    
+    def carveStructuresVisualAir(self, layerTop=0):
+        structures = []
+        for gw in self.gateways:
+            structures.extend(gw.tiles)
+        for zoom in self.defaultZooms:
+            for structure in structures:
+                if structure.top + structure.height > layerTop:
+                    eraseSurf = structure.getEraseSurface(zoom)
+                    if eraseSurf is None:
+                        continue
+                    colStart = max(0, math.floor(structure.left / visual_chunk_size) - 1)
+                    colEnd   = min(len(self.chunkVisuals[zoom][0]) - 1,
+                                math.ceil((structure.left + structure.width) / visual_chunk_size))
+                    rowStart = max(0, math.floor(structure.top / visual_chunk_size) - 1)
+                    rowEnd   = min(len(self.chunkVisuals[zoom]) - 1,
+                                math.ceil((structure.top + structure.height) / visual_chunk_size))
+                    for row in range(rowStart, rowEnd + 1):
+                        for col in range(colStart, colEnd + 1):
+                            chunkLeft = col * visual_chunk_size
+                            chunkTop  = row * visual_chunk_size
+                            self.chunkVisuals[zoom][row][col].blit(
+                            eraseSurf,
+                            (zoom * (structure.left - chunkLeft),
+                            zoom * (structure.top  - chunkTop)),
+                            special_flags=pygame.BLEND_RGBA_SUB
                             )
 
     # ------------------------------------------------------------------
@@ -505,6 +550,7 @@ class Terrain:
                         chunk.blit(rim_surf, (int(cx - rim_size[0] / 2), int(cy - rim_size[1] / 2)))
 
                     chunk.blit(airChunks[row][col], (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+        self.carveStructuresVisualAir(yTop)
 
     # ------------------------------------------------------------------
     # Per-layer generation entry point

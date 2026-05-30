@@ -33,6 +33,7 @@ class World:
 
         self._world_layer      = None
         self._world_layer_size = None
+        self.scratch_layer = None
 
         self.generateWorld(progress_queue)
 
@@ -52,7 +53,8 @@ class World:
         if self._world_layer is None or self._world_layer_size != real_window_size:
             self._world_layer = pygame.Surface(real_window_size)
             self._world_layer_size = real_window_size
-        return self._world_layer
+            self.scratch_layer = pygame.Surface(real_window_size)
+        return self._world_layer, self.scratch_layer
 
     def addAirPocket(self, x, y, radius):
         # player-mined pockets go into the layer the player is currently in
@@ -137,19 +139,21 @@ class World:
         left, top, zoom = frame
         x = (-left * zoom) % self.bg_width/2  - self.bg_width/2
         y = (-top  * zoom) % self.bg_height/2 - self.bg_height/2
-        layer.blit(self.background, (x, y), special_flags=pygame.BLEND_RGB_MULT)
+        layer.blit(self.background, (x, y))
 
     def getSurface(self, window_size, frame, hitboxes=False, kindVisibility=False,
                    real_window_size=None, offset_x=0, offset_y=0):
         if real_window_size is None:
             real_window_size = window_size
 
-        layer = self._getWorldLayer(real_window_size)
+        layer, scratchLayer = self._getWorldLayer(real_window_size)
 
         if kindVisibility:
             layer.fill((200, 200, 200))
         else:
             self.terrain.drawDepthBackground(layer, frame, offset_x=offset_x, offset_y=offset_y)
+
+        
 
         self.light.drawEffects(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
@@ -165,11 +169,15 @@ class World:
         self.terrain.drawNestGradients(window_size, layer, frame,
                                        offset_x=offset_x, offset_y=offset_y)
 
+        
+
+        self.drawBackground(scratchLayer, window_size, frame)
+
         # gateway back elements (behind terrain)
         for gw in self.terrain.gateways:
-            gw.drawBack(layer, frame, offset_x=offset_x, offset_y=offset_y)
-
-        self.drawBackground(layer, window_size, frame)
+            gw.drawBack(scratchLayer, frame, offset_x=offset_x, offset_y=offset_y)
+        
+        layer.blit(scratchLayer,(0,0),special_flags=pygame.BLEND_RGB_MULT)
 
         self.player.draw(layer, frame, hitboxes=hitboxes,
                          offset_x=offset_x, offset_y=offset_y)

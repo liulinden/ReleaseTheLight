@@ -24,6 +24,18 @@ class Structure:
         White pixels = solid, transparent = passable.
         Subclasses must override this."""
         raise NotImplementedError
+    
+    def getEraseSurface(self, zoom):
+        """Return the SRCALPHA surface for this structure's erased air at the given zoom.
+        White pixels = air, transparent = passable.
+        Subclasses must override this."""
+        raise NotImplementedError
+
+    def getEraseHitboxSurface(self, zoom):
+        """Return the SRCALPHA hitbox surface for this structure's erased air at the given zoom.
+        White pixels = air, transparent = passable.
+        Subclasses must override this."""
+        raise NotImplementedError
 
     def draw(self, surface, frame, offset_x=0, offset_y=0):
         """Draw the front-facing visual (renders after terrain)."""
@@ -37,3 +49,4 @@ class Structure:
         """Update structure state. Returns True if something changed requiring
         a chunk reblit (e.g. a gateway tile opening)."""
         raise NotImplementedError
+    

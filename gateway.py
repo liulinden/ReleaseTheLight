@@ -20,27 +20,33 @@ def init():
         return pygame.image.load(os.path.join("assets", name + ".png")).convert_alpha()
 
     # corridor
-    gatewayIMGs["corridorclosed"]  = load("gateCorridorHitbox")
-    gatewayIMGs["corridoropened"]  = load("gateCorridorHitbox")
-    gatewayIMGs["corridorback"]    = load("gateCorridorHitbox")
+    gatewayIMGs["corridorclosed"]  = load("gateCorridorClosed")
+    gatewayIMGs["corridoropened"]  = load("gateCorridorOpened")
+    gatewayIMGs["corridorback"]    = load("gateCorridorErase")
+    gatewayIMGs["corridorerase"]   = load("gateCorridorErase")    
     gatewayHitboxIMGs["corridor"]  = load("gateCorridorHitbox")
+    gatewayHitboxIMGs["corridorerase"] = load("gateCorridorEraseHitbox")
 
     # entry
-    gatewayIMGs["entryclosed"]     = load("gateEntryClosedHitbox")
-    gatewayIMGs["entrycharging1"]  = load("gateEntryClosedHitbox")
-    gatewayIMGs["entrycharging2"]  = load("gateEntryClosedHitbox")
-    gatewayIMGs["entrycharging3"]  = load("gateEntryClosedHitbox")
-    gatewayIMGs["entryopened"]     = load("gateEntryOpenedHitbox")
-    gatewayIMGs["entryback"]       = load("gateEntryOpenedHitbox")
+    gatewayIMGs["entryclosed"]     = load("gateEntryClosed")
+    gatewayIMGs["entrycharging1"]  = load("gateEntryCharging1")
+    gatewayIMGs["entrycharging2"]  = load("gateEntryCharging2")
+    gatewayIMGs["entrycharging3"]  = load("gateEntryCharging3")
+    gatewayIMGs["entryopened"]     = load("gateEntryOpened")
+    gatewayIMGs["entryback"]       = load("gateEntryBack")
+    gatewayIMGs["entryerase"]      = load("gateEntryErase")
+    gatewayHitboxIMGs["entryerase"]   = load("gateEntryEraseHitbox")
     gatewayHitboxIMGs["entryclosed"]  = load("gateEntryClosedHitbox")
     gatewayHitboxIMGs["entryopened"]  = load("gateEntryOpenedHitbox")
     gatewayHitboxIMGs["activator"]    = load("gatewayActivatorHitbox")
 
     # exit
-    gatewayIMGs["exitclosed"]      = load("gateExitHitbox")
-    gatewayIMGs["exitopened"]      = load("gateExitHitbox")
-    gatewayIMGs["exitback"]        = load("gateExitHitbox")
+    gatewayIMGs["exitclosed"]      = load("gateExitClosed")
+    gatewayIMGs["exitopened"]      = load("gateExitOpened")
+    gatewayIMGs["exitback"]        = load("gateExitBack")
+    gatewayIMGs["exiterase"]       = load("gateExitErase")
     gatewayHitboxIMGs["exit"]      = load("gateExitHitbox")
+    gatewayHitboxIMGs["exiterase"] = load("gateExitEraseHitbox")
 
 
 # ---------------------------------------------------------------------------
@@ -60,6 +66,8 @@ class GatewayTile(Structure):
         self._hitboxSurfs = {}
         self._frontSurfs  = {}
         self._backSurfs   = {}
+        self._eraseHitboxSurfs = {}
+        self._eraseSurfs={}
 
     def _scaledIMG(self, img, zoom):
         size = int(self.tileSize * zoom)
@@ -67,6 +75,13 @@ class GatewayTile(Structure):
 
     def getHitboxSurface(self, zoom):
         return self._hitboxSurfs.get(zoom)
+    
+    def getEraseSurface(self,zoom):
+        return self._eraseSurfs.get(zoom)
+
+    def getEraseHitboxSurface(self,zoom):
+        return self._eraseHitboxSurfs.get(zoom)
+        
 
     def draw(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
@@ -103,6 +118,10 @@ class CorridorTile(GatewayTile):
                 gatewayIMGs[f"corridor{state}"], zoom)
             self._backSurfs[zoom]   = self._scaledIMG(
                 gatewayIMGs["corridorback"], zoom)
+            self._eraseSurfs[zoom]   = self._scaledIMG(
+                gatewayIMGs["corridorerase"], zoom)
+            self._eraseHitboxSurfs[zoom]   = self._scaledIMG(
+                gatewayHitboxIMGs["corridorerase"], zoom)
 
     def open(self):
         if not self.opened:
@@ -126,6 +145,10 @@ class ExitTile(GatewayTile):
                 gatewayIMGs[f"exit{state}"], zoom)
             self._backSurfs[zoom]   = self._scaledIMG(
                 gatewayIMGs["exitback"], zoom)
+            self._eraseSurfs[zoom]   = self._scaledIMG(
+                gatewayIMGs["exiterase"], zoom)
+            self._eraseHitboxSurfs[zoom]   = self._scaledIMG(
+                gatewayHitboxIMGs["exiterase"], zoom)
 
     def open(self):
         if not self.opened:
@@ -174,6 +197,10 @@ class EntryTile(GatewayTile):
                 self._frontSurfs[zoom] = self._scaledIMG(img, zoom)
             self._backSurfs[zoom] = self._scaledIMG(
                 gatewayIMGs["entryback"], zoom)
+            self._eraseSurfs[zoom]   = self._scaledIMG(
+                gatewayIMGs["entryerase"], zoom)
+            self._eraseHitboxSurfs[zoom]   = self._scaledIMG(
+                gatewayHitboxIMGs["entryerase"], zoom)
 
     def isLaserHittingActivator(self, wx, wy):
         """Precise check: is world point (wx,wy) inside the activator sub-region?"""

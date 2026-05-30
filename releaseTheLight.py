@@ -1,6 +1,8 @@
 # imports
 import pygame ,world, random,UI, queue
 
+font = pygame.font.SysFont('Arial', 30)
+
 class Game:
     def __init__(self,window,FPS=60,fullWorld=True,developingMode=False,loading_screen=None):
 
@@ -91,6 +93,7 @@ class Game:
         previousTime=pygame.time.get_ticks()
         self.kindVisibility=False
         practicalFPS=self.FPS
+        displayedFPS, timeFPSUpdated = self.FPS, 0
         self.visibleHitboxes=False
         self.loadingDebug=False
 
@@ -198,16 +201,21 @@ class Game:
 
             if self.loadingDebug:
                 pygame.draw.rect(self.window,(0,255,0),pygame.Rect(self.offset_x,self.offset_y,self.window_width,self.window_height),1)
+            
+            practicalFPS= max(1,round(1000/(pygame.time.get_ticks()-previousTime)))
+            practicalFPS=max(30,practicalFPS)
+            previousTime=pygame.time.get_ticks()
+
+            if previousTime-timeFPSUpdated>500:
+                displayedFPS, timeFPSUpdated = practicalFPS, previousTime
+            text_surf = font.render('FPS: ' + str(displayedFPS), True, (255,255,255))
+            self.window.blit(text_surf, (self.window_width-20-text_surf.get_width(),20))
 
             # update window
             pygame.display.flip()
 
             # tick game
             self.clock.tick(self.FPS)
-            practicalFPS= max(1,round(1000/(pygame.time.get_ticks()-previousTime)))
-            #if random.randint(1,20)==1:
-            #    print("fps:", practicalFPS)
-            practicalFPS=max(30,practicalFPS)
-            previousTime=pygame.time.get_ticks()
+            
 
         pygame.quit()

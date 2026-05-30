@@ -25,7 +25,7 @@ class Laser:
         self.laserTarget = None
 
         # step size for ray march — 5px won't skip through any realistic terrain
-        self._step = 5
+        self._step = 3
 
     def getLaserPoints(self, n_points):
         n_points = max(3, 1 + round(self.length / 40))
