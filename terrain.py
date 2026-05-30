@@ -48,6 +48,14 @@ def _layerYBounds(layerIndex, worldHeight):
     yBottom = GATEWAY_Y_POSITIONS[layerIndex] if layerIndex < NUM_LAYERS - 1 else worldHeight
     return yTop, yBottom
 
+def worldYtoLayerY(worldY):
+    for i in range(NUM_LAYERS-1):
+        if worldY <= GATEWAY_Y_POSITIONS[i]:
+            if i==0:
+                return(worldY,0)
+            return worldY-(GATEWAY_Y_POSITIONS)[i-1], i
+    return worldY-(GATEWAY_Y_POSITIONS)[NUM_LAYERS-2], NUM_LAYERS-1
+
 def chooseUniqueRandoms(n, low, high, excluded=[]):
     while True:
         r=random.randint(low,high)
@@ -419,18 +427,67 @@ class Terrain:
         return max(-1.0, min(1.0, v))
 
     def _depthColor(self, worldX, worldY):
-        depth = max(0.0, min(1.0, worldY / self.worldHeight))
-        noise = self._noiseVal(worldX, worldY) * 0.15
+        layerY, layer = worldYtoLayerY(worldY)
+        top, bottom= _layerYBounds(layer,self.worldHeight)
+
+        depth = max(0.0, min(1.0, layerY / (bottom-top)))
+        noise = self._noiseVal(worldX, worldY) * 0.3
         d = max(0.0, min(1.0, depth + noise))
-        palette = [
-            (0.0,  (60,  55,  65)),
-            (0.2,  (70,  50,  90)),
-            (0.4,  (40,  30, 120)),
-            (0.5,  (60, 200, 100)),
-            (0.6,  (120, 10,  50)),
-            (0.8,  (250, 15,  20)),
-            (1.0,  (255, 255, 255)),
+        palettes = [
+            [
+                (0.0, (120,  100,  65)),
+                (0.5, (60,  55,  65)),
+                (1.0, (70,  20,  60))
+            ],
+            [
+                (0.0, (30,  20,  30)),
+                (0.5, (10, 10, 10)),
+                (0.55, (50,  70,  100)),
+                (0.6, (15, 10, 20)),
+                (1.0, (10,10,10))
+            ],
+            [
+                (0.0, (70,  200,  240)),
+                (0.65, (40,  180,  255)),
+                (0.7, (200, 50, 60)),
+                (0.75, (100,  240,  255)),
+                (1.0, (20,  200,  250))
+            ],
+            [
+                (0.0, (255,  55,  65)),
+                (0.4, (180,  40,  60)),
+                (0.45, (60,  200,  255)),
+                (0.5, (200,  55,  100)),
+                (1.0, (170,  60,  150))
+            ],
+            [
+                (0.0, (200,  55,  150)),
+                (0.5, (10,  10,  10)),
+                (1.0, (150,  55,  200))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (60,  55,  65))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (60,  55,  65))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (60,  55,  65))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (60,  55,  65))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (255,  255,  255))
+            ]
         ]
+
+        palette= palettes[layer]
         for i in range(len(palette) - 1):
             d0, c0 = palette[i]
             d1, c1 = palette[i + 1]

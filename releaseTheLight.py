@@ -50,6 +50,9 @@ class Game:
         self.zoom=newZoom
     
     def updateCamPos(self, FPS, zoom, playerX,playerY,playerXSpeed,playerYSpeed):
+        maxY=self.WORLD_HEIGHT-100
+        if zoom != 0.1:
+            maxY=self.gameWorld.terrain.getFirstLockedGatewayY() -self.window_height/zoom/2
         frameLength=1000/FPS
         self.camOffsetX+=2*playerXSpeed*frameLength
         self.camOffsetY+=2*playerYSpeed*frameLength
@@ -59,7 +62,7 @@ class Game:
         goalX=max(self.window_width/zoom/2,min(self.WORLD_WIDTH-self.window_width/zoom/2,playerX))
         if self.window_width/zoom/2 >self.WORLD_WIDTH-self.window_width/zoom/2:
             goalX=playerX
-        goalY=max(-100,min(self.WORLD_HEIGHT-100,playerY))
+        goalY=max(-100,min(maxY,playerY))
         self.camX += (self.camOffsetX+goalX-self.camX-self.window_width/zoom/2)*frameLength/200
         self.camY += (self.camOffsetY+goalY-self.camY-self.window_height/zoom/2)*frameLength/200
 
