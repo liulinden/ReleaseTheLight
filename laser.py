@@ -17,12 +17,13 @@ class Laser:
         self.sinWaveOffset = 0
         self.timer = 0
         self.laserTime = 400
-        self.laserWidth = 20
+        self.laserWidth = 10
         self.maxLength = 400
         self.collision = []
         self.damageFrame = False
         self.hitboxes = []
         self.laserTarget = None
+        self.previousTarget = None
 
         # step size for ray march — 5px won't skip through any realistic terrain
         self._step = 3
@@ -42,6 +43,7 @@ class Laser:
     def getLength(self, terrain, angle):
         self.hitboxes = []
         self.collision = []
+        self.previousTarget= self.laserTarget
         self.laserTarget = None
         dx = math.cos(angle)
         dy = math.sin(angle)
@@ -112,6 +114,7 @@ class Laser:
         self.length = self.getLength(terrain, angle)
         if laserCooldown != 0:
             self.laserTime = laserCooldown
+        return self.laserTarget is self.previousTarget and not self.laserTarget is None
 
     def tick(self, frameLength):
         self.sinWaveOffset += frameLength / 100
@@ -122,6 +125,7 @@ class Laser:
             self.laserPoints = self.getLaserPoints(6)
             self.laserPoints2 = self.getLaserPoints(6)
             self.damageFrame = True
+            
 
     def draw(self, surface, frame, color, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame

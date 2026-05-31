@@ -144,6 +144,8 @@ class Player:
         self.laserKnockback=10
         self.laserCooldown=400
         self.laserTimer=0
+        self.laserRamp=1
+        self.laserRampMax=20
         self.laser=[]
         self.impacts=[]  # active LaserImpact instances
         self.chargeCapacity=100
@@ -152,6 +154,11 @@ class Player:
         self.immunityTimer=0
         self.immunityTime=500
         self.queuedDamage=0
+
+
+        self.laserKbMultiplier = 2
+        self.laserDmgMultiplier = 1
+        self.LaserExplosionMultiplier = 0.5
 
         self.playerIMGs = {}
         for zoom in self.defaultZooms:
@@ -292,6 +299,9 @@ class Player:
         if keysDown["mouse"] and len(self.laser)==0 and self.laserTimer<=self.laserCooldown/4:
             newLaser=laser.Laser()
             self.laser=[newLaser]
+            self.LaserExplosionMultiplier=0.5
+            self.laserDmgMultiplier=1
+            self.laserKbMultiplier=2
         
         if events["mouseUp"] and len(self.laser)>0:
             self.laserTimer=self.laser[0].timer
@@ -301,19 +311,26 @@ class Player:
         self.laserTimer=max(0,self.laserTimer)
         
         for lase in self.laser:
-            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),-self.armAngle)
+            if not lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),-self.armAngle):
+                self.laserDmgMultiplier=1
             lase.tick(frameLength)
             if lase.damageFrame:
                 if lase.collision:
                     point= lase.collision[0]
                     x,y=point
-                    cTerrain.addAirPocketClump(x, y, self.laserPower, layerIndex=cTerrain._layerForY(y), playerMade=True, spreading=1/5)
+                    cTerrain.addAirPocketClump(x, y, self.laserPower*self.LaserExplosionMultiplier, layerIndex=cTerrain._layerForY(y), playerMade=True, spreading=1/5)
                     if lase.collision[1]=="ground":
-                        cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower,x,y)
-                    cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback])
-                    cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower])
+                        cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower*self.laserDmgMultiplier*0.1,x,y)
+                    cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback*self.laserKbMultiplier])
+                    cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower*self.laserDmgMultiplier*0.1])
+                print("ramp:", self.laserDmgMultiplier)
+                self.laserKbMultiplier=0.5
+                self.laserDmgMultiplier=min(self.laserRampMax,self.laserDmgMultiplier+self.laserRamp)
+                self.LaserExplosionMultiplier=1
+
                 if self.loseCharge(1):
                     return True
+                
                 # spawn impact — position follows live laser, freezes when laser released
                 endX = lase.startX + math.cos(lase.angle) * lase.length
                 endY = lase.startY + math.sin(lase.angle) * lase.length
