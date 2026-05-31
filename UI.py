@@ -4,6 +4,36 @@ pygame.init()
 chargeIcon = pygame.transform.scale(pygame.image.load(os.path.join("assets","ChargeIcon.png")).convert_alpha(),(80,80))
 lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
+class HealthBar():
+    def __init__(self):
+        self.opacity=0
+        self.lastTriggered=0
+        self.health=1
+        self.maxHealth=1
+        self.r,self.g,self.b=255,255,255
+
+    def trigger(self):
+        self.opacity=255
+        self.lastTriggered=pygame.time.get_ticks()
+
+    def tick(self, health, maxHealth, color):
+        self.health=health
+        self.maxHealth=maxHealth
+        self.r, self.g, self.b=color
+        if self.opacity>0 and pygame.time.get_ticks()-self.lastTriggered>500:
+            self.opacity = 255 - (pygame.time.get_ticks()-500)/2
+            if self.opacity<0: self.opacity=0
+
+    def draw(self, surface, x,y):
+        if self.opacity>0:
+            color=(self.r,self.g,self.b,self.opacity)
+            scale=3
+            left=x-scale*self.maxHealth/2
+            pygame.draw.line(surface, (0,0,0,self.opacity), (left,y), (left+scale*self.maxHealth,y),3)
+            pygame.draw.line(surface, color, (left,y), (left+scale*self.health,y),3)
+
+
+
 class ChargeDisplay():
     def __init__(self,worldHeight):
         self.rotation=0

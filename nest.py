@@ -1,4 +1,4 @@
-import pygame, random, math, enemies, os
+import pygame, random, math, enemies, os, UI
 
 def loadNestIMGSet(id, stages):
     IMGs = []
@@ -53,6 +53,7 @@ class Nest:
         self.glow = 0
         self.stage = 0
         self.maxStage = len(stageIMGs) - 1
+        self.healthBar = UI.HealthBar()
 
         self.resizedHitboxes = {}
         self.resizedGradients = {}
@@ -159,6 +160,10 @@ class Nest:
         filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(filt, ((self.left - camX) * zoom + offset_x, (self.top - camY) * zoom + offset_y))
 
+        if self.stage != self.maxStage:
+            self.healthBar.tick(self.health,self.maxHealth,self.color)
+            self.healthBar.draw(surface, (self.x - camX) * zoom + offset_x, (self.top - camY) * zoom + offset_y)
+
     def addEnemy(self, cTerrain, player):
         if len(self.enemies) < self.basicEnemyCap:
             newEnemy = enemies.getEnemy(cTerrain, player, self.nestType, self.color, self.maxHealth, self.x, self.y, self.size)
@@ -182,6 +187,7 @@ class Nest:
                     damage = r / 2 if directHit else r / 6
                     self.dealDamage(damage, cTerrain, player)
                     newParticles.append([x, y, damage])
+                    self.healthBar.trigger()
         return newParticles
 
     def dealDamage(self, damage, cTerrain, player):

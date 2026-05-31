@@ -1,4 +1,4 @@
-import pygame, math, random, os
+import pygame, math, random, os, UI
 
 
 # FIX 2: images loaded in init() after display exists
@@ -83,6 +83,7 @@ class Enemy:
         self.glow = 0
         self.r = distance((0, 0), (self.width / 2, self.height / 2))
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
+        self.healthBar=UI.HealthBar()
 
         self.resizedGradients = {}
         self.resizedIMGs = {}
@@ -199,6 +200,7 @@ class Enemy:
             filt.fill(self.color)
             filt.blit(self.resizedIMGs[zoom][self.facing][self.mode][self.animationFrame], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
             surface.blit(filt, ((self.rect.centerx - self.size / 2 - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y))
+        self.healthBar.draw(surface, (self.rect.centerx - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y)
 
     def drawAttackHitbox(self, surface, frame, offset_x=0, offset_y=0):
         #never used
@@ -208,6 +210,8 @@ class Enemy:
     def dealDamage(self, damage):
         self.glow = 255
         self.health -= damage
+        if damage>0:
+            self.healthBar.trigger()
         if self.health < 0:
             self.health = 0
             return True
@@ -249,6 +253,7 @@ class Enemy:
                             cTerrain.particles.spawnMiningParticles(5, self.color, r / 6, x, y)
                             if self.dealDamage(r / 6):
                                 return True
+            self.healthBar.tick(self.health,self.maxHealth,self.color)
 
             if self.x < 50:
                 self.xSpeed += (50 - self.x) / 10000 * frameLength
