@@ -227,11 +227,10 @@ class Player:
         r=cr+cw
         g=cw+cb/4
         b=cw+cb
-        r=(min(r/self.maxCharge,1))**0.3
-        g=(min(g/self.maxCharge,1))**0.3
-        b=(min(b/self.maxCharge,1))**0.3
+        r=(min(r/self.maxCharge,1))**0.5
+        g=(min(g/self.maxCharge,1))**0.5
+        b=(min(b/self.maxCharge,1))**0.5
         self.color=(r*255,g*255,b*255)
-        print(self.charges)
 
     def updateLaserStats(self):
         white,blue,red=self.charges.values()

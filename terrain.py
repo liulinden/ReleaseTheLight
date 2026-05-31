@@ -637,7 +637,7 @@ class Terrain:
                         self.generateSkinnyCave(j * 1000 + random.randint(0, 1000),
                             random.randint(int(yTop), int(yTop + (yBottom - yTop) / 3)),
                             random.randint(20, 60), random.random() * 2 * math.pi, layerIndex=layerIndex)
-                    if random.randint(1, 20) == 1:
+                    if random.randint(1, 10) == 1:
                         self.generateSkinnyCave(j * 1000 + random.randint(0, 1000),
                             random.randint(int(yTop + (yBottom - yTop) / 4), int(yBottom)),
                             random.randint(30, 90), random.random() * 2 * math.pi, layerIndex=layerIndex)
@@ -649,23 +649,39 @@ class Terrain:
                         self.generateBlobCave(j * 1000 + random.randint(0, 1000),
                             random.randint(int(yTop + (yBottom - yTop) * 2 / 3), int(yBottom)),
                             random.randint(60, 120), random.random() * 2 * math.pi, layerIndex=layerIndex)
-                    if random.randint(1, 10) == 1:
-                        self.generateNest(j * 1000 + random.randint(0, 1000),
-                            random.randint(int(yTop + 500), int(yTop + (yBottom - yTop) / 4)),
-                            "White", layerIndex=layerIndex)
-                    if random.randint(1, 15) == 1:
-                        self.generateNest(j * 1000 + random.randint(0, 1000),
-                            random.randint(int(yTop + (yBottom - yTop) / 4),
-                                           int(yTop + (yBottom - yTop) * 2 / 3)),
-                            "White", layerIndex=layerIndex)
-                    if random.randint(1, 15) == 1:
-                        self.generateNest(j * 1000 + random.randint(0, 1000),
-                            random.randint(int(yTop + (yBottom - yTop) / 4), int(yBottom)),
-                            "Red", layerIndex=layerIndex)
-                    if random.randint(1, 15) == 1:
-                        self.generateNest(j * 1000 + random.randint(0, 1000),
-                            random.randint(int(yTop + (yBottom - yTop) / 4), int(yBottom)),
-                            "Blue", layerIndex=layerIndex)
+                    
+                    if layerIndex <2:
+                        if random.randint(1, 5) == 1:
+                            self.generateNest(j * 1000 + random.randint(0, 1000),
+                                random.randint(int(yTop + 500), int(yBottom-500)),
+                                "White", layerIndex=layerIndex)
+                    else:
+                        if random.randint(1, 15) == 1:
+                            self.generateNest(j * 1000 + random.randint(0, 1000),
+                                random.randint(int(yTop + 500), int(yBottom-500)),
+                                "White", layerIndex=layerIndex)
+
+
+                    if layerIndex==2:
+                        if random.randint(1, 6) == 1:
+                            self.generateNest(j * 1000 + random.randint(0, 1000),
+                                random.randint(int(yTop + 500), int(yBottom-500)),
+                                "Blue", layerIndex=layerIndex)
+                    elif layerIndex>2:
+                        if random.randint(1, 12) == 1:
+                            self.generateNest(j * 1000 + random.randint(0, 1000),
+                                random.randint(int(yTop + 500), int(yBottom-500)),
+                                "Blue", layerIndex=layerIndex)
+                    if layerIndex==3:
+                        if random.randint(1, 6) == 1:
+                            self.generateNest(j * 1000 + random.randint(0, 1000),
+                                random.randint(int(yTop + 500), int(yBottom-500)),
+                                "Red", layerIndex=layerIndex)
+                    elif layerIndex>3:
+                        if random.randint(1, 12) == 1:
+                            self.generateNest(j * 1000 + random.randint(0, 1000),
+                                random.randint(int(yTop + 500), int(yBottom-500)),
+                                "Red", layerIndex=layerIndex)
 
             self._buildChunkHitboxesForLayer(layerIndex)
             self._buildChunkVisualsForLayer(layerIndex, progress_queue=progress_queue)
