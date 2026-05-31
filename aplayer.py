@@ -146,10 +146,8 @@ class Player:
         self.laserTimer=0
         self.laser=[]
         self.impacts=[]  # active LaserImpact instances
-        self.chargeDistribution=(1,0,0)
-        self.charge=150
-        self.charges={"white":150,"blue":0,"red":0}
-        self.chargeCapacity=150
+        self.chargeCapacity=100
+        self.charges={"white":self.chargeCapacity,"blue":0,"red":0}
         self.maxCharge=500
         self.immunityTimer=0
         self.immunityTime=500
@@ -183,8 +181,6 @@ class Player:
         self.y=self.spawnY
         self.xSpeed=0
         self.ySpeed=0
-        self.chargeDistribution=(1,0,0)
-        self.charge=150
         self.setCharges(max(150,self.chargeCapacity*2/3),0,0)
       
     def updateCostume(self,frameLength, mousePos):
@@ -227,23 +223,21 @@ class Player:
         self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2
 
     def updateColor(self):
-        cw,cb,cr=self.chargeDistribution
-        cw,cb,cr=cw*self.charge,cb*self.charge,cr*self.charge
-        r,g,b=0,0,0
-        r+=cr+cw
-        g+=cw+cb/4
-        b+=cw+cb
+        cw,cb,cr=self.charges.values()
+        r=cr+cw
+        g=cw+cb/4
+        b=cw+cb
         r=(min(r/self.maxCharge,1))**0.3
         g=(min(g/self.maxCharge,1))**0.3
         b=(min(b/self.maxCharge,1))**0.3
         self.color=(r*255,g*255,b*255)
+        print(self.charges)
 
     def updateLaserStats(self):
-        cw,cb,cr=self.chargeDistribution
-        cw,cb,cr=cw*self.charge,cb*self.charge,cr*self.charge
-        self.laserPower=15+cw/15+cr/5+cb/20
-        self.laserKnockback=8+cw/35+cr/35+cb/10
-        self.laserCooldown=500-cw/5-cb/5+cr/5
+        white,blue,red=self.charges.values()
+        self.laserPower=15+white/15+red/5+blue/20
+        self.laserKnockback=8+white/35+red/35+blue/10
+        self.laserCooldown=500-white/5-blue/5+red/5
 
     def setCharges(self, white, blue, red):
         self.charges["white"]=white
@@ -252,30 +246,35 @@ class Player:
 
     def addCharge(self, addedCharge, chargeDistribution, maxCharge):
         totalCharge=sum(self.charges.values())
-        trueAdded=addedCharge
+        overflow=0
         if totalCharge+addedCharge>self.chargeCapacity:
-            self.chargeCapacity=min(maxCharge, totalCharge+addedCharge)
-            trueAdded=self.chargeCapacity-totalCharge
-    
-        self.charges["white"]+=chargeDistribution[0]*trueAdded
-        self.charges["blue"]+=chargeDistribution[1]*trueAdded
-        self.charges["red"]+=chargeDistribution[2]*trueAdded
-        total=w+b+r
-        self.chargeDistribution=(w/total,b/total,r/total)
-        originalCharge=self.charge
-        if self.charge<maxCharge:
-            self.charge+=addedCharge
-            if self.charge>maxCharge:
-                self.charge=maxCharge
-        return self.charge-originalCharge
+            self.chargeCapacity=max(self.chargeCapacity, min(self.maxCharge,min(maxCharge, totalCharge+addedCharge)))
+            overflow=totalCharge+addedCharge-self.chargeCapacity
+
+        self.charges["white"]+=chargeDistribution[0]*addedCharge
+        self.charges["blue"]+=chargeDistribution[1]*addedCharge
+        self.charges["red"]+=chargeDistribution[2]*addedCharge
+        self.loseCharge(overflow)
+        
+        return addedCharge-overflow
 
     def loseCharge(self,loss):
-        self.charge-=loss
-        if self.charge<=0:
-            self.charge=0
-            self.resetPlayer()
-            return True
-        return False
+        nSplit = 3
+        while nSplit>0:
+            splitLoss= loss/nSplit
+            for charge in self.charges:
+                if 0 < self.charges[charge] < splitLoss:
+                    loss-=self.charges[charge]
+                    self.charges[charge]=0
+                    nSplit-=1
+                    break
+            for charge in self.charges:
+                if self.charges[charge]>0: self.charges[charge]-=splitLoss
+            nSplit=0
+        if sum(self.charges.values())>0:
+            return False
+        self.resetPlayer()
+        return True
 
     def dealDamage(self,damage):
         self.queuedDamage+=damage

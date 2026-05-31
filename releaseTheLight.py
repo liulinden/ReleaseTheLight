@@ -171,7 +171,7 @@ class Game:
                 self.gameWorld.healNests()
                 self.gameWorld.removeEnemies()
 
-            self.chargeDisplay.update(practicalFPS,self.gameWorld.player.color,self.gameWorld.player.charge,self.gameWorld.player.y)
+            self.chargeDisplay.update(practicalFPS,self.gameWorld.player.color,sum(self.gameWorld.player.charges.values()),self.gameWorld.player.y)
 
             self.updateCamPos(practicalFPS,self.zoom,self.gameWorld.player.x,self.gameWorld.player.y,self.gameWorld.player.xSpeed,self.gameWorld.player.ySpeed)
             #world wrapping
