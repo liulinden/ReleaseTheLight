@@ -193,7 +193,7 @@ class Terrain:
                 return gw.y
         return self.worldHeight
 
-    def _activeNests(self):
+    def _activeNests(self) -> list[nest.Nest]:
         result = []
         for li in self.activeLayers:
             result.extend(self.nests[li])
@@ -961,6 +961,17 @@ class Terrain:
                 n.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
         #pygame.draw.rect(surface, (255, 255, 255),
         #                 pygame.Rect(offset_x, (self.worldHeight - top) * zoom + offset_y, w_width, 200))
+    
+    def drawHealthBars(self, window_size, surface, frame, time=None, offset_x=0, offset_y=0):
+        left, top, zoom = frame
+        w_width, w_height = window_size
+        r = math.sqrt(w_width ** 2 + w_height ** 2) / 2 / zoom
+        x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
+        for n in self._activeNests():
+            if n.close(x, y, r):
+                n.drawHealthBar(surface, frame, time, offset_x=offset_x, offset_y=offset_y)
+            for enemy in n.enemies:
+                enemy.drawHealthBar(surface, frame, time, offset_x=offset_x, offset_y=offset_y)
 
     def drawEnemies(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame

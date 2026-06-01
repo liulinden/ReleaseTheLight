@@ -323,7 +323,6 @@ class Player:
                         cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower*self.laserDmgMultiplier*0.1,x,y)
                     cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback*self.laserKbMultiplier])
                     cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower*self.laserDmgMultiplier*0.1])
-                print("ramp:", self.laserDmgMultiplier)
                 self.laserKbMultiplier=0.5
                 self.laserDmgMultiplier=min(self.laserRampMax,self.laserDmgMultiplier+self.laserRamp)
                 self.LaserExplosionMultiplier=1

@@ -200,7 +200,10 @@ class Enemy:
             filt.fill(self.color)
             filt.blit(self.resizedIMGs[zoom][self.facing][self.mode][self.animationFrame], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
             surface.blit(filt, ((self.rect.centerx - self.size / 2 - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y))
-        self.healthBar.draw(surface, (self.rect.centerx - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y)
+    
+    def drawHealthBar(self, surface,frame, time=None, offset_x=0,offset_y=0):
+        camX,camY,zoom = frame
+        self.healthBar.draw(surface, self.color, ((self.rect.centerx - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y),self.health,time)
 
     def drawAttackHitbox(self, surface, frame, offset_x=0, offset_y=0):
         #never used
@@ -253,7 +256,6 @@ class Enemy:
                             cTerrain.particles.spawnMiningParticles(5, self.color, r / 6, x, y)
                             if self.dealDamage(r / 6):
                                 return True
-            self.healthBar.tick(self.health,self.maxHealth,self.color)
 
             if self.x < 50:
                 self.xSpeed += (50 - self.x) / 10000 * frameLength

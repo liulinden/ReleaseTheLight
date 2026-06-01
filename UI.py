@@ -11,37 +11,31 @@ def drawRoundedLine(surface, color, start, end, thickness):
 
 class HealthBar():
     def __init__(self, maxHealth,thickness=5):
-        self.opacity=0
         self.lastTriggered=0
-        self.health=maxHealth
         self.maxHealth=maxHealth
         self.thickness=thickness
-        self.color=(255,255,255)
         self.scale=5/math.sqrt(maxHealth)
         self.width=self.maxHealth*self.scale+self.thickness
         self.surface=pygame.Surface((self.width,self.thickness))
 
     def trigger(self):
-        self.opacity=255
         self.lastTriggered=pygame.time.get_ticks()
 
-    def tick(self, health, maxHealth, color):
-        self.health=health
-        self.maxHealth=maxHealth
-        self.color=color
-        if self.opacity>0 and pygame.time.get_ticks()-self.lastTriggered>500:
-            self.opacity = 255 - (pygame.time.get_ticks()-self.lastTriggered-500)/2
-            if self.opacity<0: self.opacity=0
+    def draw(self, surface, color, coords, health,time=None):
+        if time is None:
+            time=pygame.time.get_ticks()
+        opacity=max(0,255 - (time-self.lastTriggered-500)/2)
+        if opacity>0:
 
-    def draw(self, surface, x,y):
-        if self.opacity>0:
+            x,y=coords
+            print(x,y)
             
             drawRoundedLine(self.surface, (0,0,0), (self.thickness/2,self.thickness/2), (self.width-self.thickness/2,self.thickness/2),self.thickness)
-            drawRoundedLine(self.surface, self.color, (self.thickness/2,self.thickness/2), (self.thickness/2+self.scale*self.health,self.thickness/2),self.thickness)
+            drawRoundedLine(self.surface, color, (self.thickness/2,self.thickness/2), (self.thickness/2+self.scale*health,self.thickness/2),self.thickness)
 
             left = x - self.scale*self.maxHealth/2-self.thickness/2
             top = y - self.thickness/2
-            self.surface.set_alpha(self.opacity)
+            self.surface.set_alpha(opacity)
 
             surface.blit(self.surface,(left,top))
 

@@ -159,10 +159,11 @@ class Nest:
         filt.fill(self.color)
         filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(filt, ((self.left - camX) * zoom + offset_x, (self.top - camY) * zoom + offset_y))
-
+            
+    def drawHealthBar(self,surface, frame, time=None, offset_x=0,offset_y=0):
         if self.stage != self.maxStage:
-            self.healthBar.tick(self.health,self.maxHealth,self.color)
-            self.healthBar.draw(surface, (self.x - camX) * zoom + offset_x, (self.top - camY) * zoom + offset_y)
+            camX, camY, zoom = frame 
+            self.healthBar.draw(surface, self.color, ((self.x - camX) * zoom + offset_x, (self.top - camY) * zoom + offset_y), self.health,time)
 
     def addEnemy(self, cTerrain, player):
         if len(self.enemies) < self.basicEnemyCap:

@@ -198,5 +198,8 @@ class World:
         # gateway front elements (after terrain)
         for gw in self.terrain.gateways:
             gw.draw(layer, frame, offset_x=offset_x, offset_y=offset_y)
+        
+        self.terrain.drawHealthBars(window_size, layer, frame, pygame.time.get_ticks(),offset_x=offset_x,offset_y=offset_y)
+
 
         return layer
