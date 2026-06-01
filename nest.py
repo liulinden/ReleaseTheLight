@@ -53,7 +53,6 @@ class Nest:
         self.glow = 0
         self.stage = 0
         self.maxStage = len(stageIMGs) - 1
-        self.healthBar = UI.HealthBar()
 
         self.resizedHitboxes = {}
         self.resizedGradients = {}
@@ -91,6 +90,7 @@ class Nest:
             self.maxHealth += 1000
 
         self.health = self.maxHealth
+        self.healthBar = UI.HealthBar(self.maxHealth)
 
         self.maxCharge = self.maxHealth / 3 + 100
         self.visualCharge = self.maxCharge

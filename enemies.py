@@ -83,7 +83,7 @@ class Enemy:
         self.glow = 0
         self.r = distance((0, 0), (self.width / 2, self.height / 2))
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
-        self.healthBar=UI.HealthBar()
+        self.healthBar=UI.HealthBar(self.maxHealth)
 
         self.resizedGradients = {}
         self.resizedIMGs = {}

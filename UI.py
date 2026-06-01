@@ -4,13 +4,22 @@ pygame.init()
 chargeIcon = pygame.transform.scale(pygame.image.load(os.path.join("assets","ChargeIcon.png")).convert_alpha(),(80,80))
 lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
+def drawRoundedLine(surface, color, start, end, thickness):
+    pygame.draw.line(surface, color, start, end, thickness)
+    pygame.draw.circle(surface, color, start, thickness/2)
+    pygame.draw.circle(surface, color, end, thickness/2)
+
 class HealthBar():
-    def __init__(self):
+    def __init__(self, maxHealth,thickness=5):
         self.opacity=0
         self.lastTriggered=0
-        self.health=1
-        self.maxHealth=1
-        self.r,self.g,self.b=255,255,255
+        self.health=maxHealth
+        self.maxHealth=maxHealth
+        self.thickness=thickness
+        self.color=(255,255,255)
+        self.scale=5/math.sqrt(maxHealth)
+        self.width=self.maxHealth*self.scale+self.thickness
+        self.surface=pygame.Surface((self.width,self.thickness))
 
     def trigger(self):
         self.opacity=255
@@ -19,18 +28,22 @@ class HealthBar():
     def tick(self, health, maxHealth, color):
         self.health=health
         self.maxHealth=maxHealth
-        self.r, self.g, self.b=color
+        self.color=color
         if self.opacity>0 and pygame.time.get_ticks()-self.lastTriggered>500:
-            self.opacity = 255 - (pygame.time.get_ticks()-500)/2
+            self.opacity = 255 - (pygame.time.get_ticks()-self.lastTriggered-500)/2
             if self.opacity<0: self.opacity=0
 
     def draw(self, surface, x,y):
         if self.opacity>0:
-            color=(self.r,self.g,self.b,self.opacity)
-            scale=3
-            left=x-scale*self.maxHealth/2
-            pygame.draw.line(surface, (0,0,0,self.opacity), (left,y), (left+scale*self.maxHealth,y),3)
-            pygame.draw.line(surface, color, (left,y), (left+scale*self.health,y),3)
+            
+            drawRoundedLine(self.surface, (0,0,0), (self.thickness/2,self.thickness/2), (self.width-self.thickness/2,self.thickness/2),self.thickness)
+            drawRoundedLine(self.surface, self.color, (self.thickness/2,self.thickness/2), (self.thickness/2+self.scale*self.health,self.thickness/2),self.thickness)
+
+            left = x - self.scale*self.maxHealth/2-self.thickness/2
+            top = y - self.thickness/2
+            self.surface.set_alpha(self.opacity)
+
+            surface.blit(self.surface,(left,top))
 
 
 
