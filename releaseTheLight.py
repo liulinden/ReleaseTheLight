@@ -224,9 +224,7 @@ class Game:
             practicalFPS=max(30,practicalFPS)
             previousTime=pygame.time.get_ticks()
 
-            if previousTime-timeFPSUpdated>500:
-                displayedFPS, timeFPSUpdated = practicalFPS, previousTime
-            text_surf = font.render('FPS: ' + str(displayedFPS), True, (255,255,255))
+            text_surf = font.render(f'FPS: {self.clock.get_fps():.0f}', True, (255,255,255))
             self.window.blit(text_surf, (self.window_width-20-text_surf.get_width(),20))
 
             # update window
