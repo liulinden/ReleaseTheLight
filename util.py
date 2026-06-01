@@ -1,0 +1,22 @@
+import math
+import pygame
+
+def rotateAndGetOffset(surface,cx,cy,angle,degrees=False):
+    # Rotate the surface
+    rotated_surface = pygame.transform.rotate(surface, math.degrees(angle))
+    rect = surface.get_rect()
+    rotated_rect = rotated_surface.get_rect()
+
+    # Pivot offset before rotation
+    pivot_x = cx - rect.centerx
+    pivot_y = cy - rect.centery
+
+    # Apply rotation transformation
+    rotated_pivot_x = pivot_x * math.cos(angle) - pivot_y * math.sin(angle)
+    rotated_pivot_y = pivot_x * math.sin(angle) + pivot_y * math.cos(angle)
+
+    # Compute new top-left position
+    offset_x = rect.centerx + rotated_pivot_x - rotated_rect.width / 2
+    offset_y = rect.centery + rotated_pivot_y - rotated_rect.height / 2
+
+    return rotated_surface, (offset_x), (offset_y)

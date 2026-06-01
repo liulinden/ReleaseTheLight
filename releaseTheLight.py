@@ -1,5 +1,5 @@
 # imports
-import pygame ,world, random,UI, queue
+import pygame ,world, random,UI, queue, math
 
 font = pygame.font.SysFont('Arial', 30)
 
@@ -92,6 +92,7 @@ class Game:
         self.camOffsetX,self.camOffsetY=0,0
 
         self.shake=0
+        self.tilt=0
 
         previousTime=pygame.time.get_ticks()
         self.kindVisibility=False
@@ -99,6 +100,7 @@ class Game:
         displayedFPS, timeFPSUpdated = self.FPS, 0
         self.visibleHitboxes=False
         self.loadingDebug=False
+        self.crosshair=False
 
         while running:
 
@@ -161,6 +163,8 @@ class Game:
                                 self.offset_x=0
                                 self.offset_y=0
                             self.loadingDebug=not self.loadingDebug
+                        elif event.key== pygame.K_c:
+                            self.crosshair= not self.crosshair
                 
                 if event.type==pygame.KEYUP:
                     if event.key in self.keysDown:
@@ -193,11 +197,22 @@ class Game:
                     #self.shake+=0.1
             self.shake*=0.9
 
+            if self.gameWorld.player.queuedDamage > 0:
+                tilt = math.copysign(self.gameWorld.player.queuedDamage, -self.gameWorld.player.xSpeed) * 5
+                if abs(tilt) > abs(self.tilt):
+                    self.tilt = tilt
+            else:
+                delta = 2
+                if self.tilt > 0:
+                    self.tilt = max(0, self.tilt - delta)
+                elif self.tilt < 0:
+                    self.tilt = min(0, self.tilt + delta)
+
             # display world layer
             frame=[self.camX+(2*random.random()-1)*self.shake,self.camY+(2*random.random()-1)*self.shake,self.zoom]
             #self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
-            self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility,real_window_size=self.window.get_size(),offset_x=self.offset_x,offset_y=self.offset_y),(0,0))
+            self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility,real_window_size=self.window.get_size(),offset_x=self.offset_x,offset_y=self.offset_y,tilt=self.tilt,crosshair=self.crosshair),(0,0))
 
             # display UI stuff
             self.chargeDisplay.draw(self.window)

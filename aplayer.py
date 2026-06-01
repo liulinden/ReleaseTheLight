@@ -1,25 +1,5 @@
 import pygame,math,terrain,laser,particles,os
-
-#function by chatgpt
-def rotateAndGetOffset(surface,cx,cy,angle):
-    # Rotate the surface
-    rotated_surface = pygame.transform.rotate(surface, 180/math.pi*angle)
-    rect = surface.get_rect()
-    rotated_rect = rotated_surface.get_rect()
-
-    # Pivot offset before rotation
-    pivot_x = cx - rect.centerx
-    pivot_y = cy - rect.centery
-
-    # Apply rotation transformation
-    rotated_pivot_x = pivot_x * math.cos(angle) - pivot_y * math.sin(angle)
-    rotated_pivot_y = pivot_x * math.sin(angle) + pivot_y * math.cos(angle)
-
-    # Compute new top-left position
-    offset_x = rect.centerx + rotated_pivot_x - rotated_rect.width / 2
-    offset_y = rect.centery + rotated_pivot_y - rotated_rect.height / 2
-
-    return rotated_surface, (offset_x), (offset_y)
+from util import rotateAndGetOffset
 
 
 SPRITE_WIDTH=40
@@ -458,7 +438,7 @@ class Player:
                     break
             self.ySpeed=0
     
-    def draw(self, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
+    def draw(self, surface, frame, hitboxes=False, offset_x=0, offset_y=0, tilt=0):
         camX,camY,zoom=frame
         if hitboxes:
             self.updateRect()
@@ -480,6 +460,9 @@ class Player:
             playerSurface=pygame.Surface((SPRITE_WIDTH*zoom,SPRITE_HEIGHT*zoom),flags=pygame.SRCALPHA)
             playerSurface.fill((self.color[0],self.color[1],self.color[2],255))
             playerSurface.blit(self.playerIMGs[zoom][self.facing][self.animationType][self.animationFrame],(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+
+            if tilt!=0:
+                playerSurface=pygame.transform.rotate(playerSurface,tilt)
 
             adjustedArmAngle=self.armAngle
             if self.facing=="Left":

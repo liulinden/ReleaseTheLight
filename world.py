@@ -1,6 +1,7 @@
 # imports
 import pygame, random, terrain, decoration, aplayer, lighting, math, os, time, enemies, nest, laser, gateway
 import threading
+from util import rotateAndGetOffset
 
 def distance(coord1, coord2):
     x1, y1 = coord1;  x2, y2 = coord2
@@ -142,7 +143,7 @@ class World:
         layer.blit(self.background, (x, y))
 
     def getSurface(self, window_size, frame, hitboxes=False, kindVisibility=False,
-                   real_window_size=None, offset_x=0, offset_y=0):
+                   real_window_size=None, offset_x=0, offset_y=0, tilt=0, crosshair=False):
         if real_window_size is None:
             real_window_size = window_size
 
@@ -180,7 +181,7 @@ class World:
         layer.blit(scratchLayer,(0,0),special_flags=pygame.BLEND_RGB_MULT)
 
         self.player.draw(layer, frame, hitboxes=hitboxes,
-                         offset_x=offset_x, offset_y=offset_y)
+                         offset_x=offset_x, offset_y=offset_y, tilt=tilt)
 
         self.terrain.drawEnemies(window_size, layer, frame, hitboxes=hitboxes,
                                  offset_x=offset_x, offset_y=offset_y)
@@ -201,5 +202,19 @@ class World:
         
         self.terrain.drawHealthBars(window_size, layer, frame, pygame.time.get_ticks(),offset_x=offset_x,offset_y=offset_y)
 
+
+        if crosshair:
+            pygame.draw.line(layer, (100, 100, 100, 0.3), (real_window_size[0]*0.45, real_window_size[1]//2), (real_window_size[0]*0.55, real_window_size[1]//2), 2)
+            pygame.draw.line(layer, (100, 100, 100, 0.3), (real_window_size[0]//2, real_window_size[1]*0.45), (real_window_size[0]//2, real_window_size[1]*0.55), 2)
+
+        if tilt != 0:
+            layer, cx, cy = rotateAndGetOffset(layer, real_window_size[0]/2, real_window_size[1]/2, math.radians(tilt))
+            layer.blit(layer, (cx, cy))
+
+        if crosshair:
+            size = 10
+            pygame.draw.line(layer, (255, 0, 0), (real_window_size[0]//2 - size, real_window_size[1]//2), (real_window_size[0]//2 + size, real_window_size[1]//2), 2)
+            pygame.draw.line(layer, (255, 0, 0), (real_window_size[0]//2, real_window_size[1]//2 - size), (real_window_size[0]//2, real_window_size[1]//2 + size), 2)
+                
 
         return layer
