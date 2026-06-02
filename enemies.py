@@ -45,8 +45,11 @@ def distance(coord1: int, coord2: int):
 def getEnemy(cTerrain, player, nestType, color, nestHealth, nestX, nestY, nestSize):
     for i in range(20):
         x, y = random.randint(int(nestX - 10 - nestSize / 2), int(nestX + 10 + nestSize / 2)), random.randint(int(nestY - 10 - nestSize / 2), int(nestY + 10 + nestSize / 2))
-        newEnemy = Enemy(cTerrain.defaultZooms, x, y, color, nestHealth / 5)
-        if not (newEnemy.collidingWithTerrain(cTerrain) or newEnemy.rect.colliderect(player.rect)):
+        size = random.randint(20, 70)
+        width, height = size * 3 / 8, size * 3 / 4 
+        newEnemyRect= pygame.Rect(x - width / 2, y - height / 2, width, height)
+        if not (cTerrain.collideRect(newEnemyRect) or newEnemyRect.colliderect(player.rect)):
+            newEnemy=Enemy(cTerrain.defaultZooms, x, y, color, nestHealth / 5, size)
             newEnemy.spawnParticles(cTerrain)
             return newEnemy
     return False
@@ -56,8 +59,8 @@ animationFPS = 15
 
 
 class Enemy:
-    def __init__(self, defaultZooms, x, y, color, health):
-        self.size = random.randint(20, 70)
+    def __init__(self, defaultZooms, x, y, color, health, size):
+        self.size = size
         self.width, self.height = self.size * 3 / 8, self.size * 3 / 4
         self.maxHealth = health
         self.damage = self.maxHealth / 3
