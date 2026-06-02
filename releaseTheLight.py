@@ -97,10 +97,10 @@ class Game:
         previousTime=pygame.time.get_ticks()
         self.kindVisibility=False
         practicalFPS=self.FPS
-        displayedFPS, timeFPSUpdated = self.FPS, 0
         self.visibleHitboxes=False
         self.loadingDebug=False
         self.crosshair=False
+        self.showScreenEffectStats=True
 
         while running:
 
@@ -163,8 +163,10 @@ class Game:
                                 self.offset_x=0
                                 self.offset_y=0
                             self.loadingDebug=not self.loadingDebug
-                        elif event.key== pygame.K_c:
+                        elif event.key == pygame.K_F1:
                             self.crosshair= not self.crosshair
+                        elif event.key == pygame.K_F2:
+                            self.showScreenEffectStats= not self.showScreenEffectStats
                 
                 if event.type==pygame.KEYUP:
                     if event.key in self.keysDown:
@@ -194,15 +196,19 @@ class Game:
                     self.shake=self.gameWorld.player.laserPower/12
                 else:
                     self.shake+=self.gameWorld.player.laserPower/500
-                    #self.shake+=0.1
+              
             self.shake*=0.9
+            if self.shake < 0.025:
+                self.shake=0
 
             if self.gameWorld.player.queuedDamage > 0:
-                tilt = math.copysign(self.gameWorld.player.queuedDamage, -self.gameWorld.player.xSpeed) * 5
+                tilt = math.sqrt(self.gameWorld.player.queuedDamage * 5) * 2
+                tilt = min(tilt, 10)
+                tilt = math.copysign(tilt, self.gameWorld.player.queuedDamage * -self.gameWorld.player.xSpeed)
                 if abs(tilt) > abs(self.tilt):
                     self.tilt = tilt
             else:
-                delta = 2
+                delta = 1.8
                 if self.tilt > 0:
                     self.tilt = max(0, self.tilt - delta)
                 elif self.tilt < 0:
@@ -224,7 +230,11 @@ class Game:
             practicalFPS=max(30,practicalFPS)
             previousTime=pygame.time.get_ticks()
 
-            text_surf = font.render(f'FPS: {self.clock.get_fps():.0f}', True, (255,255,255))
+            if self.showScreenEffectStats:
+                fps_text = f"FPS: {self.clock.get_fps():.0f} Shake: {self.shake:.2f} Tilt: {self.tilt:.2f}"
+            else:
+                fps_text = f"FPS: {self.clock.get_fps():.0f}"
+            text_surf = font.render(fps_text, True, (255,255,255))
             self.window.blit(text_surf, (self.window_width-20-text_surf.get_width(),20))
 
             # update window
