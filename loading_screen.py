@@ -41,11 +41,11 @@ class LoadingBar(pygame.sprite.Sprite):
 
         outer_rect = self.image.get_rect()
         pygame.draw.rect(self.image, (0,0,0,125), outer_rect, border_radius=10)
-        pygame.draw.rect(self.image, "white", outer_rect, width=3, border_radius=10)
+        pygame.draw.rect(self.image, (255,255,255,255), outer_rect, width=3, border_radius=10)
 
         inner_rect = outer_rect.inflate(-15, -15)
         inner_rect.width *= self.progress
-        pygame.draw.rect(self.image, "white", inner_rect, border_radius=5)
+        pygame.draw.rect(self.image, (255,255,255,245), inner_rect, border_radius=5)
 
     def get_progress(self):
         return self.progress
@@ -74,7 +74,7 @@ class LoadingScreen:
 
     def _gradient(self) -> pygame.Surface:
         gradient = pygame.image.load(ASSETS / "VignetteGradientTitle.webp").convert_alpha()
-        size = self.surface.get_height() * 1.7
+        size = int(self.surface.get_height() * 1.7)
         gradient = pygame.transform.scale(gradient, (size, size))
         return gradient
 
