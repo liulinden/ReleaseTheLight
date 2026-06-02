@@ -1,5 +1,5 @@
 import pygame,math,terrain,laser,particles,os
-from util import rotateAndGetOffset
+from util import rotateAndGetOffset, rgbBound, channelBound
 
 
 SPRITE_WIDTH=40
@@ -214,9 +214,9 @@ class Player:
         r=cr+cw
         g=cw+cb/4
         b=cw+cb
-        r=(min(r/self.maxCharge,1))**0.5
-        g=(min(g/self.maxCharge,1))**0.5
-        b=(min(b/self.maxCharge,1))**0.5
+        r=math.sqrt(min(r/self.maxCharge,1))
+        g=math.sqrt(min(g/self.maxCharge,1))
+        b=math.sqrt(min(b/self.maxCharge,1))
         self.color=(r*255,g*255,b*255)
 
     def updateLaserStats(self):
@@ -457,8 +457,9 @@ class Player:
             for lase in self.laser:
                 lase.draw(surface,frame,self.color,hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)
         else:
+            boostedColor = (channelBound(self.color[0]+30),channelBound(self.color[1]+30),channelBound(self.color[2]+30))
             playerSurface=pygame.Surface((SPRITE_WIDTH*zoom,SPRITE_HEIGHT*zoom),flags=pygame.SRCALPHA)
-            playerSurface.fill((self.color[0],self.color[1],self.color[2],255))
+            playerSurface.fill((boostedColor[0],boostedColor[1],boostedColor[2],255))
             playerSurface.blit(self.playerIMGs[zoom][self.facing][self.animationType][self.animationFrame],(0,0),special_flags=pygame.BLEND_RGBA_MULT)
 
             if tilt!=0:
@@ -470,19 +471,16 @@ class Player:
             arm,offsetX,offsetY=rotateAndGetOffset(self.playerIMGs[zoom][self.facing]["Arm"][0],zoom*ARM_PIVOT_X,zoom*ARM_PIVOT_Y,adjustedArmAngle)
             width,height=arm.get_size()
             armSurface=pygame.Surface((width,height),flags=pygame.SRCALPHA)
-            armSurface.fill((self.color[0],self.color[1],self.color[2],255))
+            armSurface.fill((boostedColor[0],boostedColor[1],boostedColor[2],255))
             armSurface.blit(arm,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
 
-            # brighten player and arm before normal blit
-            playerSurface.fill((40, 40, 40), special_flags=pygame.BLEND_RGB_ADD)
-            armSurface.fill((40, 40, 40), special_flags=pygame.BLEND_RGB_ADD)
             surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offset_y))
             surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY+offset_y))
             for lase in self.laser:
-                lase.draw(surface,frame,self.color,offset_x=offset_x,offset_y=offset_y)
+                lase.draw(surface,frame,boostedColor,offset_x=offset_x,offset_y=offset_y)
             # draw impact animations — rendered after laser so they appear on top
             for impact in self.impacts:
-                impact.draw(surface, frame, self.color, zoom)
+                impact.draw(surface, frame, boostedColor, zoom)
 
     def collidingWithTerrain(self, cTerrain):
         return cTerrain.collideRect(self.rect)

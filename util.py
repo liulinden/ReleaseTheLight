@@ -20,3 +20,10 @@ def rotateAndGetOffset(surface,cx,cy,angle,degrees=False):
     offset_y = rect.centery + rotated_pivot_y - rotated_rect.height / 2
 
     return rotated_surface, (offset_x), (offset_y)
+
+def rgbBound(color):
+    r,g,b=color
+    return (channelBound(r),channelBound(g),channelBound(b))
+
+def channelBound(value):
+    return min(255, max(0, value))
