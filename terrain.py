@@ -613,13 +613,13 @@ class Terrain:
     # Per-layer generation entry point
     # ------------------------------------------------------------------
 
-    def generateLayer(self, layerIndex, progress_queue=None):
+    def generateLayer(self, layerIndex, loading_screen=None):
         """Generate one layer. Thread-safe. Layer 0 threads layer 1 on completion."""
         with self._layerLocks[layerIndex]:
             yTop, yBottom = _layerYBounds(layerIndex, self.worldHeight)
 
-            if progress_queue is not None:
-                progress_queue.put(0.11)
+            if loading_screen is not None:
+                loading_screen.put(0.11)
     
             if layerIndex == 0:
                 x = -500
@@ -630,8 +630,8 @@ class Terrain:
 
             numSteps = int((yBottom - yTop) / 100)
             for i in range(numSteps):
-                if progress_queue is not None:
-                    progress_queue.put(i / numSteps * (0.5 - 0.11) + 0.11)
+                if loading_screen is not None:
+                    loading_screen.put(i / numSteps * (0.5 - 0.11) + 0.11)
                 for j in range(int(self.worldWidth / 1000)):
                     if random.randint(1, 10) == 1:
                         self.generateSkinnyCave(j * 1000 + random.randint(0, 1000),
@@ -684,13 +684,13 @@ class Terrain:
                                 "Red", layerIndex=layerIndex)
 
             self._buildChunkHitboxesForLayer(layerIndex)
-            self._buildChunkVisualsForLayer(layerIndex, progress_queue=progress_queue)
+            self._buildChunkVisualsForLayer(layerIndex, progress_queue=loading_screen)
             self._generatedLayers.add(layerIndex)
 
             print(layerIndex, "completed generation")
 
-            if progress_queue is not None:
-                progress_queue.put(1)
+            if loading_screen is not None:
+                loading_screen.put(1)
 
         if layerIndex == 0:
             threading.Thread(target=self.generateLayer, args=(1,), daemon=True).start()

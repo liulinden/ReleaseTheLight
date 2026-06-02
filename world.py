@@ -10,7 +10,7 @@ def distance(coord1, coord2):
 
 class World:
 
-    def __init__(self, worldWidth, worldHeight, defaultZooms=[0.1, 2], progress_queue=None):
+    def __init__(self, worldWidth, worldHeight, defaultZooms=[0.1, 2], loading_screen=None):
         self.worldWidth   = worldWidth
         self.worldHeight  = worldHeight
         self.defaultZooms = defaultZooms
@@ -36,16 +36,16 @@ class World:
         self._world_layer_size = None
         self.scratch_layer = None
 
-        self.generateWorld(progress_queue)
+        self.generateWorld(loading_screen)
 
-    def generateWorld(self, progress_queue=None):
-        if progress_queue is None:
+    def generateWorld(self, loading_screen=None):
+        if loading_screen is None:
             self.terrain.generateLayer(0)
         else:
-            progress_queue.put(0.1)
+            loading_screen.put(0.1)
             threading.Thread(
                 target=self.terrain.generateLayer,
-                args=(0, progress_queue),
+                args=(0, loading_screen),
                 daemon=True
             ).start()
         # layer 1 is threaded automatically at the end of layer 0's generation

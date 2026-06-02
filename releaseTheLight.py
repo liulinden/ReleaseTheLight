@@ -73,7 +73,7 @@ class Game:
 
         self.chargeDisplay=UI.ChargeDisplay(self.WORLD_HEIGHT)
 
-        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,defaultZooms=self.DEFAULT_ZOOMS,progress_queue=self.loading_screen.get_queue() if self.loading_screen is not None else None)
+        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,defaultZooms=self.DEFAULT_ZOOMS,loading_screen=self.loading_screen)
 
         running = True
         if self.loading_screen is not None:
