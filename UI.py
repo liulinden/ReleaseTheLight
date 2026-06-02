@@ -28,7 +28,6 @@ class HealthBar():
         if opacity>0:
 
             x,y=coords
-            print(x,y)
             
             drawRoundedLine(self.surface, (0,0,0), (self.thickness/2,self.thickness/2), (self.width-self.thickness/2,self.thickness/2),self.thickness)
             drawRoundedLine(self.surface, color, (self.thickness/2,self.thickness/2), (self.thickness/2+self.scale*health,self.thickness/2),self.thickness)
