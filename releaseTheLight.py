@@ -100,7 +100,7 @@ class Game:
         self.visibleHitboxes=False
         self.loadingDebug=False
         self.crosshair=False
-        self.showScreenEffectStats=True
+        self.showScreenEffectStats=False
 
         while running:
 
