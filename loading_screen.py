@@ -106,7 +106,7 @@ class LoadingScreen:
         gradient = self._gradient()
 
         title_spinner.rect.center = (self.surface.get_width() // 2, self.surface.get_height() // 2)
-        loading_bar.rect.midtop = (self.surface.get_width() // 2, self.surface.get_height() // 100 * 77)
+        loading_bar.rect.midtop = (self.surface.get_width() // 2, self.surface.get_height() // 2 + 245)
 
         sprites = pygame.sprite.Group(title_spinner, loading_bar)
 
