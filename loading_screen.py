@@ -62,31 +62,35 @@ class LoadingScreen:
         else:
             self.queue = _queue
 
-    def _title_frames(self):
+    def _title_frames(self) -> list[pygame.Surface]:
         frames = []
         size = int(self.surface.get_height() * (2/3))
         for i in range(8):
             frame = pygame.image.load(ASSETS / "TitleSpinner" / f"frame_{i}.webp").convert_alpha()
-            frame = pygame.transform.scale(frame, (size, size))
+            frame = pygame.transform.scale(frame, (size, size * frame.get_height() // frame.get_width()))
             frames.append(frame)
         return frames
 
-    def _gradient(self):
-        size = self.surface.get_width()
+    def _gradient(self) -> pygame.Surface:
         gradient = pygame.image.load(ASSETS / "VignetteGradientTitle.webp").convert_alpha()
+        size = self.surface.get_width()
         gradient = pygame.transform.scale(gradient, (size, size))
         return gradient
 
-    def put(self, progress):
-        progress = self.start_progress + (self.end_progress - self.start_progress) * progress
-        self.queue.put(progress)
+    def _interpolate_progress(self, progress: float) -> float:
+        return self.start_progress + (self.end_progress - self.start_progress) * progress
+
+    def put(self, progress: float) -> None:
+        self.queue.put(self._interpolate_progress(progress))
     
-    def run_on_thread(self):
+    def run_on_thread(self) -> threading.Thread:
         thread = threading.Thread(target=self.run, daemon=True)
         thread.start()
         return thread
     
     def subsection(self, start_at, end_at) -> "LoadingScreen":
+        start_at = self._interpolate_progress(start_at)
+        end_at = self._interpolate_progress(end_at)
         return LoadingScreen(self.surface, _queue=self.queue, start_progress=start_at, end_progress=end_at)
 
     def run(self) -> bool:
@@ -94,7 +98,7 @@ class LoadingScreen:
 
         clock = pygame.time.Clock()
 
-        font = pygame.font.SysFont("Arial", self.surface.get_height() // 20)
+        # font = pygame.font.SysFont("Arial", self.surface.get_height() // 20)
 
         loading_bar = LoadingBar((self.surface.get_width() // 3, self.surface.get_height() // 50))
         title_spinner = TitleSpinner(self._title_frames(), 12)
@@ -102,7 +106,7 @@ class LoadingScreen:
         gradient = self._gradient()
 
         title_spinner.rect.center = (self.surface.get_width() // 2, self.surface.get_height() // 2)
-        loading_bar.rect.midtop = (self.surface.get_width() // 2, self.surface.get_height() // 100 * 72)
+        loading_bar.rect.midtop = (self.surface.get_width() // 2, self.surface.get_height() // 100 * 77)
 
         sprites = pygame.sprite.Group(title_spinner, loading_bar)
 
