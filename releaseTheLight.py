@@ -1,14 +1,14 @@
 # imports
-import pygame ,world, random,UI, queue, math
+import pygame ,world, random,UI, math, threading, loading_screen
 
 font = pygame.font.SysFont('Arial', 30)
 
 class Game:
-    def __init__(self,window,FPS=60,fullWorld=True,developingMode=False,loading_screen=None):
+    def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False):
 
         self.window = window
         self.window_width,self.window_height=window.get_size()
-
+ 
         # constants
         self.FPS = FPS
         if developingMode:
@@ -29,7 +29,7 @@ class Game:
         self.mode = "play"
 
         self.developingMode= developingMode
-        self.loading_screen= loading_screen
+        self.loading_screen = loading_screen.LoadingScreen(window)
     
     def coordsWindowToWorld(self,coords:list[int]):
         return self.camX+(coords[0]-self.offset_x)/self.zoom,self.camY+(coords[1]-self.offset_y)/self.zoom
@@ -66,18 +66,26 @@ class Game:
         self.camX += (self.camOffsetX+goalX-self.camX-self.window_width/zoom/2)*frameLength/200
         self.camY += (self.camOffsetY+goalY-self.camY-self.window_height/zoom/2)*frameLength/200
 
+    def make_game_world(self):
+        self.loading_screen.put(0.0)
+        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,loading_screen=self.loading_screen.subsection(0,0.9999),defaultZooms=self.DEFAULT_ZOOMS)
+        self.loading_screen.put(1.0)
+
     def run(self):
     
         #self.window = pygame.display.set_mode([self.window.get_width(),self.window.get_height()])
         #self.window.get_width(),self.window.get_height()=self.window.get_size()
 
+        running = True
+
         self.chargeDisplay=UI.ChargeDisplay(self.WORLD_HEIGHT)
 
-        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,defaultZooms=self.DEFAULT_ZOOMS,loading_screen=self.loading_screen)
+        thread = threading.Thread(target=self.make_game_world, daemon=True)
+        thread.start()
+        running = self.loading_screen.run()
 
-        running = True
-        if self.loading_screen is not None:
-            running = self.loading_screen.run()
+        if running:
+            thread.join()
 
         self.clock = pygame.time.Clock()
         self.keysDown = {pygame.K_w:False,

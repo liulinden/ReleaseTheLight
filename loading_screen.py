@@ -1,7 +1,8 @@
-import pygame
 import pathlib
 import threading
 from queue import Queue
+
+import pygame
 
 ASSETS = pathlib.Path("assets")
 
@@ -39,7 +40,7 @@ class LoadingBar(pygame.sprite.Sprite):
         self.progress = progress
 
         outer_rect = self.image.get_rect()
-        pygame.draw.rect(self.image, (0,0,0,150), outer_rect, border_radius=10)
+        pygame.draw.rect(self.image, (0,0,0,125), outer_rect, border_radius=10)
         pygame.draw.rect(self.image, "white", outer_rect, width=3, border_radius=10)
 
         inner_rect = outer_rect.inflate(-15, -15)
@@ -61,7 +62,7 @@ class LoadingScreen:
             self.queue = Queue()
         else:
             self.queue = _queue
-
+        
     def _title_frames(self) -> list[pygame.Surface]:
         frames = []
         size = int(self.surface.get_height() * (2/3))
@@ -73,7 +74,7 @@ class LoadingScreen:
 
     def _gradient(self) -> pygame.Surface:
         gradient = pygame.image.load(ASSETS / "VignetteGradientTitle.webp").convert_alpha()
-        size = self.surface.get_width()
+        size = self.surface.get_height() * 1.7
         gradient = pygame.transform.scale(gradient, (size, size))
         return gradient
 
@@ -81,6 +82,7 @@ class LoadingScreen:
         return self.start_progress + (self.end_progress - self.start_progress) * progress
 
     def put(self, progress: float) -> None:
+        # print(f"Progress: {progress:.2%} on loading screen [{self.start_progress:.2f} - {self.end_progress:.2f}]")
         self.queue.put(self._interpolate_progress(progress))
     
     def run_on_thread(self) -> threading.Thread:
@@ -92,6 +94,9 @@ class LoadingScreen:
         start_at = self._interpolate_progress(start_at)
         end_at = self._interpolate_progress(end_at)
         return LoadingScreen(self.surface, _queue=self.queue, start_progress=start_at, end_progress=end_at)
+
+    def subsections(self, *subsections: float) -> list["LoadingScreen"]:
+        return [self.subsection(start_at, end_at) for start_at, end_at in zip(subsections, subsections[1:] + (1.0,))]
 
     def run(self) -> bool:
         going = True
@@ -108,11 +113,12 @@ class LoadingScreen:
 
         gradient = self._gradient()
 
-
         sprites = pygame.sprite.Group(title_spinner, loading_bar)
 
         progress = self.start_progress
         loading_bar.set_progress(progress)
+
+        # print(f"Loading screen [{self.start_progress:.2f} - {self.end_progress:.2f}] started.")
 
         while going and progress < self.end_progress:
 
@@ -136,4 +142,5 @@ class LoadingScreen:
             pygame.display.flip()
             clock.tick(FPS)
         
+        # print(f"Loading screen [{self.start_progress:.2f} - {self.end_progress:.2f}] finished.")
         return going

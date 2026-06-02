@@ -1,6 +1,5 @@
 # imports
-import pygame, random, terrain, decoration, aplayer, lighting, math, os, time, enemies, nest, laser, gateway
-import threading
+import pygame, random, terrain, decoration, aplayer, lighting, math, os, time, enemies, nest, laser, gateway, loading_screen
 from util import rotateAndGetOffset
 
 def distance(coord1, coord2):
@@ -9,24 +8,28 @@ def distance(coord1, coord2):
 
 
 class World:
-
-    def __init__(self, worldWidth, worldHeight, defaultZooms=[0.1, 2], loading_screen=None):
+    def __init__(self, worldWidth, worldHeight, loading_screen: loading_screen.LoadingScreen, defaultZooms=[0.1, 2]):
         self.worldWidth   = worldWidth
         self.worldHeight  = worldHeight
         self.defaultZooms = defaultZooms
 
-        lighting.init()
-        enemies.init()
-        nest.init()
-        terrain.init()
-        aplayer.init()
-        laser.init(defaultZooms)
-        gateway.init()
+        init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.25, 0.3)
 
-        self.terrain = terrain.Terrain(worldWidth, worldHeight, defaultZooms=defaultZooms)
+        inits = [lighting.init, enemies.init, nest.init, terrain.init, aplayer.init, laser.init, gateway.init]
+
+        for i, init in enumerate(inits):
+            init_loading_screen.put((i + 1) / len(inits))
+            init()
+
         self.decorations = []
+
+        objects_loading_screen.put(0)
+        self.terrain = terrain.Terrain(worldWidth, worldHeight, defaultZooms=defaultZooms)
+        objects_loading_screen.put(0.5)
         self.player = aplayer.Player(defaultZooms, worldWidth / 2, -1200)
+        objects_loading_screen.put(0.75)
         self.light  = lighting.Lighting(defaultZooms=defaultZooms)
+        objects_loading_screen.put(1.0)
 
         background_raw   = pygame.image.load(os.path.join("assets", "Background.png")).convert()
         self.background  = pygame.transform.scale(background_raw, (4000, 4000))
@@ -36,19 +39,10 @@ class World:
         self._world_layer_size = None
         self.scratch_layer = None
 
-        self.generateWorld(loading_screen)
+        self.generateWorld(generate_loading_screen)
 
-    def generateWorld(self, loading_screen=None):
-        if loading_screen is None:
-            self.terrain.generateLayer(0)
-        else:
-            loading_screen.put(0.1)
-            threading.Thread(
-                target=self.terrain.generateLayer,
-                args=(0, loading_screen),
-                daemon=True
-            ).start()
-        # layer 1 is threaded automatically at the end of layer 0's generation
+    def generateWorld(self, loading_screen):
+        self.terrain.generateLayer(0, loading_screen)
 
     def _getWorldLayer(self, real_window_size):
         if self._world_layer is None or self._world_layer_size != real_window_size:

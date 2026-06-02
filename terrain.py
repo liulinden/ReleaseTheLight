@@ -1,5 +1,6 @@
 import pygame, random, math, nest, particles, os, time, threading
 from gateway import GATEWAY_Y_POSITIONS, Gateway
+from loading_screen import LoadingScreen
 
 NUM_LAYERS = 10
 
@@ -546,7 +547,7 @@ class Terrain:
                     special_flags=pygame.BLEND_RGBA_MAX
                 )
 
-    def _buildChunkVisualsForLayer(self, layerIndex, progress_queue=None):
+    def _buildChunkVisualsForLayer(self, layerIndex, loading_screen: LoadingScreen=None):
         yTop, yBottom   = _layerYBounds(layerIndex, self.worldHeight)
         layerPockets    = self.airPockets[layerIndex]
         for i, zoom in enumerate(self.defaultZooms):
@@ -555,13 +556,17 @@ class Terrain:
             rocks_span_px  = int(rocks_world_span * zoom)
             chunk_px       = int(visual_chunk_size * zoom)
             rowStart       = math.floor(yTop    / visual_chunk_size)
-            rowEnd         = math.ceil (yBottom / visual_chunk_size)
-            totalRows      = max(1, rowEnd - rowStart + 1)
+            rowEnd         = min(math.ceil(yBottom / visual_chunk_size), len(self.chunkVisuals[zoom]) - 1)
+            totalRows      = rowEnd - rowStart
 
-            for row in range(rowStart, min(rowEnd + 1, len(self.chunkVisuals[zoom]))):
-                if progress_queue is not None:
-                    frac = (i * totalRows + (row - rowStart)) / (len(self.defaultZooms) * totalRows)
-                    progress_queue.put(min(0.5 + frac * 0.499, 0.999))
+            if loading_screen is not None:
+                loading_bar_section = loading_screen.subsection(i / len(self.defaultZooms), (i + 1) / len(self.defaultZooms))
+            else:
+                loading_bar_section = None
+
+            for row in range(rowStart, rowEnd):
+                if loading_bar_section is not None:
+                    loading_bar_section.put((row - rowStart + 1) / totalRows)
 
                 for col, chunk in enumerate(self.chunkVisuals[zoom][row]):
                     world_left  = col * visual_chunk_size
@@ -613,14 +618,17 @@ class Terrain:
     # Per-layer generation entry point
     # ------------------------------------------------------------------
 
-    def generateLayer(self, layerIndex, loading_screen=None):
+    def generateLayer(self, layerIndex, loading_screen: LoadingScreen = None):
         """Generate one layer. Thread-safe. Layer 0 threads layer 1 on completion."""
+
+        if loading_screen is not None:
+            loading_screen_main, loading_screen_visuals = loading_screen.subsections(0, 0.5)
+        else:
+            loading_screen_main = loading_screen_visuals = None
+
         with self._layerLocks[layerIndex]:
             yTop, yBottom = _layerYBounds(layerIndex, self.worldHeight)
 
-            if loading_screen is not None:
-                loading_screen.put(0.11)
-    
             if layerIndex == 0:
                 x = -500
                 while x < self.worldWidth + 500:
@@ -630,8 +638,8 @@ class Terrain:
 
             numSteps = int((yBottom - yTop) / 100)
             for i in range(numSteps):
-                if loading_screen is not None:
-                    loading_screen.put(i / numSteps * (0.5 - 0.11) + 0.11)
+                if loading_screen_main is not None:
+                    loading_screen_main.put((i + 1) / numSteps)
                 for j in range(int(self.worldWidth / 1000)):
                     if random.randint(1, 10) == 1:
                         self.generateSkinnyCave(j * 1000 + random.randint(0, 1000),
@@ -684,7 +692,7 @@ class Terrain:
                                 "Red", layerIndex=layerIndex)
 
             self._buildChunkHitboxesForLayer(layerIndex)
-            self._buildChunkVisualsForLayer(layerIndex, progress_queue=loading_screen)
+            self._buildChunkVisualsForLayer(layerIndex, loading_screen=loading_screen_visuals)
             self._generatedLayers.add(layerIndex)
 
             print(layerIndex, "completed generation")

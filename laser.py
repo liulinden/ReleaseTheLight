@@ -1,6 +1,6 @@
 import pygame, math, random
 
-def init(defaultZooms):
+def init():
     pass  # impact images now loaded in aplayer.init() and scaled in Player.__init__
 
 
