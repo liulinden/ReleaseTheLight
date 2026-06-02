@@ -100,13 +100,14 @@ class LoadingScreen:
 
         # font = pygame.font.SysFont("Arial", self.surface.get_height() // 20)
 
-        loading_bar = LoadingBar((self.surface.get_width() // 3, self.surface.get_height() // 50))
         title_spinner = TitleSpinner(self._title_frames(), 12)
+        title_spinner.rect.center = (self.surface.get_width() // 2, self.surface.get_height() // 2)
+
+        loading_bar = LoadingBar((title_spinner.rect.width * 0.9, self.surface.get_height() // 50))
+        loading_bar.rect.center = (self.surface.get_width() // 2, title_spinner.rect.bottom - title_spinner.rect.height * 0.18)
 
         gradient = self._gradient()
 
-        title_spinner.rect.center = (self.surface.get_width() // 2, self.surface.get_height() // 2)
-        loading_bar.rect.midtop = (self.surface.get_width() // 2, self.surface.get_height() // 2 + 245)
 
         sprites = pygame.sprite.Group(title_spinner, loading_bar)
 
