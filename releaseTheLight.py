@@ -29,7 +29,7 @@ class Game:
         self.mode = "play"
 
         self.developingMode= developingMode
-        self.loading_screen = loading_screen.LoadingScreen(window)
+        self.loading_screen = loading_screen.LoadingScreen(window, developer_mode=developingMode)
     
     def coordsWindowToWorld(self,coords:list[int]):
         return self.camX+(coords[0]-self.offset_x)/self.zoom,self.camY+(coords[1]-self.offset_y)/self.zoom
