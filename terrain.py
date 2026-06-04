@@ -32,15 +32,8 @@ def init():
     rocksIMG["raw"] = rocks_raw
     vignetteIMG = pygame.image.load(os.path.join("assets", "VignetteGradient.png")).convert_alpha()
 
-
-def distance(coord1, coord2):
-    x1, y1 = coord1
-    x2, y2 = coord2
-    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-
-
 def rectToCircle(left, top, width, height):
-    return left + width / 2, top + height / 2, distance((0, 0), (width, height)) / 2
+    return left + width / 2, top + height / 2, math.dist((0, 0), (width, height)) / 2
 
 
 def _layerYBounds(layerIndex, worldHeight):
@@ -794,7 +787,7 @@ class Terrain:
             for airPocket in self.airPockets[layerIndex]:
                 if airPocket is not newAirPocket:
                     if airPocket.close(x, y, newAirPocket.r + 10):
-                        d = distance((airPocket.x, airPocket.y), (x, y))
+                        d = math.dist((airPocket.x, airPocket.y), (x, y))
                         if d < newAirPocket.r / 4:
                             return False
                         if d > airPocket.r + newAirPocket.r and d < airPocket.r + newAirPocket.r + 10:

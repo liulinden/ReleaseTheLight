@@ -7,12 +7,6 @@ def loadNestIMGSet(id, stages):
     return IMGs, pygame.image.load(os.path.join("assets", "Nest" + str(id) + "Hitbox.png")).convert_alpha()
 
 
-def distance(coord1: int, coord2: int):
-    x1, y1 = coord1
-    x2, y2 = coord2
-    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-
-
 # FIX 2: module-level lightGradient and nestIMGs loaded in init() after display exists
 lightGradient = None
 nestIMGs = {}
@@ -173,7 +167,7 @@ class Nest:
                 self.enemies.append(newEnemy)
 
     def withinEffectRadius(self, x, y):
-        if distance((x, y), (self.x, self.y)) < self.size * 1.5:
+        if math.dist((x, y), (self.x, self.y)) < self.size * 1.5:
             return True
         return False
 

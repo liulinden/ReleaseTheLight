@@ -2,11 +2,6 @@
 import pygame, random, terrain, decoration, aplayer, lighting, math, os, time, enemies, nest, laser, gateway, loading_screen
 from util import rotateAndGetOffset
 
-def distance(coord1, coord2):
-    x1, y1 = coord1;  x2, y2 = coord2
-    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-
-
 class World:
     def __init__(self, worldWidth, worldHeight, loading_screen: loading_screen.LoadingScreen, defaultZooms=[0.1, 2]):
         self.worldWidth   = worldWidth

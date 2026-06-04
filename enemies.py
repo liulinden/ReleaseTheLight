@@ -36,12 +36,6 @@ def init():
         enemyAnimations[variantID] = animationIMGs
 
 
-def distance(coord1: int, coord2: int):
-    x1, y1 = coord1
-    x2, y2 = coord2
-    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-
-
 def getEnemy(cTerrain, player, nestType, color, nestHealth, nestX, nestY, nestSize):
     for i in range(20):
         x, y = random.randint(int(nestX - 10 - nestSize / 2), int(nestX + 10 + nestSize / 2)), random.randint(int(nestY - 10 - nestSize / 2), int(nestY + 10 + nestSize / 2))
@@ -84,7 +78,7 @@ class Enemy:
         self.facing = "Right"
         self.mode = "Spawn"
         self.glow = 0
-        self.r = distance((0, 0), (self.width / 2, self.height / 2))
+        self.r = math.dist((0, 0), (self.width / 2, self.height / 2))
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
         self.healthBar=UI.HealthBar(self.maxHealth)
 
@@ -320,7 +314,7 @@ class Enemy:
                     player.ySpeed = -0.3
                     player.dealDamage(self.damage)
 
-            if distance((self.x, self.y), (player.x, player.y)) > 500:
+            if math.dist((self.x, self.y), (player.x, player.y)) > 500:
                 return True
 
         self.updateCostume(frameLength, player)
