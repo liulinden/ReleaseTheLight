@@ -160,7 +160,7 @@ class LoadingScreen:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         going = False
-                    if event.key == pygame.K_F1 and self.developer_mode:
+                    else:
                         debug_display = not debug_display
             
             sprites.update()
