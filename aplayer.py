@@ -300,7 +300,7 @@ class Player:
                     x,y=point
                     cTerrain.addAirPocketClump(x, y, self.laserPower*self.LaserExplosionMultiplier, layerIndex=cTerrain._layerForY(y), playerMade=True, spreading=1/5)
                     if lase.collision[1]=="ground":
-                        cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower*self.laserDmgMultiplier*0.1,x,y)
+                        cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower*self.laserDmgMultiplier*1.5,x,y)
                     cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback*self.laserKbMultiplier])
                     cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower*self.laserDmgMultiplier*0.1])
                 self.laserKbMultiplier=0.5
