@@ -142,6 +142,9 @@ class Game:
                     if event.key== pygame.K_ESCAPE:
                         running=False
                         return
+                    
+                    if event.key==pygame.K_i:
+                        self.gameWorld.player.addCharge(100,(1,0,0),500)
 
                     # TEMPORARY - zoom in/out
                     if self.developingMode:
@@ -185,7 +188,7 @@ class Game:
                 self.gameWorld.healNests()
                 self.gameWorld.removeEnemies()
 
-            self.chargeDisplay.update(practicalFPS,self.gameWorld.player.color,sum(self.gameWorld.player.charges.values()),self.gameWorld.player.y)
+            self.chargeDisplay.update(practicalFPS,self.gameWorld.player.charges,self.gameWorld.player.y)
 
             self.updateCamPos(practicalFPS,self.zoom,self.gameWorld.player.x,self.gameWorld.player.y,self.gameWorld.player.xSpeed,self.gameWorld.player.ySpeed)
             #world wrapping
