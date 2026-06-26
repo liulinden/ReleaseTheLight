@@ -142,9 +142,6 @@ class Game:
                     if event.key== pygame.K_ESCAPE:
                         running=False
                         return
-                    
-                    if event.key==pygame.K_i:
-                        self.gameWorld.player.addCharge(100,(1,0,0),500)
 
                     # TEMPORARY - zoom in/out
                     if self.developingMode:
@@ -155,6 +152,8 @@ class Game:
                             else:
                                 newZoom=self.DEFAULT_ZOOMS[self.DEFAULT_ZOOMS.index(self.zoom)+1]
                             self.setZoom(newZoom,(self.gameWorld.player.x,self.gameWorld.player.y))
+                        elif event.key==pygame.K_i:
+                            self.gameWorld.player.addCharge(100,(1,0,0),500)
                         elif event.key== pygame.K_0:
                             self.kindVisibility= not self.kindVisibility
                         elif event.key== pygame.K_h:

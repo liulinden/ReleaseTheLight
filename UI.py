@@ -5,7 +5,7 @@ chargeIcon = pygame.transform.scale(pygame.image.load(os.path.join("assets","Cha
 lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
 chargeColors ={
-    "white": (1,1,1), "red":(1,0,0),"blue":(0,0.25,1)
+    "white": (1,1,1),"blue":(0,0.25,1), "red":(1,0,0)
 }
 
 def drawRoundedLine(surface, color, start, end, thickness):
@@ -59,7 +59,7 @@ class ChargeDisplay():
         self.x=40
         self.y=40
         self.rotationSpeed=0
-        self.playerCharges={"white":0,"red":0,"blue":0}
+        self.playerCharges={"white":0,"blue":0,"red":0}
         self.playerTotalCharge=0
         self.color=(0,0,0)
         self.worldHeight=worldHeight
@@ -84,9 +84,9 @@ class ChargeDisplay():
         r=cr+cw
         g=cw+cb/4
         b=cw+cb
-        r=math.sqrt(min(r/500,1))
-        g=math.sqrt(min(g/500,1))
-        b=math.sqrt(min(b/500,1))
+        r=math.sqrt(max(0,min(r/500,1)))
+        g=math.sqrt(max(0,min(g/500,1)))
+        b=math.sqrt(max(0,min(b/500,1)))
         self.color=(r*255,g*255,b*255)
 
         if totalChargeChange>0:
@@ -123,12 +123,11 @@ class ChargeDisplay():
         filter.blit(transformedIcon,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(filter,(self.x+80-filter.get_width()/2,self.y+60-filter.get_height()/2))
         
-        pygame.draw.arc(surface,self.color,pygame.Rect(self.x+20,self.y,120,120),math.pi/2-2*math.pi*self.playerTotalCharge/500,math.pi/2,10)
+        pygame.draw.arc(surface,self.color,pygame.Rect(self.x+20,self.y,120,120),math.pi/2-2*math.pi*self.playerTotalCharge/500,math.pi/2,11)
 
         offset=0
         for color in self.playerCharges:
             fraction=self.playerCharges[color]/500
             if fraction>0:
-                visualfrac=math.sqrt(fraction)
-                drawSingleSideRoundedLine(surface,(255*visualfrac*chargeColors[color][0],255*visualfrac*chargeColors[color][1],255*visualfrac*chargeColors[color][2]),(self.x+146,self.y+10+offset), (self.x+146+max(6,100*fraction),self.y+10+offset),11)
-            offset+=29
+                drawSingleSideRoundedLine(surface,(255*math.sqrt(fraction*chargeColors[color][0]),255*math.sqrt(fraction*chargeColors[color][1]),255*math.sqrt(fraction*chargeColors[color][2])),(self.x+146,self.y+10+offset), (self.x+146+max(6,100*fraction),self.y+10+offset),11)
+            offset+=15

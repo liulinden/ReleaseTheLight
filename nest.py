@@ -42,7 +42,7 @@ class Nest:
         self.size = size
         self.enemies = []
         self.basicEnemyCap = 1
-        self.totalEnemyCap = 8
+        self.totalEnemyCap = min(max(3,int(size/30)),10)
         self.color = (255, 255, 255)
         self.glow = 0
         self.stage = 0
@@ -72,9 +72,9 @@ class Nest:
         if 1 not in self._draw_filter:
             self._draw_filter[1] = pygame.Surface((size, size), flags=pygame.SRCALPHA)
 
-        self.maxHealth = self.y * 500 / worldHeight
+        self.maxHealth = self.y * 100 * (random.random()+0.5) / worldHeight
         if self.nestType == "White":
-            self.maxHealth *= 1.1
+            self.maxHealth *= 1.2
             self.maxHealth += 10
         elif self.nestType == "Blue":
             self.maxHealth += 100
