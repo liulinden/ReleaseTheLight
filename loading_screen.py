@@ -102,16 +102,14 @@ class LoadingScreen:
     def _interpolate_progress(self, progress: float) -> float:
         return self.start_progress + (self.end_progress - self.start_progress) * progress
 
-    def put(self, progress: float) -> None:
-        # print(f"Progress: {progress:.2%} on loading screen [{self.start_progress:.2f} - {self.end_progress:.2f}]")
-        self.queue.put(self._interpolate_progress(progress))
+    def put(self, progress: float) -> None:        
+        frame = inspect.currentframe().f_back
+        filename = pathlib.Path(frame.f_code.co_filename).name
+        line_number = frame.f_lineno
+        func_name = frame.f_code.co_name
 
-        if self.developer_mode:
-            frame = inspect.currentframe().f_back
-            filename = pathlib.Path(frame.f_code.co_filename).name
-            line_number = frame.f_lineno
-            func_name = frame.f_code.co_name
-            LoadingScreen.debug_info = f"{filename}:{line_number} in {func_name}()"
+        self.queue.put((self._interpolate_progress(progress), f"{filename}:{line_number} in {func_name}()"))
+
     
     def run_on_thread(self) -> threading.Thread:
         thread = threading.Thread(target=self.run, daemon=True)
@@ -148,7 +146,9 @@ class LoadingScreen:
 
         # print(f"Loading screen [{self.start_progress:.2f} - {self.end_progress:.2f}] started.")
 
-        debug_display = True
+        show_debug_display = self.developer_mode
+        debug_message = ""
+
         going = True
 
         start = time.time()
@@ -164,17 +164,17 @@ class LoadingScreen:
                     if event.key == pygame.K_ESCAPE:
                         going = False
                     elif event.key == pygame.K_SPACE:
-                        debug_display = not debug_display
+                        show_debug_display = not show_debug_display
             
             sprites.update()
             sprites.draw(self.surface)
 
-            if debug_display:
+            if show_debug_display:
 
                 fps_text = font.render(f"FPS: {clock.get_fps():.0f}", True, (255,255,255))
                 self.surface.blit(fps_text, fps_text.get_rect(topright=self.surface.get_rect().inflate(-20, -20).topright))
 
-                debug_text = font.render(LoadingScreen.debug_info, True, (230,230,255), (0,0,0,150))
+                debug_text = font.render(debug_message, True, (230,230,255), (0,0,0,150))
                 self.surface.blit(debug_text, (10, 10))
 
                 percentage_text = font.render(f"{progress:.1%}", True, (230,230,255), (0,0,0,150))
@@ -184,7 +184,7 @@ class LoadingScreen:
                 self.surface.blit(time_text, (10, 90))
 
             if not self.queue.empty():
-                progress = self.queue.get()
+                progress, debug_message = self.queue.get()
                 loading_bar.set_progress(progress)
 
             pygame.display.flip()
