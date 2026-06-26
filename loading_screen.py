@@ -1,10 +1,11 @@
 import pathlib
 import threading
 from queue import Queue
+import inspect
+import time
 
 import pygame
 
-import inspect
 
 ASSETS = pathlib.Path("assets")
 
@@ -67,9 +68,9 @@ class LoadingBar(pygame.sprite.Sprite):
 
         outer_rect = self.image.get_rect()
         pygame.draw.rect(self.image, (0,0,0,125), outer_rect, border_radius=10)
-        pygame.draw.rect(self.image, (255,255,255,255), outer_rect, width=3, border_radius=10)
+        pygame.draw.rect(self.image, (255,255,255,255), outer_rect, width=2, border_radius=10)
 
-        inner_rect = outer_rect.inflate(-15, -15)
+        inner_rect = outer_rect.inflate(-10, -10)
         inner_rect.width *= self.displayed_progress
         pygame.draw.rect(self.image, (255,255,255,245), inner_rect, border_radius=5)
 
@@ -147,8 +148,10 @@ class LoadingScreen:
 
         # print(f"Loading screen [{self.start_progress:.2f} - {self.end_progress:.2f}] started.")
 
-        debug_display = False
+        debug_display = True
         going = True
+
+        start = time.time()
 
         while going and progress < self.end_progress:
 
@@ -160,7 +163,7 @@ class LoadingScreen:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         going = False
-                    else:
+                    elif event.key == pygame.K_SPACE:
                         debug_display = not debug_display
             
             sprites.update()
@@ -168,14 +171,17 @@ class LoadingScreen:
 
             if debug_display:
 
-                debug_text = font.render(LoadingScreen.debug_info, True, (230,230,255), (0,0,0,150))
-                self.surface.blit(debug_text, debug_text.get_rect(midtop=loading_bar.rect.move(0, 5).midbottom))
-
                 fps_text = font.render(f"FPS: {clock.get_fps():.0f}", True, (255,255,255))
-                self.surface.blit(fps_text, fps_text.get_rect(topright = self.surface.get_rect().inflate(-20, -20).topright))
+                self.surface.blit(fps_text, fps_text.get_rect(topright=self.surface.get_rect().inflate(-20, -20).topright))
+
+                debug_text = font.render(LoadingScreen.debug_info, True, (230,230,255), (0,0,0,150))
+                self.surface.blit(debug_text, (10, 10))
 
                 percentage_text = font.render(f"{progress:.1%}", True, (230,230,255), (0,0,0,150))
-                self.surface.blit(percentage_text, percentage_text.get_rect(midtop=loading_bar.rect.move(0, percentage_text.get_height() + 10).midbottom))
+                self.surface.blit(percentage_text, (10, 50))
+
+                time_text = font.render(f"{time.time() - start:.1f} seconds...", True, (230,230,255), (0,0,0,150))
+                self.surface.blit(time_text, (10, 90))
 
             if not self.queue.empty():
                 progress = self.queue.get()

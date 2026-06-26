@@ -50,15 +50,13 @@ def worldYtoLayerY(worldY):
             return worldY-(GATEWAY_Y_POSITIONS)[i-1], i
     return worldY-(GATEWAY_Y_POSITIONS)[NUM_LAYERS-2], NUM_LAYERS-1
 
-def chooseUniqueRandoms(n, low, high, excluded=[]):
-    while True:
-        r=random.randint(low,high)
-        if not r in excluded:
-            if n==1:
-                return [r]
-            return [r] + chooseUniqueRandoms(n-1,low,high,excluded+[r]) 
-    
-
+def chooseUniqueRandoms(n: int, low: int, high: int, excluded = []) -> list[int]:
+    nums = set()
+    excluded = set(excluded)
+    while len(nums) < n:
+        nums.add(random.randint(low, high))
+        nums = nums - excluded
+    return list(nums)
 class Terrain:
 
     def __init__(self, worldWidth: int, worldHeight: int, defaultZooms: list = [0.1, 2]):
