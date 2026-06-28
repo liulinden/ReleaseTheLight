@@ -1,5 +1,5 @@
 # imports
-import pygame ,world, random,UI, math, threading, loading_screen
+import pygame ,world, random,UI, math, threading, loading_screen,pickle
 
 font = pygame.font.SysFont('Arial', 30)
 
@@ -179,6 +179,10 @@ class Game:
                             self.crosshair= not self.crosshair
                         elif event.key == pygame.K_F2:
                             self.showScreenEffectStats= not self.showScreenEffectStats
+
+#                        elif event.key==pygame.K_F5:
+#                            with open("_save.pkl", "wb") as file:
+#                                pickle.dump(self, file)
                 
                 if event.type==pygame.KEYUP:
                     if event.key in self.keysDown:
