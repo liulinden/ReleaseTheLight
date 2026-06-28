@@ -4,7 +4,7 @@ import pygame ,world, random,UI, math, threading, loading_screen
 font = pygame.font.SysFont('Arial', 30)
 
 class Game:
-    def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False, loadPreset = False):
+    def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False):
 
         self.window = window
         self.window_width,self.window_height=window.get_size()
@@ -71,20 +71,20 @@ class Game:
         self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,loading_screen=self.loading_screen.subsection(0,0.9999),defaultZooms=self.DEFAULT_ZOOMS)
         self.loading_screen.put(1.0)
 
-    def run(self):
-    
+    def setup(self):
+        
         #self.window = pygame.display.set_mode([self.window.get_width(),self.window.get_height()])
         #self.window.get_width(),self.window.get_height()=self.window.get_size()
 
-        running = True
+        self.running = True
 
         self.chargeDisplay=UI.ChargeDisplay(self.WORLD_HEIGHT)
 
         thread = threading.Thread(target=self.make_game_world, daemon=True)
         thread.start()
-        running = self.loading_screen.run()
+        self.running = self.loading_screen.run()
 
-        if running:
+        if self.running:
             thread.join()
 
         self.clock = pygame.time.Clock()
@@ -102,6 +102,8 @@ class Game:
         self.shake=0
         self.tilt=0
 
+    def run(self):
+        
         previousTime=pygame.time.get_ticks()
         self.kindVisibility=False
         practicalFPS=self.FPS
@@ -110,7 +112,7 @@ class Game:
         self.crosshair=False
         self.showScreenEffectStats=False
 
-        while running:
+        while self.running:
 
             # get mouse pos
             mouseX,mouseY=pygame.mouse.get_pos()
@@ -122,7 +124,7 @@ class Game:
                 # close game
                 if event.type==pygame.QUIT:
                     print("quit")
-                    running=False
+                    self.running=False
                     return
                     
                 # TEMPORARY for testing
@@ -140,7 +142,7 @@ class Game:
                         self.keysDown[event.key]=True
                     
                     if event.key== pygame.K_ESCAPE:
-                        running=False
+                        self.running=False
                         return
 
                     # TEMPORARY - zoom in/out
