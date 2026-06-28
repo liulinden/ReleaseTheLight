@@ -1,5 +1,6 @@
 import pygame, os, math
 from structure import Structure
+from UI import HealthBar
 
 # ---------------------------------------------------------------------------
 # Gateway Y positions — one per boundary between layers.
@@ -161,7 +162,7 @@ class EntryTile(GatewayTile):
     the parent Gateway which then unlocks all tiles."""
 
     # charge thresholds for visual stages (fraction of maxCharge)
-    STAGE_THRESHOLDS = [0.0, 0.33, 0.66, 1.0]
+    STAGE_THRESHOLDS = [0.0, 0.01, 0.5, 1.0]
 
     def __init__(self, tileX, tileY, tileSize, defaultZooms, maxCharge,
                  opened=False):
@@ -178,6 +179,7 @@ class EntryTile(GatewayTile):
             (int(tileSize), int(tileSize)))
 
         self._buildSurfaces()
+        self.healthBar = HealthBar(self.maxCharge)
 
     def _buildSurfaces(self):
         for zoom in self.defaultZooms:
@@ -230,6 +232,10 @@ class EntryTile(GatewayTile):
         if not self.opened:
             self.opened = True
             self._buildSurfaces()
+    
+    def drawHealthBar(self,surface, frame, time=None, offset_x=0,offset_y=0):
+        camX, camY, zoom = frame 
+        self.healthBar.draw(surface, (255,255,255), ((self.x - camX +40) * zoom + offset_x, (self.top - camY) * zoom + offset_y), self.charge,time)
 
 
 # ---------------------------------------------------------------------------
@@ -269,18 +275,15 @@ class Gateway:
         self.entryTiles = [t for t in self.tiles if isinstance(t, EntryTile)]
         self.exitTiles  = [t for t in self.tiles if isinstance(t, ExitTile)]
 
-    def tick(self, frameLength, terrain, player):
-        """Check laser hits on activators each frame. Returns True if just unlocked."""
-        if self.unlocked:
-            return False
-        for lase in player.laser:
-            if lase.collision:
-                wx, wy = lase.collision[0]
-                for entry in self.entryTiles:
-                    if entry.isLaserHittingActivator(wx, wy):
-                        if entry.addCharge(player.laserPower * frameLength / 1000):
-                            self._unlock(terrain)
-                            return True
+    def tick(self, frameLength, terrain, lx,ly,laserPower):
+        """Check laser hits on activators each frame. Returns True if activator is hit."""
+        for entry in self.entryTiles:
+            if entry.isLaserHittingActivator(lx,ly):
+                if not self.unlocked:
+                    if entry.addCharge(laserPower):
+                        self._unlock(terrain)
+                    entry.healthBar.trigger()
+                return True
         return False
 
     def _unlock(self, terrain):

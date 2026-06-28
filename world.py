@@ -91,8 +91,13 @@ class World:
         x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
 
         # tick gateways
-        for gw in self.terrain.gateways:
-            gw.tick(frameLength, self.terrain, self.player)
+        for lase in self.player.laser:
+            if self.terrain.playerDamageCircles and lase.collision:
+                lx,ly=lase.collision[0]
+                for gw in self.terrain.gateways:
+                    if gw.tick(frameLength, self.terrain, lx,ly,self.player.laserPower):
+                        self.terrain.particles.spawnMiningParticles(10, (255,255,255), 10, lx,ly)
+                        break
 
         # active nests only
         for li in self.terrain.activeLayers:

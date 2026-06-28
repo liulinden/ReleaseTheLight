@@ -4,7 +4,7 @@ import pygame ,world, random,UI, math, threading, loading_screen
 font = pygame.font.SysFont('Arial', 30)
 
 class Game:
-    def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False):
+    def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False, loadPreset = False):
 
         self.window = window
         self.window_width,self.window_height=window.get_size()

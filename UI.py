@@ -18,6 +18,16 @@ def drawSingleSideRoundedLine(surface, color, start, end, thickness):
     pygame.draw.line(surface, color, start, end, thickness)
     pygame.draw.circle(surface, color, end, thickness/2)
 
+def polarToRect(r,angle):
+    return r*math.cos(angle), r*math.sin(angle)
+
+def getTrianglePoints(cx,cy,angle):
+    point=polarToRect(58,angle-math.pi*0.5)
+    pconcave=polarToRect(66,angle-math.pi*0.5)
+    p2=polarToRect(67,angle-math.pi*0.53)
+    p3=polarToRect(67,angle-math.pi*0.47)
+    return ((point[0]+cx,point[1]+cy),(p2[0]+cx,p2[1]+cy),(pconcave[0]+cx,pconcave[1]+cy),(p3[0]+cx,p3[1]+cy))
+
 class HealthBar():
     def __init__(self, maxHealth,thickness=5):
         self.lastTriggered=0
@@ -124,6 +134,12 @@ class ChargeDisplay():
         surface.blit(filter,(self.x+80-filter.get_width()/2,self.y+60-filter.get_height()/2))
         
         pygame.draw.arc(surface,self.color,pygame.Rect(self.x+20,self.y,120,120),math.pi/2-2*math.pi*self.playerTotalCharge/500,math.pi/2,11)
+
+
+        #placeholder
+        pygame.draw.polygon(surface,(255/2,0,0),getTrianglePoints(self.x+80,self.y+60,math.pi*0.16))
+        pygame.draw.polygon(surface,(0,127/2,255/2),getTrianglePoints(self.x+80,self.y+60,math.pi*0.08))
+        pygame.draw.polygon(surface,(255,255,255),getTrianglePoints(self.x+80,self.y+60,0))
 
         offset=0
         for color in self.playerCharges:
