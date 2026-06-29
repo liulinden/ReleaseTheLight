@@ -24,12 +24,16 @@ class World:
         self.terrain = terrain.Terrain(worldWidth, worldHeight, defaultZooms=defaultZooms)
         objects_loading_screen.put(0.6, "Creating player object")
         self.player = aplayer.Player(defaultZooms, worldWidth / 2, -200 if developingMode else -1200)
-        objects_loading_screen.put(0.75, "Creating lighting object")
+        objects_loading_screen.put(0.7, "Creating lighting object")
         self.light  = lighting.Lighting(defaultZooms=defaultZooms)
-        objects_loading_screen.put(0.9, "Creating background surface")
+        objects_loading_screen.put(0.8, "Creating background surface")
         background_raw   = get_asset("Background")
         self.background  = pygame.transform.scale(background_raw, (4000, 4000))
         self.bg_width, self.bg_height = self.background.get_size()
+        objects_loading_screen.put(0.9, "Creating foreground surface")
+        foreground_raw   = get_asset("Foreground")
+        self.foreground  = pygame.transform.scale(foreground_raw, (6000, 6000))
+        self.fg_width, self.fg_height = self.foreground.get_size()
         objects_loading_screen.put(1.0, "Object creation complete.")
 
         self._world_layer      = None
@@ -140,6 +144,12 @@ class World:
         x = (-left * zoom) % self.bg_width/2  - self.bg_width/2
         y = (-top  * zoom) % self.bg_height/2 - self.bg_height/2
         layer.blit(self.background, (x, y))
+    
+    def drawForeground(self,layer,window_size,frame):
+        left, top, zoom = frame
+        x = (-left*6 * zoom) % self.fg_width/2  - self.fg_width/2
+        y = ((-top*6+500)  * zoom) % self.fg_height/2 - self.fg_height/2
+        layer.blit(self.foreground, (x, y))
 
     def getSurface(self, window_size, frame, hitboxes=False, kindVisibility=False,
                    real_window_size=None, offset_x=0, offset_y=0, tilt=0, crosshair=False):
@@ -201,6 +211,9 @@ class World:
         
         self.terrain.drawHealthBars(window_size, layer, frame, pygame.time.get_ticks(),offset_x=offset_x,offset_y=offset_y)
 
+        self.drawForeground(scratchLayer, window_size, frame)
+        self.light.drawThickGradient(scratchLayer,frame,self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y) 
+        layer.blit(self.scratch_layer, (0,0), special_flags=pygame.BLEND_MULT)
 
         if crosshair:
             pygame.draw.line(layer, (100, 100, 100, 0.3), (real_window_size[0]*0.45, real_window_size[1]//2), (real_window_size[0]*0.55, real_window_size[1]//2), 2)

@@ -5,13 +5,15 @@ from asset_manager import get_asset
 # FIX 2: images loaded in init() after display exists
 mistParticleIMGs = []
 lightGradient = None
+thickGradient = None
 
 def init():
-    global mistParticleIMGs, lightGradient
+    global mistParticleIMGs, lightGradient, thickGradient
     mistParticleIMGs = []
     for i in range(5):
         mistParticleIMGs.append(get_asset("MistParticle" + str(i + 1)))
     lightGradient = get_asset("LightGradient")
+    thickGradient= get_asset("ThickGradient")
 
 
 class Lighting:
@@ -29,6 +31,10 @@ class Lighting:
             self.resizedLightIMGs["Gradient" + str(size)] = {}
             for zoom in defaultZooms:
                 self.resizedLightIMGs["Gradient" + str(size)][zoom] = pygame.transform.scale(lightGradient, (zoom * size, zoom * size))
+        size=200
+        self.resizedLightIMGs["ThickGradient"]={}
+        for zoom in defaultZooms:
+            self.resizedLightIMGs["ThickGradient"][zoom] = pygame.transform.scale(thickGradient, (zoom * size, zoom * size))
 
         # FIX 1: pre-allocate gradient filter surfaces keyed by (zoom, gradient_size)
         # so drawGradient never allocates a Surface per call
@@ -74,6 +80,13 @@ class Lighting:
         scale = 60 / 255
         premul.fill((int(scale * 255), int(scale * 255), int(scale * 255)), special_flags=pygame.BLEND_RGB_MULT)
         surface.blit(premul, ((x - left) * zoom - dimensions[0] / 2 + offset_x, (y - top) * zoom - dimensions[1] / 2 + offset_y), special_flags=pygame.BLEND_ADD)
+
+    def drawThickGradient(self, surface: pygame.Surface, frame, x, y, offset_x=0, offset_y=0):
+        left, top, zoom = frame
+
+        img = self.resizedLightIMGs["ThickGradient"][zoom]
+        dimensions = img.get_size()
+        surface.blit(img, ((x - left) * zoom - dimensions[0] / 2 + offset_x, (y - top) * zoom - dimensions[1] / 2 + offset_y))
 
     def drawEffects(self, surface: pygame.Surface, frame, offset_x=0, offset_y=0):
         for particle in self.particles:
