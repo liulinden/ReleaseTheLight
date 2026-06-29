@@ -1,4 +1,4 @@
-import pygame, random, math, nest, particles, os, time, threading
+import pygame, random, math, nest, particles, os, time, threading, time
 from gateway import GATEWAY_Y_POSITIONS, Gateway
 from loading_screen import LoadingScreen
 
@@ -11,6 +11,61 @@ rocks_world_span = 8 * hitbox_chunk_size
 
 # Placeholder charge required to unlock each gateway (index = gateway index)
 GATEWAY_CHARGE = [100, 200, 300, 600, 800, 1000, 1200, 1400, 1600]
+
+PALETTES = [
+            [
+                (0.0, (120,  100,  65)),
+                (0.5, (60,  55,  65)),
+                (1.0, (70,  20,  60))
+            ],
+            [
+                (0.0, (30,  20,  30)),
+                (0.5, (10, 10, 10)),
+                (0.55, (50,  70,  100)),
+                (0.6, (15, 10, 20)),
+                (1.0, (10,10,10))
+            ],
+            [
+                (0.0, (70,  100,  240)),
+                (0.65, (0,  64,  255)),
+                (0.7, (200, 50, 60)),
+                (0.75, (100,  120,  255)),
+                (1.0, (20,  62,  250))
+            ],
+            [
+                (0.0, (255,  55,  65)),
+                (0.4, (180,  40,  60)),
+                (0.45, (60,  200,  255)),
+                (0.5, (200,  55,  100)),
+                (1.0, (170,  60,  150))
+            ],
+            [
+                (0.0, (200,  55,  150)),
+                (0.5, (10,  10,  10)),
+                (1.0, (150,  55,  200))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (60,  55,  65))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (60,  55,  65))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (60,  55,  65))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (60,  55,  65))
+            ],
+            [
+                (0.0, (60,  55,  65)),
+                (1.0, (255,  255,  255))
+            ]
+        ]
+
 
 # load images — call terrain.init() after pygame.display.set_mode()
 airIMGs = {}
@@ -57,6 +112,47 @@ def chooseUniqueRandoms(n: int, low: int, high: int, excluded = []) -> list[int]
         nums.add(random.randint(low, high))
         nums = nums - excluded
     return list(nums)
+
+
+_GRID_CELL = max_airpocket_radius * 2
+
+def _gridCell(x, y):
+    return (int(x // _GRID_CELL), int(y // _GRID_CELL))
+
+def _gridNeighbours(cx, cy):
+    for dr in (-1, 0, 1):
+        for dc in (-1, 0, 1):
+            yield (cx + dc, cy + dr)
+
+_scaled_img_cache: dict = {}
+_RADIUS_SNAP = 10
+
+def _snapRadius(r: float) -> int:
+    return int(round(r / _RADIUS_SNAP) * _RADIUS_SNAP)
+
+def _getCachedScale(src_surface, pocketType, imgIndex, radius, zoom):
+
+    key = (pocketType, imgIndex, radius, zoom)
+
+    if key not in _scaled_img_cache:
+        side = max(1, int(2 * radius * zoom))
+        cached = pygame.transform.scale(src_surface, (side, side))
+        _scaled_img_cache[key] = cached
+
+    return _scaled_img_cache[key]
+
+
+def _getCachedRimScale(src_surface, pocketType, imgIndex, radius, zoom):
+
+    key = (pocketType, imgIndex, radius, zoom, "rim")
+
+    if key not in _scaled_img_cache:
+        side = max(1, int(2 * radius * zoom * Terrain._RIM_MULT))
+        cached = pygame.transform.scale(src_surface, (side, side))
+        cached.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        _scaled_img_cache[key] = cached
+
+    return _scaled_img_cache[key]
 class Terrain:
 
     def __init__(self, worldWidth: int, worldHeight: int, defaultZooms: list = [0.1, 2]):
@@ -69,6 +165,8 @@ class Terrain:
         # nests and airPockets keyed by layer index
         self.nests      = {i: [] for i in range(NUM_LAYERS)}
         self.airPockets = {i: [] for i in range(NUM_LAYERS)}
+
+        self._airGrid: dict[int, dict[tuple, list]] = {i: {} for i in range(NUM_LAYERS)}
 
         # active layers for iteration — updated every frame
         self.activeLayers = [0]
@@ -171,7 +269,6 @@ class Terrain:
         if adjacent is not None and adjacent in self._generatedLayers:
             layers.append(adjacent)
         self.activeLayers = layers
-        #print(self.activeLayers)
 
     def _layerForY(self, y):
         for i, gy in enumerate(GATEWAY_Y_POSITIONS):
@@ -205,13 +302,11 @@ class Terrain:
         nextLayer = gatewayIndex + 2
         if nextLayer < NUM_LAYERS and nextLayer not in self._generatedLayers:
             def _generate():
-                # wait for previous layer to finish before starting next
                 with self._layerLocks[nextLayer - 1]:
                     pass
-                print("layer generating - ", nextLayer )
+                print("layer generating - ", nextLayer)
                 self.generateLayer(nextLayer)
             threading.Thread(target=_generate, daemon=True).start()
-        
 
     # ------------------------------------------------------------------
     # Structure collision baking
@@ -249,7 +344,7 @@ class Terrain:
 
     def _bakeGatewayIntoChunks(self, gateway):
         for tile in gateway.tiles:
-            self.reblitStructureOnChunks(tile,True)
+            self.reblitStructureOnChunks(tile, True)
 
     # ------------------------------------------------------------------
     # Surface helpers
@@ -347,7 +442,6 @@ class Terrain:
                         chunkLeft = col * hitbox_chunk_size
                         chunkTop  = row * hitbox_chunk_size
                         offset = (zoom * (nestLeft - chunkLeft), zoom * (nestTop - chunkTop))
-                        #self.airPocketsHitboxesSurfaces[zoom][row][col].blit(img, offset)
                         if self.chunkHitboxes[zoom] and row < len(self.chunkHitboxes[zoom]) and col < len(self.chunkHitboxes[zoom][row]):
                             self.chunkHitboxes[zoom][row][col].blit(img, offset, special_flags=pygame.BLEND_RGBA_MAX)
 
@@ -378,7 +472,7 @@ class Terrain:
                                 (zoom * (tile.left - chunkLeft), zoom * (tile.top - chunkTop)),
                                 special_flags=pygame.BLEND_RGBA_MAX
                             )
-    
+
     def carveStructuresVisualAir(self, layerTop=0):
         structures = []
         for gw in self.gateways:
@@ -425,61 +519,8 @@ class Terrain:
         depth = max(0.0, min(1.0, layerY / (bottom-top)))
         noise = self._noiseVal(worldX, worldY) * 0.3
         d = max(0.0, min(1.0, depth + noise))
-        palettes = [
-            [
-                (0.0, (120,  100,  65)),
-                (0.5, (60,  55,  65)),
-                (1.0, (70,  20,  60))
-            ],
-            [
-                (0.0, (30,  20,  30)),
-                (0.5, (10, 10, 10)),
-                (0.55, (50,  70,  100)),
-                (0.6, (15, 10, 20)),
-                (1.0, (10,10,10))
-            ],
-            [
-                (0.0, (70,  100,  240)),
-                (0.65, (0,  64,  255)),
-                (0.7, (200, 50, 60)),
-                (0.75, (100,  120,  255)),
-                (1.0, (20,  62,  250))
-            ],
-            [
-                (0.0, (255,  55,  65)),
-                (0.4, (180,  40,  60)),
-                (0.45, (60,  200,  255)),
-                (0.5, (200,  55,  100)),
-                (1.0, (170,  60,  150))
-            ],
-            [
-                (0.0, (200,  55,  150)),
-                (0.5, (10,  10,  10)),
-                (1.0, (150,  55,  200))
-            ],
-            [
-                (0.0, (60,  55,  65)),
-                (1.0, (60,  55,  65))
-            ],
-            [
-                (0.0, (60,  55,  65)),
-                (1.0, (60,  55,  65))
-            ],
-            [
-                (0.0, (60,  55,  65)),
-                (1.0, (60,  55,  65))
-            ],
-            [
-                (0.0, (60,  55,  65)),
-                (1.0, (60,  55,  65))
-            ],
-            [
-                (0.0, (60,  55,  65)),
-                (1.0, (255,  255,  255))
-            ]
-        ]
-
-        palette= palettes[layer]
+        
+        palette = PALETTES[layer]
         for i in range(len(palette) - 1):
             d0, c0 = palette[i]
             d1, c1 = palette[i + 1]
@@ -557,7 +598,7 @@ class Terrain:
 
             for row in range(rowStart, rowEnd):
                 if loading_bar_section is not None:
-                    loading_bar_section.put((row - rowStart + 1) / totalRows)
+                    loading_bar_section.put((row - rowStart + 1) / totalRows, f"Build chunk visuals row {row - rowStart + 1}/{totalRows} ({zoom=})")
 
                 for col, chunk in enumerate(self.chunkVisuals[zoom][row]):
                     world_left  = col * visual_chunk_size
@@ -589,17 +630,10 @@ class Terrain:
                                 airPocket.y + airPocket.r * self._RIM_MULT < world_top  - rim_margin or
                                 airPocket.y - airPocket.r * self._RIM_MULT > world_bot  + rim_margin):
                             continue
-                        dc        = self._depthColor(airPocket.x, airPocket.y)
-                        rim_color = (int(dc[0] * 0), int(dc[1] * 0), int(dc[2] * 0))
+                        rim_surf = airPocket.rimIMGs[zoom]
                         cx = zoom * (airPocket.x - world_left)
                         cy = zoom * (airPocket.y - world_top)
-                        img      = airPocket.IMGs[zoom]
-                        rim_size = (int(img.get_width()  * self._RIM_MULT),
-                                    int(img.get_height() * self._RIM_MULT))
-                        rim_img  = pygame.transform.scale(img, rim_size)
-                        rim_surf = pygame.Surface(rim_size, pygame.SRCALPHA)
-                        rim_surf.fill(rim_color)
-                        rim_surf.blit(rim_img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                        rim_size = rim_surf.get_size()
                         chunk.blit(rim_surf, (int(cx - rim_size[0] / 2), int(cy - rim_size[1] / 2)))
 
                     chunk.blit(airChunks[row][col], (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
@@ -612,12 +646,18 @@ class Terrain:
     def generateLayer(self, layerIndex, loading_screen: LoadingScreen = None):
         """Generate one layer. Thread-safe. Layer 0 threads layer 1 on completion."""
 
+        print(f"{time.strftime('%H:%M:%S')} - layer {layerIndex} generating...")
+
         if loading_screen is not None:
             loading_screen_main, loading_screen_visuals = loading_screen.subsections(0, 0.5)
         else:
             loading_screen_main = loading_screen_visuals = None
 
         with self._layerLocks[layerIndex]:
+
+            if loading_screen_main is not None:
+                loading_screen_main.put(0, "Generating primary caves")
+
             yTop, yBottom = _layerYBounds(layerIndex, self.worldHeight)
 
             if layerIndex == 0:
@@ -639,7 +679,7 @@ class Terrain:
             numSteps = int((yBottom - yTop) / 100)
             for i in range(numSteps):
                 if loading_screen_main is not None:
-                    loading_screen_main.put((i + 1) / numSteps)
+                    loading_screen_main.put((i + 1) / numSteps, f"Generate layer section {i + 1}/{numSteps}")
                 for j in range(int(self.worldWidth / 1000)):
                     if random.randint(1, 20) == 1:
                         self.generateSkinnyCave(j * 1000 + random.randint(0, 1000),
@@ -657,8 +697,8 @@ class Terrain:
                         self.generateBlobCave(j * 1000 + random.randint(0, 1000),
                             random.randint(int(yTop + (yBottom - yTop) * 2 / 3), int(yBottom)),
                             random.randint(60, 120), random.random() * 2 * math.pi, layerIndex=layerIndex)
-                    
-                    if layerIndex <2:
+
+                    if layerIndex < 2:
                         if random.randint(1, 5) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
@@ -669,23 +709,22 @@ class Terrain:
                                 random.randint(int(yTop + 500), int(yBottom-500)),
                                 "White", layerIndex=layerIndex)
 
-
-                    if layerIndex==2:
+                    if layerIndex == 2:
                         if random.randint(1, 6) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
                                 "Blue", layerIndex=layerIndex)
-                    elif layerIndex>2:
+                    elif layerIndex > 2:
                         if random.randint(1, 12) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
                                 "Blue", layerIndex=layerIndex)
-                    if layerIndex==3:
+                    if layerIndex == 3:
                         if random.randint(1, 6) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
                                 "Red", layerIndex=layerIndex)
-                    elif layerIndex>3:
+                    elif layerIndex > 3:
                         if random.randint(1, 12) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
@@ -695,13 +734,10 @@ class Terrain:
             self._buildChunkVisualsForLayer(layerIndex, loading_screen=loading_screen_visuals)
             self._generatedLayers.add(layerIndex)
 
-            print(layerIndex, "completed generation")
+            print(f"{time.strftime('%H:%M:%S')} - layer {layerIndex} generation complete.")
 
             if loading_screen is not None:
-                loading_screen.put(1)
-
-        if layerIndex == 0:
-            threading.Thread(target=self.generateLayer, args=(1,), daemon=True).start()
+                loading_screen.put(1, "Layer generation complete")
 
     # ------------------------------------------------------------------
     # Cave / nest generation helpers
@@ -801,24 +837,42 @@ class Terrain:
                 recursions > 3 or x + radius > self.worldWidth or x - radius < 0
                 or y < yTop or y > yBottom):
             return False
+
+        # ── Fast overlap check via spatial grid ────────────────────────────
+        cx, cy = _gridCell(x, y)
+        if not playerMade:
+            for cell in _gridNeighbours(cx, cy):
+                bucket = self._airGrid[layerIndex].get(cell)
+                if bucket is None:
+                    continue
+                for airPocket in bucket:
+                    dx = airPocket.x - x
+                    dy = airPocket.y - y
+                    # Quick AABB rejection before sqrt
+                    combined = airPocket.r + radius + 10
+                    if abs(dx) > combined or abs(dy) > combined:
+                        continue
+                    d = math.sqrt(dx * dx + dy * dy)
+                    if d < radius / 4:
+                        return False
+                    if airPocket.r + radius < d < airPocket.r + radius + 10:
+                        return self.addAirPocket(
+                            (airPocket.x + x) / 2, (airPocket.y + y) / 2,
+                            (airPocket.r + radius) / 2,
+                            layerIndex=layerIndex, recursions=recursions + 1
+                        )
+        # ──────────────────────────────────────────────────────────────────
+
         if (not playerMade) and random.randint(1, 10) == 1:
             newAirPocket = AirPocket(x, y, radius, defaultZooms=self.defaultZooms, pocketType="C1")
         else:
             newAirPocket = AirPocket(x, y, radius, defaultZooms=self.defaultZooms)
-        if not playerMade:
-            for airPocket in self.airPockets[layerIndex]:
-                if airPocket is not newAirPocket:
-                    if airPocket.close(x, y, newAirPocket.r + 10):
-                        d = math.dist((airPocket.x, airPocket.y), (x, y))
-                        if d < newAirPocket.r / 4:
-                            return False
-                        if d > airPocket.r + newAirPocket.r and d < airPocket.r + newAirPocket.r + 10:
-                            return self.addAirPocket(
-                                (airPocket.x + x) / 2, (airPocket.y + y) / 2,
-                                (airPocket.r + radius) / 2,
-                                layerIndex=layerIndex, recursions=recursions + 1
-                            )
+
         self.airPockets[layerIndex].append(newAirPocket)
+
+        # Register in spatial grid
+        self._airGrid[layerIndex].setdefault((cx, cy), []).append(newAirPocket)
+
         self.addAirPocketToSurfaces(newAirPocket)
         return True
 
@@ -982,9 +1036,7 @@ class Terrain:
         for n in self._activeNests():
             if n.close(x, y, r):
                 n.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
-        #pygame.draw.rect(surface, (255, 255, 255),
-        #                 pygame.Rect(offset_x, (self.worldHeight - top) * zoom + offset_y, w_width, 200))
-    
+
     def drawHealthBars(self, window_size, surface, frame, time=None, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w_width, w_height = window_size
@@ -1081,8 +1133,6 @@ class Terrain:
                                     (row    * 500 - top)  * zoom + offset_y),
                                    special_flags=pygame.BLEND_RGBA_SUB)
                 air_surface = pygame.Surface((w_width, w_height), pygame.SRCALPHA)
-                #pygame.draw.rect(air_surface, (255, 255, 255, 255),
-                #                 pygame.Rect(0, 0, w_width, zoom * max(0, 0 - top)))
                 layer.blit(air_surface, (offset_x, offset_y), special_flags=pygame.BLEND_RGBA_SUB)
         return layer
 
@@ -1093,21 +1143,36 @@ class Terrain:
 
 class AirPocket:
     def __init__(self, x, y, radius, defaultZooms=[0.1, 2], pocketType="Circle"):
-        self.x    = x;  self.y = y;  self.r = radius;  self.type = pocketType
-        self.top  = self.y - self.r;  self.left = self.x - self.r
-        self.fullResIMG = airIMGs[pocketType][random.randint(0, len(airIMGs[pocketType]) - 1)]
+        self.x    = x
+        self.y = y
+        self.r = radius
+        self.type = pocketType
+        self.top  = self.y - self.r
+        self.left = self.x - self.r
+
+        radius = _snapRadius(radius)
+
+        imgs = airIMGs[pocketType]
+        imgIndex = random.randint(0, len(imgs) - 1)
+
+        self.fullResIMG = imgs[imgIndex]
+
         self.IMGs = {}
-        for defaultZoom in defaultZooms:
-            self.IMGs[defaultZoom] = pygame.transform.scale(
-                self.fullResIMG, (2 * self.r * defaultZoom, 2 * self.r * defaultZoom))
+        self.hitboxIMGs = {}
+        self.rimIMGs = {}
+
+        for zoom in defaultZooms:
+            self.IMGs[zoom] = _getCachedScale(self.fullResIMG, pocketType, imgIndex, radius, zoom)
+
         if self.type != "Circle":
             self.fullResHitboxIMG = airHitboxIMGs[pocketType]
-            self.hitboxIMGs = {}
-            for defaultZoom in defaultZooms:
-                self.hitboxIMGs[defaultZoom] = pygame.transform.scale(
-                    self.fullResHitboxIMG, (2 * self.r * defaultZoom, 2 * self.r * defaultZoom))
+            for zoom in defaultZooms:
+                self.hitboxIMGs[zoom] = _getCachedScale(
+                    self.fullResHitboxIMG, pocketType + "_hitbox", 0, radius, zoom)
+
+        for zoom in defaultZooms:
+            self.rimIMGs[zoom] = _getCachedRimScale(self.fullResIMG, pocketType, imgIndex, radius, zoom)
 
     def close(self, x, y, radius):
-        if abs(self.x - x) > radius + self.r:  return False
-        if abs(self.y - y) > radius + self.r:  return False
-        return True
+        # return abs(self.x - x) < radius + self.r and abs(self.y - y) < radius + self.r
+        return math.dist((self.x, self.y), (x, y)) < radius + self.r

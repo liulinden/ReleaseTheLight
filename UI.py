@@ -1,12 +1,19 @@
 import pygame,math,os
-pygame.init()
 
-chargeIcon = pygame.transform.scale(pygame.image.load(os.path.join("assets","ChargeIcon.png")).convert_alpha(),(80,80))
-lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
-chargeColors ={
-    "white": (1,1,1),"blue":(0,0.25,1), "red":(1,0,0)
-}
+chargeIcon=None
+lightGradient=None
+chargeColors=None
+
+def init():
+    global chargeIcon,lightGradient,chargeColors
+
+    chargeIcon = pygame.transform.scale(pygame.image.load(os.path.join("assets","ChargeIcon.png")).convert_alpha(),(80,80))
+    lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
+
+    chargeColors ={
+        "white": (1,1,1),"blue":(0,0.25,1), "red":(1,0,0)
+    }
 
 def drawRoundedLine(surface, color, start, end, thickness):
     pygame.draw.line(surface, color, start, end, thickness)
