@@ -149,7 +149,7 @@ def _getCachedRimScale(src_surface, pocketType, imgIndex, radius, zoom):
     if key not in _scaled_img_cache:
         side = max(1, int(2 * radius * zoom * Terrain._RIM_MULT))
         cached = pygame.transform.scale(src_surface, (side, side))
-        cached.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        # cached.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT) probably not needed
         _scaled_img_cache[key] = cached
 
     return _scaled_img_cache[key]
@@ -214,7 +214,7 @@ class Terrain:
                 rowList = []
                 for j in range(math.ceil(worldWidth / hitbox_chunk_size)):
                     surf = pygame.Surface((hitbox_chunk_size * zoom, hitbox_chunk_size * zoom), pygame.SRCALPHA)
-                    surf.fill((0,0,0,255))
+                    # surf.fill((0,0,0,255)) probable not needed
                     rowList.append(surf)
                 self.airPocketsHitboxesSurfaces[zoom].append(rowList)
 
@@ -224,7 +224,7 @@ class Terrain:
                 rowList = []
                 for col in range(math.ceil(worldWidth / visual_chunk_size)):
                     surf =pygame.Surface((visual_chunk_size * zoom, visual_chunk_size * zoom), pygame.SRCALPHA)
-                    surf.fill((0,0,0,255))
+                    # surf.fill((0,0,0,255)) probable not needed
                     rowList.append(surf)
                 self.chunkVisuals[zoom].append(rowList)
 

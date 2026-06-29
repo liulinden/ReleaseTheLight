@@ -96,7 +96,7 @@ class Game:
         self.shake=0
         self.tilt=0
 
-        threading.Thread(target=self.gameWorld.generateNextLayer, daemon=True).start()
+        # threading.Thread(target=self.gameWorld.generateNextLayer, daemon=True).start()
         self.loading_screen.put(1.0, "Game setup complete.")
 
     def run(self):

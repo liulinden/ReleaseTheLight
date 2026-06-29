@@ -7,10 +7,10 @@ development_mode = True
 
 def main():
     
-    # loading_screen = LoadingScreen(developer_mode=development_mode, is_dummy=True)
-    loading_screen = LoadingScreen(developer_mode=development_mode)
-    loading_process = multiprocessing.Process(target=loading_screen.run, daemon=True)
-    loading_process.start()
+    loading_screen = LoadingScreen(developer_mode=development_mode, is_dummy=True)
+    # loading_screen = LoadingScreen(developer_mode=development_mode)
+    # loading_process = multiprocessing.Process(target=loading_screen.run, daemon=True)
+    # loading_process.start()
 
     pygame.init()
 
@@ -21,12 +21,12 @@ def main():
     except UserQuitDuringLoadingException:
         pass
 
-    loading_process.join()
-    loading_process.close()
+    # loading_process.join()
+    # loading_process.close()
 
-    if not loading_screen.is_quit():
-        game.set_window(pygame.display.set_mode((0,0)))
-        game.run()
+    # if not loading_screen.is_quit():
+    #     game.set_window(pygame.display.set_mode((0,0)))
+    #     game.run()
 
     pygame.quit()
 

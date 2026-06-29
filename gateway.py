@@ -57,6 +57,8 @@ def init():
 class GatewayTile(Structure):
     """Single tile in a gateway row. Width and height = visual_chunk_size."""
 
+    _scaled_img__cache = {}
+
     def __init__(self, tileX, tileY, tileSize, defaultZooms):
         super().__init__(tileX + tileSize / 2, tileY + tileSize / 2,
                          tileSize, tileSize, defaultZooms)
@@ -72,7 +74,10 @@ class GatewayTile(Structure):
 
     def _scaledIMG(self, img, zoom):
         size = int(self.tileSize * zoom)
-        return pygame.transform.scale(img, (size, size))
+        name = (id(img), size)
+        if name not in self._scaled_img__cache:
+            self._scaled_img__cache[name] = pygame.transform.scale(img, (size, size))
+        return self._scaled_img__cache[name]
 
     def getHitboxSurface(self, zoom):
         return self._hitboxSurfs.get(zoom)
