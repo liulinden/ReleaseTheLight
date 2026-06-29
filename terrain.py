@@ -628,7 +628,7 @@ class Terrain:
                     x += r / 2
                 self.generateDescendingCave(self.worldWidth/2,0,40,math.pi/2,layerIndex=layerIndex)
             else:
-                self.generateDescendingCave(random.random()*self.worldWidth,yTop+20,30,math.pi/2,layerIndex=layerIndex)
+                self.generateDescendingCave(int((random.random()+0.5)/2*self.worldWidth),yTop+20,30,math.pi/2,layerIndex=layerIndex)
                 for exit in self.gateways[layerIndex-1].exitTiles:
                     self.generateSkinnyCave(exit.x,exit.y+exit.tileSize/4,50,math.pi/2,layerIndex=layerIndex)
 
@@ -760,12 +760,16 @@ class Terrain:
     def generateDescendingCave(self, startX, startY, startR, startDir=0, layerIndex=0):
         yTop, yBottom = _layerYBounds(layerIndex, self.worldHeight)
         if startY - startR < yBottom:
-            self.addAirPocketClump(startX, startY, startR, layerIndex=layerIndex)
-            r   = min(50, max(10,startR + (random.random() - 0.5) * 4))
+            boundedX=abs(math.fmod(startX,2*self.worldWidth)-self.worldWidth)
+            self.addAirPocketClump(boundedX, startY, startR, layerIndex=layerIndex)
+            if startY>yTop+600 and startY<yBottom-600 and random.randint(1,100)==1:
+                #change white to selected randomly from list based on layerindex
+                self.generateNest(boundedX,startY+random.randint(-100,100),"White",layerIndex=layerIndex)
+
+            r   = min(50, max(10,startR+random.randint(-5,5)))
             dir = startDir + (random.random() - 0.5) * math.pi / 2
-            x   = startX + math.cos(dir) * min(r, startR) * 0.8
-            x = (x+self.worldWidth) % self.worldWidth
-            y   = startY + abs(math.sin(dir)) * min(r, startR) * 0.8
+            x   = startX + int(math.cos(dir) * min(r, startR) * 0.8)
+            y   = startY + int(abs(math.sin(dir)) * min(r, startR) * 0.5)
             self.generateDescendingCave(x, y, r, dir, layerIndex=layerIndex)
 
     def generateBedrockCave(self, startX, startY, startR, startDir=0, maxPockets=3, layerIndex=0):

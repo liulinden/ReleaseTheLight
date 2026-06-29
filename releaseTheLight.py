@@ -165,6 +165,8 @@ class Game:
 
                             self.gameWorld.player.x,self.gameWorld.player.y=x,y
                             self.gameWorld.player.updateRect()
+                        elif event.key== pygame.K_p:
+                            print(self.gameWorld.player.__dict__)
                         elif event.key== pygame.K_l:
                             if not self.loadingDebug:
                                 self.window_width,self.window_height=300,200

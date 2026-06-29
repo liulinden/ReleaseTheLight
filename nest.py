@@ -77,9 +77,9 @@ class Nest:
             self.maxHealth *= 1.2
             self.maxHealth += 10
         elif self.nestType == "Blue":
-            self.maxHealth += 100
+            self.maxHealth += 50
         elif self.nestType == "Red":
-            self.maxHealth += 100
+            self.maxHealth += 50
         elif self.nestType == "Sun":
             self.maxHealth += 1000
 

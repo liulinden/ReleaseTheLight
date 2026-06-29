@@ -78,7 +78,7 @@ class ChargeDisplay():
     def update(self,fps,playerCharges,playerY):
         frameLength=1000/fps
 
-        totalCharge=sum(playerCharges.values())
+        totalCharge=math.floor(sum(playerCharges.values()))
         totalChargeChange=totalCharge-self.playerTotalCharge
         self.playerTotalCharge=totalCharge
 

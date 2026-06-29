@@ -43,7 +43,6 @@ class Laser:
     def getLength(self, terrain, angle):
         self.hitboxes = []
         self.collision = []
-        self.previousTarget= self.laserTarget
         self.laserTarget = None
         dx = math.cos(angle)
         dy = math.sin(angle)
@@ -125,6 +124,7 @@ class Laser:
             self.laserPoints = self.getLaserPoints(6)
             self.laserPoints2 = self.getLaserPoints(6)
             self.damageFrame = True
+            self.previousTarget=self.laserTarget
             
 
     def draw(self, surface, frame, color, hitboxes=False, offset_x=0, offset_y=0):
