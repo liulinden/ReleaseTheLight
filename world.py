@@ -3,10 +3,11 @@ import pygame, random, terrain, decoration, aplayer, lighting, math, os, time, e
 from util import rotateAndGetOffset
 
 class World:
-    def __init__(self, worldWidth, worldHeight, loading_screen: loading_screen.LoadingScreen, defaultZooms=[0.1, 2]):
+    def __init__(self, worldWidth, worldHeight, loading_screen: loading_screen.LoadingScreen, defaultZooms=[0.1, 2], developingMode=False):
         self.worldWidth   = worldWidth
         self.worldHeight  = worldHeight
         self.defaultZooms = defaultZooms
+        self.developingMode = developingMode
 
         init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.25, 0.5)
 
@@ -21,7 +22,7 @@ class World:
         objects_loading_screen.put(0.5, "Creating terrain object...")
         self.terrain = terrain.Terrain(worldWidth, worldHeight, defaultZooms=defaultZooms)
         objects_loading_screen.put(0.6, "Creating player object...")
-        self.player = aplayer.Player(defaultZooms, worldWidth / 2, -1200)
+        self.player = aplayer.Player(defaultZooms, worldWidth / 2, -200 if developingMode else -1200)
         objects_loading_screen.put(0.75, "Creating lighting object...")
         self.light  = lighting.Lighting(defaultZooms=defaultZooms)
         objects_loading_screen.put(0.9, "Creating background surface...")

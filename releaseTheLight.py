@@ -77,7 +77,7 @@ class Game:
 
         self.loading_screen.put(0.0, "Starting game setup...")
 
-        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,loading_screen=self.loading_screen.subsection(0, 0.9999),defaultZooms=self.DEFAULT_ZOOMS)
+        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,loading_screen=self.loading_screen.subsection(0, 0.9999),defaultZooms=self.DEFAULT_ZOOMS,developingMode=self.developingMode)
 
         self.chargeDisplay=UI.ChargeDisplay(self.WORLD_HEIGHT)
 
