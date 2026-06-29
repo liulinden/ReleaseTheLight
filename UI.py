@@ -1,9 +1,21 @@
 import pygame,math,os
+
+from asset_manager import get_asset
+
+
+chargeIcon=None
+lightGradient=None
+chargeTuples=None
+
+def init():
+    global chargeIcon,lightGradient,chargeColors
+
+    chargeIcon = pygame.transform.scale(get_asset("ChargeIcon"),(80,80))
+    lightGradient=get_asset("LightGradient")
+
 from util import chargesToColor
 pygame.init()
 
-chargeIcon = pygame.transform.scale(pygame.image.load(os.path.join("assets","ChargeIcon.png")).convert_alpha(),(80,80))
-lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
 chargeTuples ={
     "white": (1,0,0),"blue":(0,1,0), "red":(0,0,1)

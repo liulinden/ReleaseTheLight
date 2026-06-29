@@ -1,5 +1,7 @@
 import pygame, random, copy, os
 
+from asset_manager import get_asset
+
 # FIX 2: images loaded in init() after display exists
 mistParticleIMGs = []
 lightGradient = None
@@ -8,8 +10,8 @@ def init():
     global mistParticleIMGs, lightGradient
     mistParticleIMGs = []
     for i in range(5):
-        mistParticleIMGs.append(pygame.image.load(os.path.join("assets", "MistParticle" + str(i + 1) + ".png")).convert_alpha())
-    lightGradient = pygame.image.load(os.path.join("assets", "LightGradient.png")).convert_alpha()
+        mistParticleIMGs.append(get_asset("MistParticle" + str(i + 1)))
+    lightGradient = get_asset("LightGradient")
 
 
 class Lighting:

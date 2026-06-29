@@ -1,13 +1,15 @@
 # imports
-import pygame ,world, random,UI, math, threading, loading_screen,pickle
-
-font = pygame.font.SysFont('Arial', 30)
+import pygame ,world, random,UI, math, loading_screen, threading
+from asset_manager import load_assets
+import asset_manager
 
 class Game:
-    def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False):
+    def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False, loading_screen: loading_screen.LoadingScreen = None):
 
         self.window = window
         self.window_width,self.window_height=window.get_size()
+
+        self.font = pygame.font.SysFont('Arial', 30)
  
         # constants
         self.FPS = FPS
@@ -29,7 +31,11 @@ class Game:
         self.mode = "play"
 
         self.developingMode= developingMode
-        self.loading_screen = loading_screen.LoadingScreen(window, developer_mode=developingMode)
+        self.loading_screen = loading_screen
+
+    def set_window(self, window: pygame.Surface):
+        self.window = window
+        self.window_width,self.window_height=window.get_size()
     
     def coordsWindowToWorld(self,coords:list[int]):
         return self.camX+(coords[0]-self.offset_x)/self.zoom,self.camY+(coords[1]-self.offset_y)/self.zoom
@@ -66,26 +72,17 @@ class Game:
         self.camX += (self.camOffsetX+goalX-self.camX-self.window_width/zoom/2)*frameLength/200
         self.camY += (self.camOffsetY+goalY-self.camY-self.window_height/zoom/2)*frameLength/200
 
-    def make_game_world(self):
-        self.loading_screen.put(0.0)
-        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,loading_screen=self.loading_screen.subsection(0,0.9999),defaultZooms=self.DEFAULT_ZOOMS)
-        self.loading_screen.put(1.0)
-
     def setup(self):
         
-        #self.window = pygame.display.set_mode([self.window.get_width(),self.window.get_height()])
-        #self.window.get_width(),self.window.get_height()=self.window.get_size()
+        self.loading_screen.put(0.0, "Starting game setup")
 
-        self.running = True
+        asset_loading, world_loading, _ = self.loading_screen.subsections(0, 0.3, 0.9999)
+
+        load_assets(asset_loading)
+
+        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,loading_screen=world_loading,defaultZooms=self.DEFAULT_ZOOMS,developingMode=self.developingMode)
 
         self.chargeDisplay=UI.ChargeDisplay(self.WORLD_HEIGHT)
-
-        thread = threading.Thread(target=self.make_game_world, daemon=True)
-        thread.start()
-        self.running = self.loading_screen.run()
-
-        if self.running:
-            thread.join()
 
         self.clock = pygame.time.Clock()
         self.keysDown = {pygame.K_w:False,
@@ -102,7 +99,13 @@ class Game:
         self.shake=0
         self.tilt=0
 
+        threading.Thread(target=self.gameWorld.generateNextLayer, daemon=True).start()
+        
+        self.loading_screen.put(1.0, "Game setup complete.")
+
     def run(self):
+
+        running = True
         
         previousTime=pygame.time.get_ticks()
         self.kindVisibility=False
@@ -112,7 +115,7 @@ class Game:
         self.crosshair=False
         self.showScreenEffectStats=False
 
-        while self.running:
+        while running:
 
             # get mouse pos
             mouseX,mouseY=pygame.mouse.get_pos()
@@ -252,7 +255,7 @@ class Game:
                 fps_text = f"FPS: {self.clock.get_fps():.0f} Shake: {self.shake:.2f} Tilt: {self.tilt:.2f}"
             else:
                 fps_text = f"FPS: {self.clock.get_fps():.0f}"
-            text_surf = font.render(fps_text, True, (255,255,255))
+            text_surf = self.font.render(fps_text, True, (255,255,255))
             self.window.blit(text_surf, (self.window_width-20-text_surf.get_width(),20))
 
             # update window

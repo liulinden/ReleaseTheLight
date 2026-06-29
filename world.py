@@ -1,34 +1,36 @@
 # imports
-import pygame, random, terrain, decoration, aplayer, lighting, math, os, time, enemies, nest, laser, gateway, loading_screen
+from asset_manager import get_asset
+import pygame, random, terrain, decoration, aplayer, lighting, math, os, time, enemies, nest, laser, gateway, UI, loading_screen
 from util import rotateAndGetOffset
 
 class World:
-    def __init__(self, worldWidth, worldHeight, loading_screen: loading_screen.LoadingScreen, defaultZooms=[0.1, 2]):
+    def __init__(self, worldWidth, worldHeight, loading_screen: loading_screen.LoadingScreen, defaultZooms=[0.1, 2], developingMode=False):
         self.worldWidth   = worldWidth
         self.worldHeight  = worldHeight
         self.defaultZooms = defaultZooms
+        self.developingMode = developingMode
 
-        init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.25, 0.3)
+        init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.25, 0.5)
 
-        inits = [lighting.init, enemies.init, nest.init, terrain.init, aplayer.init, laser.init, gateway.init]
+        inits = [lighting.init, enemies.init, nest.init, terrain.init, aplayer.init, laser.init, gateway.init, UI.init]
 
         for i, init in enumerate(inits):
-            init_loading_screen.put((i + 1) / len(inits))
+            init_loading_screen.put((i + 1) / len(inits), f"{init.__module__}.{init.__name__}()")
             init()
 
         self.decorations = []
 
-        objects_loading_screen.put(0)
+        objects_loading_screen.put(0.5, "Creating terrain object")
         self.terrain = terrain.Terrain(worldWidth, worldHeight, defaultZooms=defaultZooms)
-        objects_loading_screen.put(0.5)
-        self.player = aplayer.Player(defaultZooms, worldWidth / 2, -1200)
-        objects_loading_screen.put(0.75)
+        objects_loading_screen.put(0.6, "Creating player object")
+        self.player = aplayer.Player(defaultZooms, worldWidth / 2, -200 if developingMode else -1200)
+        objects_loading_screen.put(0.75, "Creating lighting object")
         self.light  = lighting.Lighting(defaultZooms=defaultZooms)
-        objects_loading_screen.put(1.0)
-
-        background_raw   = pygame.image.load(os.path.join("assets", "Background.png")).convert()
+        objects_loading_screen.put(0.9, "Creating background surface")
+        background_raw   = get_asset("Background")
         self.background  = pygame.transform.scale(background_raw, (4000, 4000))
         self.bg_width, self.bg_height = self.background.get_size()
+        objects_loading_screen.put(1.0, "Object creation complete.")
 
         self._world_layer      = None
         self._world_layer_size = None
@@ -38,6 +40,9 @@ class World:
 
     def generateWorld(self, loading_screen):
         self.terrain.generateLayer(0, loading_screen)
+
+    def generateNextLayer(self):
+        self.terrain.generateLayer(1)
 
     def _getWorldLayer(self, real_window_size):
         if self._world_layer is None or self._world_layer_size != real_window_size:
