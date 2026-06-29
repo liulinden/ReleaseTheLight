@@ -1,6 +1,7 @@
 import pygame, os, math
 from structure import Structure
 from UI import HealthBar
+from asset_manager import get_asset
 
 # ---------------------------------------------------------------------------
 # Gateway Y positions — one per boundary between layers.
@@ -17,37 +18,34 @@ gatewayHitboxIMGs = {}  # keyed by tile type + state
 def init():
     global gatewayIMGs, gatewayHitboxIMGs
 
-    def load(name):
-        return pygame.image.load(os.path.join("assets", name + ".png")).convert_alpha()
-
     # corridor
-    gatewayIMGs["corridorclosed"]  = load("gateCorridorClosed")
-    gatewayIMGs["corridoropened"]  = load("gateCorridorOpened")
-    gatewayIMGs["corridorback"]    = load("gateCorridorErase")
-    gatewayIMGs["corridorerase"]   = load("gateCorridorErase")    
-    gatewayHitboxIMGs["corridor"]  = load("gateCorridorHitbox")
-    gatewayHitboxIMGs["corridorerase"] = load("gateCorridorEraseHitbox")
+    gatewayIMGs["corridorclosed"]  = get_asset("gateCorridorClosed")
+    gatewayIMGs["corridoropened"]  = get_asset("gateCorridorOpened")
+    gatewayIMGs["corridorback"]    = get_asset("gateCorridorErase")
+    gatewayIMGs["corridorerase"]   = get_asset("gateCorridorErase")    
+    gatewayHitboxIMGs["corridor"]  = get_asset("gateCorridorHitbox")
+    gatewayHitboxIMGs["corridorerase"] = get_asset("gateCorridorEraseHitbox")
 
     # entry
-    gatewayIMGs["entryclosed"]     = load("gateEntryClosed")
-    gatewayIMGs["entrycharging1"]  = load("gateEntryCharging1")
-    gatewayIMGs["entrycharging2"]  = load("gateEntryCharging2")
-    gatewayIMGs["entrycharging3"]  = load("gateEntryCharging3")
-    gatewayIMGs["entryopened"]     = load("gateEntryOpened")
-    gatewayIMGs["entryback"]       = load("gateEntryBack")
-    gatewayIMGs["entryerase"]      = load("gateEntryErase")
-    gatewayHitboxIMGs["entryerase"]   = load("gateEntryEraseHitbox")
-    gatewayHitboxIMGs["entryclosed"]  = load("gateEntryClosedHitbox")
-    gatewayHitboxIMGs["entryopened"]  = load("gateEntryOpenedHitbox")
-    gatewayHitboxIMGs["activator"]    = load("gatewayActivatorHitbox")
+    gatewayIMGs["entryclosed"]     = get_asset("gateEntryClosed")
+    gatewayIMGs["entrycharging1"]  = get_asset("gateEntryCharging1")
+    gatewayIMGs["entrycharging2"]  = get_asset("gateEntryCharging2")
+    gatewayIMGs["entrycharging3"]  = get_asset("gateEntryCharging3")
+    gatewayIMGs["entryopened"]     = get_asset("gateEntryOpened")
+    gatewayIMGs["entryback"]       = get_asset("gateEntryBack")
+    gatewayIMGs["entryerase"]      = get_asset("gateEntryErase")
+    gatewayHitboxIMGs["entryerase"]   = get_asset("gateEntryEraseHitbox")
+    gatewayHitboxIMGs["entryclosed"]  = get_asset("gateEntryClosedHitbox")
+    gatewayHitboxIMGs["entryopened"]  = get_asset("gateEntryOpenedHitbox")
+    gatewayHitboxIMGs["activator"]    = get_asset("gatewayActivatorHitbox")
 
     # exit
-    gatewayIMGs["exitclosed"]      = load("gateExitClosed")
-    gatewayIMGs["exitopened"]      = load("gateExitOpened")
-    gatewayIMGs["exitback"]        = load("gateExitBack")
-    gatewayIMGs["exiterase"]       = load("gateExitErase")
-    gatewayHitboxIMGs["exit"]      = load("gateExitHitbox")
-    gatewayHitboxIMGs["exiterase"] = load("gateExitEraseHitbox")
+    gatewayIMGs["exitclosed"]      = get_asset("gateExitClosed")
+    gatewayIMGs["exitopened"]      = get_asset("gateExitOpened")
+    gatewayIMGs["exitback"]        = get_asset("gateExitBack")
+    gatewayIMGs["exiterase"]       = get_asset("gateExitErase")
+    gatewayHitboxIMGs["exit"]      = get_asset("gateExitHitbox")
+    gatewayHitboxIMGs["exiterase"] = get_asset("gateExitEraseHitbox")
 
 
 # ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import pygame, math, random, os, UI
-
+from asset_manager import get_asset
 
 # FIX 2: images loaded in init() after display exists
 lightGradient = None
@@ -12,26 +12,26 @@ enemyAnimationLengths = {
 
 def init():
     global lightGradient, enemyAnimations
-    lightGradient = pygame.image.load(os.path.join("assets", "LightGradient.png")).convert_alpha()
+    lightGradient = get_asset("LightGradient")
     enemyAnimations = {}
     for variantID in ['1']:
         animationIMGs = {}
 
         spawnIMGs = []
         for i in range(enemyAnimationLengths[variantID]["Spawn"]):
-            spawnIMGs.append(pygame.image.load(os.path.join("assets", "Enemy" + variantID + "Spawn" + str(i + 1) + ".png")).convert_alpha())
+            spawnIMGs.append(get_asset("Enemy" + variantID + "Spawn" + str(i + 1)))
         animationIMGs["Spawn"] = spawnIMGs
 
         walkIMGs = []
         for i in range(enemyAnimationLengths[variantID]["Walk"]):
-            walkIMGs.append(pygame.image.load(os.path.join("assets", "Enemy" + variantID + "Walk" + str(i + 1) + ".png")).convert_alpha())
+            walkIMGs.append(get_asset("Enemy" + variantID + "Walk" + str(i + 1)))
         animationIMGs["Walk"] = walkIMGs
 
         attackIMGs = []
         for i in range(enemyAnimationLengths[variantID]["Attack"]):
-            attackIMGs.append(pygame.image.load(os.path.join("assets", "Enemy" + variantID + "Attack" + str(i + 1) + ".png")).convert_alpha())
+            attackIMGs.append(get_asset("Enemy" + variantID + "Attack" + str(i + 1)))
         animationIMGs["Attack"] = attackIMGs
-        animationIMGs["AttackHitbox"] = pygame.image.load(os.path.join("assets", "Enemy" + variantID + "AttackHitbox.png")).convert_alpha()
+        animationIMGs["AttackHitbox"] = get_asset("Enemy" + variantID + "AttackHitbox")
 
         enemyAnimations[variantID] = animationIMGs
 

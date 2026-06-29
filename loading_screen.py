@@ -6,7 +6,7 @@ from multiprocessing import synchronize
 
 import pygame
 
-ASSETS = pathlib.Path("assets")
+ASSETS = pathlib.Path("loading_assets")
 
 FPS = 24 # double animation time
 
@@ -140,7 +140,7 @@ class TitleSpinner(pygame.sprite.Sprite):
 
         self.frames: list[pygame.Surface] = []
         for i in range(8):
-            frame = pygame.image.load(ASSETS / "TitleSpinner" / f"frame_{i}.webp").convert_alpha()
+            frame = pygame.image.load(ASSETS / f"frame_{i}.webp").convert_alpha()
             frame = pygame.transform.scale(frame, (width, width * frame.get_height() // frame.get_width()))
             self.frames.append(frame)
 

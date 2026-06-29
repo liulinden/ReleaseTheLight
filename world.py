@@ -1,4 +1,5 @@
 # imports
+from asset_manager import get_asset
 import pygame, random, terrain, decoration, aplayer, lighting, math, os, time, enemies, nest, laser, gateway, UI, loading_screen
 from util import rotateAndGetOffset
 
@@ -19,14 +20,14 @@ class World:
 
         self.decorations = []
 
-        objects_loading_screen.put(0.5, "Creating terrain object...")
+        objects_loading_screen.put(0.5, "Creating terrain object")
         self.terrain = terrain.Terrain(worldWidth, worldHeight, defaultZooms=defaultZooms)
-        objects_loading_screen.put(0.6, "Creating player object...")
+        objects_loading_screen.put(0.6, "Creating player object")
         self.player = aplayer.Player(defaultZooms, worldWidth / 2, -200 if developingMode else -1200)
-        objects_loading_screen.put(0.75, "Creating lighting object...")
+        objects_loading_screen.put(0.75, "Creating lighting object")
         self.light  = lighting.Lighting(defaultZooms=defaultZooms)
-        objects_loading_screen.put(0.9, "Creating background surface...")
-        background_raw   = pygame.image.load(os.path.join("assets", "Background.png")).convert()
+        objects_loading_screen.put(0.9, "Creating background surface")
+        background_raw   = get_asset("Background")
         self.background  = pygame.transform.scale(background_raw, (4000, 4000))
         self.bg_width, self.bg_height = self.background.get_size()
         objects_loading_screen.put(1.0, "Object creation complete.")

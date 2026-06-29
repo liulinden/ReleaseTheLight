@@ -1,3 +1,4 @@
+from asset_manager import get_asset
 import pygame, random, math, nest, particles, os, time, threading, time
 from gateway import GATEWAY_Y_POSITIONS, Gateway
 from loading_screen import LoadingScreen
@@ -78,14 +79,14 @@ def init():
     global airIMGs, circleIMGs, airHitboxIMGs, rocksIMG, vignetteIMG
     circleIMGs = []
     for i in range(4):
-        circleIMGs.append(pygame.image.load(os.path.join("assets", "AirPocket" + str(i + 1) + ".png")).convert_alpha())
+        circleIMGs.append(get_asset("AirPocket" + str(i + 1)))
     airIMGs["Circle"] = circleIMGs
     for customPocket in ["C1"]:
-        airIMGs[customPocket] = [pygame.image.load(os.path.join("assets", "AirPocket" + customPocket + ".png")).convert_alpha()]
-        airHitboxIMGs[customPocket] = pygame.image.load(os.path.join("assets", "AirPocket" + customPocket + "Hitbox.png")).convert_alpha()
-    rocks_raw = pygame.image.load(os.path.join("assets", "Rocks.png")).convert()
+        airIMGs[customPocket] = [get_asset("AirPocket" + customPocket)]
+        airHitboxIMGs[customPocket] = get_asset("AirPocket" + customPocket + "Hitbox")
+    rocks_raw = get_asset("Rocks")
     rocksIMG["raw"] = rocks_raw
-    vignetteIMG = pygame.image.load(os.path.join("assets", "VignetteGradient.png")).convert_alpha()
+    vignetteIMG = get_asset("VignetteGradient")
 
 def rectToCircle(left, top, width, height):
     return left + width / 2, top + height / 2, math.dist((0, 0), (width, height)) / 2
@@ -656,7 +657,7 @@ class Terrain:
         with self._layerLocks[layerIndex]:
 
             if loading_screen_main is not None:
-                loading_screen_main.put(0, "Generating primary caves")
+                loading_screen_main.put(0, "Generating master caves")
 
             yTop, yBottom = _layerYBounds(layerIndex, self.worldHeight)
 

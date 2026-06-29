@@ -1,5 +1,7 @@
 # imports
-import pygame ,world, random,UI, math, threading, loading_screen
+import pygame ,world, random,UI, math, loading_screen, threading
+from asset_manager import load_assets
+import asset_manager
 
 class Game:
     def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False, loading_screen: loading_screen.LoadingScreen = None):
@@ -72,12 +74,13 @@ class Game:
 
     def setup(self):
         
-        #self.window = pygame.display.set_mode([self.window.get_width(),self.window.get_height()])
-        #self.window.get_width(),self.window.get_height()=self.window.get_size()
+        self.loading_screen.put(0.0, "Starting game setup")
 
-        self.loading_screen.put(0.0, "Starting game setup...")
+        asset_loading, world_loading, _ = self.loading_screen.subsections(0, 0.3, 0.9999)
 
-        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,loading_screen=self.loading_screen.subsection(0, 0.9999),defaultZooms=self.DEFAULT_ZOOMS,developingMode=self.developingMode)
+        load_assets(asset_loading)
+
+        self.gameWorld = world.World(self.WORLD_WIDTH,self.WORLD_HEIGHT,loading_screen=world_loading,defaultZooms=self.DEFAULT_ZOOMS,developingMode=self.developingMode)
 
         self.chargeDisplay=UI.ChargeDisplay(self.WORLD_HEIGHT)
 

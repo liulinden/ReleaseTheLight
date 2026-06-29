@@ -1,10 +1,11 @@
 import pygame, random, math, enemies, os, UI
+from asset_manager import get_asset
 
 def loadNestIMGSet(id, stages):
     IMGs = []
     for i in range(stages):
-        IMGs.append(pygame.image.load(os.path.join("assets", "Nest" + str(id) + "_" + str(i + 1) + ".png")).convert_alpha())
-    return IMGs, pygame.image.load(os.path.join("assets", "Nest" + str(id) + "Hitbox.png")).convert_alpha()
+        IMGs.append(get_asset("Nest" + str(id) + "_" + str(i + 1)))
+    return IMGs, get_asset("Nest" + str(id) + "Hitbox")
 
 
 # FIX 2: module-level lightGradient and nestIMGs loaded in init() after display exists
@@ -14,7 +15,7 @@ nestHitboxes = {}
 
 def init():
     global lightGradient, nestIMGs, nestHitboxes
-    lightGradient = pygame.image.load(os.path.join("assets", "LightGradient.png")).convert_alpha()
+    lightGradient = get_asset("LightGradient")
     nestIMGs = {}
     nestHitboxes = {}
     for nestType, nStages, variants in [("White", 3, [1, 2, 3, 4]), ("Blue", 4, [5, 6]), ("Red", 4, [5, 6]), ("Sun", 10, [])]:

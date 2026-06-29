@@ -1,6 +1,6 @@
 import pygame,math,terrain,laser,particles,os
 from util import rotateAndGetOffset, rgbBound, channelBound
-
+from asset_manager import get_asset
 
 SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
@@ -22,31 +22,31 @@ def init():
 
     IMGSet=[]
     for i in range(5):
-        IMGSet.append(pygame.image.load(os.path.join("assets","PlayerIdle"+str(i+1)+".png")).convert_alpha())
+        IMGSet.append(get_asset("PlayerIdle"+str(i+1)))
     for i in range(3):
-        IMGSet.append(pygame.image.load(os.path.join("assets","PlayerIdle"+str(4-i)+".png")).convert_alpha())
+        IMGSet.append(get_asset("PlayerIdle"+str(4-i)))
     playerIMGs["Idle"]=IMGSet
 
     IMGSet=[]
     for i in range(8):
-        IMGSet.append(pygame.image.load(os.path.join("assets","PlayerRun"+str(i+1)+".png")).convert_alpha())
+        IMGSet.append(get_asset("PlayerRun"+str(i+1)))
     playerIMGs["Run"]=IMGSet
 
     #TEMPORARY ANIMATION
     IMGSet=[]
     for i in range(8):
-        IMGSet.append(pygame.image.load(os.path.join("assets","PlayerRun"+str(8-i)+".png")).convert_alpha())
+        IMGSet.append(get_asset("PlayerRun"+str(8-i)))
     playerIMGs["Backpedal"]=IMGSet
 
-    playerIMGs["Falling"]=[pygame.image.load(os.path.join("assets","PlayerFalling.png")).convert_alpha()]
-    playerIMGs["Jumping"]=[pygame.image.load(os.path.join("assets","PlayerJumping.png")).convert_alpha()]
-    #playerIMGs["Sliding"]=[pygame.image.load(os.path.join("assets","PlayerSliding.png")).convert_alpha()]
-    playerIMGs["Arm"]=[pygame.image.load(os.path.join("assets","Arm.png")).convert_alpha()]
+    playerIMGs["Falling"]=[get_asset("PlayerFalling")]
+    playerIMGs["Jumping"]=[get_asset("PlayerJumping")]
+    #playerIMGs["Sliding"]=[get_asset("PlayerSliding")]
+    playerIMGs["Arm"]=[get_asset("Arm")]
 
     laserImpactIMGsRaw = []
     for i in range(1, IMPACT_FRAMES + 1):
         laserImpactIMGsRaw.append(
-            pygame.image.load(os.path.join("assets", f"LaserImpact{i}.png")).convert_alpha()
+            get_asset(f"LaserImpact{i}")
         )
 
 
