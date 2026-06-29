@@ -1143,14 +1143,14 @@ class Terrain:
 
 class AirPocket:
     def __init__(self, x, y, radius, defaultZooms=[0.1, 2], pocketType="Circle"):
+        radius = _snapRadius(radius)
+
         self.x    = x
         self.y = y
         self.r = radius
         self.type = pocketType
         self.top  = self.y - self.r
         self.left = self.x - self.r
-
-        radius = _snapRadius(radius)
 
         imgs = airIMGs[pocketType]
         imgIndex = random.randint(0, len(imgs) - 1)
