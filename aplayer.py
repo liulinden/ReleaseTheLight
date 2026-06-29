@@ -1,5 +1,5 @@
 import pygame,math,terrain,laser,particles,os
-from util import rotateAndGetOffset, rgbBound, channelBound
+from util import rotateAndGetOffset, rgbBound, channelBound, chargesToColor
 
 
 SPRITE_WIDTH=40
@@ -211,13 +211,7 @@ class Player:
 
     def updateColor(self):
         cw,cb,cr=self.charges.values()
-        r=cr+cw
-        g=cw+cb/4
-        b=cw+cb
-        r=math.sqrt(min(r/self.maxCharge,1))
-        g=math.sqrt(min(g/self.maxCharge,1))
-        b=math.sqrt(min(b/self.maxCharge,1))
-        self.color=(r*255,g*255,b*255)
+        self.color=chargesToColor(cw,cb,cr,self.maxCharge)
 
     def updateLaserStats(self):
         white,blue,red=self.charges.values()
@@ -231,18 +225,22 @@ class Player:
         self.charges["red"]=red
 
     def addCharge(self, addedCharge, chargeDistribution, maxCharge):
+
+        sumAdded=0
+        for color in self.charges:
+            addend= chargeDistribution[color]*addedCharge
+            self.charges[color]+=addend
+            sumAdded+=addend
+        
         totalCharge=sum(self.charges.values())
         overflow=0
-        if totalCharge+addedCharge>self.chargeCapacity:
-            self.chargeCapacity=max(self.chargeCapacity, min(self.maxCharge,min(maxCharge, totalCharge+addedCharge)))
-            overflow=totalCharge+addedCharge-self.chargeCapacity
-
-        self.charges["white"]+=chargeDistribution[0]*addedCharge
-        self.charges["blue"]+=chargeDistribution[1]*addedCharge
-        self.charges["red"]+=chargeDistribution[2]*addedCharge
+        if totalCharge>self.chargeCapacity:
+            self.chargeCapacity=max(self.chargeCapacity, min(self.maxCharge,min(maxCharge, totalCharge)))
+            overflow=totalCharge-self.chargeCapacity
+        
         self.loseCharge(overflow)
         
-        return addedCharge-overflow
+        return sumAdded-overflow
 
     def loseCharge(self,loss):
         nSplit = 3
@@ -371,6 +369,7 @@ class Player:
 
         self.updateColor()
         self.updateCostume(frameLength,mousePos)
+
         for lase in self.laser:
             lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),-self.armAngle,self.laserCooldown)
         return False

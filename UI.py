@@ -1,11 +1,12 @@
 import pygame,math,os
+from util import chargesToColor
 pygame.init()
 
 chargeIcon = pygame.transform.scale(pygame.image.load(os.path.join("assets","ChargeIcon.png")).convert_alpha(),(80,80))
 lightGradient=pygame.image.load(os.path.join("assets","LightGradient.png")).convert_alpha()
 
-chargeColors ={
-    "white": (1,1,1),"blue":(0,0.25,1), "red":(1,0,0)
+chargeTuples ={
+    "white": (1,0,0),"blue":(0,1,0), "red":(0,0,1)
 }
 
 def drawRoundedLine(surface, color, start, end, thickness):
@@ -18,15 +19,20 @@ def drawSingleSideRoundedLine(surface, color, start, end, thickness):
     pygame.draw.line(surface, color, start, end, thickness)
     pygame.draw.circle(surface, color, end, thickness/2)
 
+def drawLineFromCenter(surface, color, center,angle,r1,r2,thickness):
+    cx,cy=center
+    x1,y1=polarToRect(r1,-angle)
+    x2,y2=polarToRect(r2,-angle)
+    pygame.draw.line(surface,color,(x1+cx,y1+cy),(x2+cx,y2+cy),thickness)
+
 def polarToRect(r,angle):
     return r*math.cos(angle), r*math.sin(angle)
 
 def getTrianglePoints(cx,cy,angle):
-    point=polarToRect(58,angle-math.pi*0.5)
-    pconcave=polarToRect(66,angle-math.pi*0.5)
-    p2=polarToRect(67,angle-math.pi*0.53)
-    p3=polarToRect(67,angle-math.pi*0.47)
-    return ((point[0]+cx,point[1]+cy),(p2[0]+cx,p2[1]+cy),(pconcave[0]+cx,pconcave[1]+cy),(p3[0]+cx,p3[1]+cy))
+    point=polarToRect(54,angle-math.pi*0.5)
+    p2=polarToRect(67,angle-math.pi*0.55)
+    p3=polarToRect(67,angle-math.pi*0.45)
+    return ((point[0]+cx,point[1]+cy),(p2[0]+cx,p2[1]+cy),(p3[0]+cx,p3[1]+cy))
 
 class HealthBar():
     def __init__(self, maxHealth,thickness=5):
@@ -78,7 +84,7 @@ class ChargeDisplay():
     def update(self,fps,playerCharges,playerY):
         frameLength=1000/fps
 
-        totalCharge=math.floor(sum(playerCharges.values()))
+        totalCharge=sum(playerCharges.values())
         totalChargeChange=totalCharge-self.playerTotalCharge
         self.playerTotalCharge=totalCharge
 
@@ -86,23 +92,20 @@ class ChargeDisplay():
 
         for color in playerCharges:
 
-            chargeChange=playerCharges[color]-self.playerCharges[color]
+            chargeChange=int(playerCharges[color])-self.playerCharges[color]
             if abs(chargeChange) > 0:
-                self.playerCharges[color]+=chargeChange/abs(chargeChange)*frameLength/16
+                if abs(chargeChange) < frameLength/16:
+                    self.playerCharges[color]+=chargeChange
+                else:
+                    self.playerCharges[color]+=chargeChange/abs(chargeChange)*frameLength/16
         
         cw,cb,cr=self.playerCharges.values()
-        r=cr+cw
-        g=cw+cb/4
-        b=cw+cb
-        r=math.sqrt(max(0,min(r/500,1)))
-        g=math.sqrt(max(0,min(g/500,1)))
-        b=math.sqrt(max(0,min(b/500,1)))
-        self.color=(r*255,g*255,b*255)
+        self.color=chargesToColor(cw,cb,cr,500)
 
-        if totalChargeChange>0:
+        if totalChargeChange>0.1:
             self.rotationGoal+=totalChargeChange/10
             self.scale=90
-        elif totalChargeChange<0:
+        elif totalChargeChange<-0.1:
             #self.rotation=0
             #self.rotationGoal=0
             if self.scale<81:
@@ -122,28 +125,46 @@ class ChargeDisplay():
     def draw(self,surface):
         transformedIcon=pygame.transform.rotate(pygame.transform.scale(chargeIcon,(self.scale,self.scale)),-self.rotation*(360))
         filter=pygame.Surface(transformedIcon.get_size(),flags=pygame.SRCALPHA)
+        
+        #different filter than above
+        mixedColor= chargesToColor(self.playerCharges["white"],self.playerCharges["blue"],self.playerCharges["red"],500)
+        filterColor=mixedColor
 
-        pygame.draw.line(surface,self.color, (self.x+0,self.y+10),(self.x+14,self.y+10),2)
-        pygame.draw.line(surface,self.color, (self.x+0,self.y+110),(self.x+14,self.y+110),2)
-        pygame.draw.line(surface,self.color, (self.x+7,self.y+10),(self.x+7,self.y+110),2)
+        pygame.draw.line(surface,filterColor, (self.x+0,self.y+20),(self.x+14,self.y+20),2)
+        pygame.draw.line(surface,filterColor, (self.x+0,self.y+140),(self.x+14,self.y+140),2)
+        pygame.draw.line(surface,filterColor, (self.x+7,self.y+20),(self.x+7,self.y+140),2)
 
-        pygame.draw.line(surface,self.color, (self.x+0,self.y+10+100*self.playerY/self.worldHeight),(self.x+14,self.y+10+100*self.playerY/self.worldHeight),6)
+        pygame.draw.line(surface,filterColor, (self.x+0,self.y+20+120*self.playerY/self.worldHeight),(self.x+14,self.y+20+120*self.playerY/self.worldHeight),6)
 
         filter.fill(self.color)
         filter.blit(transformedIcon,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
-        surface.blit(filter,(self.x+80-filter.get_width()/2,self.y+60-filter.get_height()/2))
+        surface.blit(filter,(self.x+100-filter.get_width()/2,self.y+80-filter.get_height()/2))
         
-        pygame.draw.arc(surface,self.color,pygame.Rect(self.x+20,self.y,120,120),math.pi/2-2*math.pi*self.playerTotalCharge/500,math.pi/2,11)
-
-
-        #placeholder
-        pygame.draw.polygon(surface,(255/2,0,0),getTrianglePoints(self.x+80,self.y+60,math.pi*0.16))
-        pygame.draw.polygon(surface,(0,127/2,255/2),getTrianglePoints(self.x+80,self.y+60,math.pi*0.08))
-        pygame.draw.polygon(surface,(255,255,255),getTrianglePoints(self.x+80,self.y+60,0))
-
-        offset=0
+        arcAngle=math.pi/2
         for color in self.playerCharges:
-            fraction=self.playerCharges[color]/500
-            if fraction>0:
-                drawSingleSideRoundedLine(surface,(255*math.sqrt(fraction*chargeColors[color][0]),255*math.sqrt(fraction*chargeColors[color][1]),255*math.sqrt(fraction*chargeColors[color][2])),(self.x+146,self.y+10+offset), (self.x+146+max(6,100*fraction),self.y+10+offset),11)
-            offset+=15
+            if self.playerCharges[color]>0:
+                newAngle=arcAngle-2*math.pi*(self.playerCharges[color])/500
+                def getChannel(index): return chargeTuples[color][index]*self.playerCharges[color]
+                pygame.draw.arc(surface,chargesToColor(getChannel(0),getChannel(1),getChannel(2)),pygame.Rect(self.x+40,self.y+20,120,120),newAngle,arcAngle,10)
+                arcAngle=newAngle
+        
+        #draw arc outline
+        thickness=3
+        pygame.draw.arc(surface,self.color,pygame.Rect(self.x+40-thickness,self.y+20-thickness,120+2*thickness,120+2*thickness),newAngle,math.pi/2,thickness)
+        pygame.draw.arc(surface,self.color,pygame.Rect(self.x+40+10,self.y+20+10,120-20,120-20),newAngle,math.pi/2,thickness)
+        drawLineFromCenter(surface, self.color, (self.x+100,self.y+80),math.pi/2, 60-10-thickness,60+thickness,thickness)
+        drawLineFromCenter(surface, self.color, (self.x+100,self.y+80),newAngle, 60-10-thickness,60+thickness,thickness)
+
+        pygame.draw.polygon(surface,(255/2,0,0),getTrianglePoints(self.x+100,self.y+80,math.pi*0.16))
+        pygame.draw.polygon(surface,(0,0,0),getTrianglePoints(self.x+100,self.y+80,math.pi*0.16),2)
+
+
+        pygame.draw.polygon(surface,(0,127/4,255/2),getTrianglePoints(self.x+100,self.y+80,math.pi*0.08))
+        pygame.draw.polygon(surface,(0,0,0),getTrianglePoints(self.x+100,self.y+80,math.pi*0.08),2)
+
+        pygame.draw.circle(surface, (0,0,0), (self.x+100,self.y+80), 67, 5)
+
+        pygame.draw.polygon(surface,mixedColor,getTrianglePoints(self.x+100,self.y+80,0))
+        pygame.draw.polygon(surface,(0,0,0),getTrianglePoints(self.x+100,self.y+80,0),3)
+
+        pygame.draw.circle(surface, filterColor, (self.x+100,self.y+80), 67, 3)

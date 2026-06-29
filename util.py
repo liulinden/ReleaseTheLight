@@ -27,3 +27,18 @@ def rgbBound(color):
 
 def channelBound(value):
     return min(255, max(0, value))
+
+def chargesToColor(cw,cb,cr, maxCharge=0):
+    r=cr+cw
+    g=cw+cb/4
+    b=cw+cb
+    dominant=max(r,g,b)
+    if dominant==0: return (0,0,0)
+    factor=255/dominant
+    if maxCharge !=0:
+        charge= cw+cb+cr
+        if charge<maxCharge/8:
+            factor *= charge/(maxCharge/8)*0.8
+        else:
+            factor *= 0.8*(1+(2*(8*charge-maxCharge)/(maxCharge*8)))
+    return rgbBound((r*factor,g*factor,b*factor))

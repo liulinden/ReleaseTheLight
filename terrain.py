@@ -10,7 +10,7 @@ visual_chunk_size = 500
 rocks_world_span = 8 * hitbox_chunk_size
 
 # Placeholder charge required to unlock each gateway (index = gateway index)
-GATEWAY_CHARGE = [100, 200, 300, 600, 800, 1000, 1200, 1400, 1600]
+GATEWAY_CHARGE = [500, 100, 1500, 3000, 4000, 5000, 6000, 7000, 8000]
 
 # load images — call terrain.init() after pygame.display.set_mode()
 airIMGs = {}
@@ -662,34 +662,34 @@ class Terrain:
                         if random.randint(1, 5) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
-                                "White", layerIndex=layerIndex)
+                                "white", layerIndex=layerIndex)
                     else:
                         if random.randint(1, 15) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
-                                "White", layerIndex=layerIndex)
+                                "white", layerIndex=layerIndex)
 
 
                     if layerIndex==2:
                         if random.randint(1, 6) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
-                                "Blue", layerIndex=layerIndex)
+                                "blue", layerIndex=layerIndex)
                     elif layerIndex>2:
                         if random.randint(1, 12) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
-                                "Blue", layerIndex=layerIndex)
+                                "blue", layerIndex=layerIndex)
                     if layerIndex==3:
                         if random.randint(1, 6) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
-                                "Red", layerIndex=layerIndex)
+                                "red", layerIndex=layerIndex)
                     elif layerIndex>3:
                         if random.randint(1, 12) == 1:
                             self.generateNest(j * 1000 + random.randint(0, 1000),
                                 random.randint(int(yTop + 500), int(yBottom-500)),
-                                "Red", layerIndex=layerIndex)
+                                "red", layerIndex=layerIndex)
 
             self._buildChunkHitboxesForLayer(layerIndex)
             self._buildChunkVisualsForLayer(layerIndex, loading_screen=loading_screen_visuals)
@@ -764,7 +764,7 @@ class Terrain:
             self.addAirPocketClump(boundedX, startY, startR, layerIndex=layerIndex)
             if startY>yTop+600 and startY<yBottom-600 and random.randint(1,100)==1:
                 #change white to selected randomly from list based on layerindex
-                self.generateNest(boundedX,startY+random.randint(-100,100),"White",layerIndex=layerIndex)
+                self.generateNest(boundedX,startY+random.randint(-100,100),"white",layerIndex=layerIndex)
 
             r   = min(50, max(10,startR+random.randint(-5,5)))
             dir = startDir + (random.random() - 0.5) * math.pi / 2

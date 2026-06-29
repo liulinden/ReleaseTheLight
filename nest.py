@@ -1,4 +1,5 @@
 import pygame, random, math, enemies, os, UI
+from util import chargesToColor
 
 def loadNestIMGSet(id, stages):
     IMGs = []
@@ -17,7 +18,7 @@ def init():
     lightGradient = pygame.image.load(os.path.join("assets", "LightGradient.png")).convert_alpha()
     nestIMGs = {}
     nestHitboxes = {}
-    for nestType, nStages, variants in [("White", 3, [1, 2, 3, 4]), ("Blue", 4, [5, 6]), ("Red", 4, [5, 6]), ("Sun", 10, [])]:
+    for nestType, nStages, variants in [("white", 3, [1, 2, 3, 4]), ("blue", 4, [5, 6]), ("red", 4, [5, 6]), ("sun", 10, [])]:
         IMGsets = []
         hitboxes = []
         for variant in variants:
@@ -73,14 +74,14 @@ class Nest:
             self._draw_filter[1] = pygame.Surface((size, size), flags=pygame.SRCALPHA)
 
         self.maxHealth = self.y * 100 * (random.random()+0.5) / worldHeight
-        if self.nestType == "White":
+        if self.nestType == "white":
             self.maxHealth *= 1.2
             self.maxHealth += 10
-        elif self.nestType == "Blue":
+        elif self.nestType == "blue":
             self.maxHealth += 50
-        elif self.nestType == "Red":
+        elif self.nestType == "red":
             self.maxHealth += 50
-        elif self.nestType == "Sun":
+        elif self.nestType == "sun":
             self.maxHealth += 1000
 
         self.health = self.maxHealth
@@ -90,29 +91,27 @@ class Nest:
         self.visualCharge = self.maxCharge
         self.charge = self.maxCharge * 0.5
         self.chargeRate = self.maxCharge / 10000
-        self.charging = (0, 0, 0)
-        if self.nestType == "White":
-            self.charging = (1, 0, 0)
-        elif self.nestType == "Blue":
-            self.charging = (0, 1, 0)
-        elif self.nestType == "Red":
-            self.charging = (0, 0, 1)
+        self.charging = {"white":0,"blue":0,"red":0}
+        self.charging[self.nestType]=1
 
     def getRect(self):
         return pygame.Rect(self.left, self.top, self.size, self.size)
 
     def updateColor(self):
-        cw, cb, cr = self.charging
+        cw, cb, cr = self.charging.values()
         cw, cb, cr = cw * self.visualCharge, cb * self.visualCharge, cr * self.visualCharge
-        r, g, b = 0, 0, 0
-        r += cr + cw
-        g += cw + cb / 4
-        b += cw + cb
 
-        r = (min(r / 500, 1)) ** 0.3
-        g = (min(g / 500, 1)) ** 0.3
-        b = (min(b / 500, 1)) ** 0.3
-        self.color = (r * 255, g * 255, b * 255)
+        self.color=chargesToColor(cw,cb,cr,500)
+        
+        # r, g, b = 0, 0, 0
+        # r += cr + cw
+        # g += cw + cb / 4
+        # b += cw + cb
+
+        # r = (min(r / 500, 1)) ** 0.3
+        # g = (min(g / 500, 1)) ** 0.3
+        # b = (min(b / 500, 1)) ** 0.3
+        # self.color = (r * 255, g * 255, b * 255)
 
     def loseCharge(self, loss):
         self.glow = 255
@@ -126,6 +125,7 @@ class Nest:
             self.visualCharge -= frameLength / 10
             if self.visualCharge < 0:
                 self.visualCharge = 0
+        #self.visualCharge=self.charge
         self.glow += ((self.stage / self.maxStage * self.visualCharge / self.maxCharge * 150) - self.glow) / 1500 * frameLength
 
     def drawGradient(self, surface, frame, offset_x=0, offset_y=0):
