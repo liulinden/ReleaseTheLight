@@ -149,7 +149,7 @@ def _getCachedRimScale(src_surface, pocketType, imgIndex, radius, zoom):
     if key not in _scaled_img_cache:
         side = max(1, int(2 * radius * zoom * Terrain._RIM_MULT))
         cached = pygame.transform.scale(src_surface, (side, side))
-        # cached.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT) probably not needed
+        cached.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
         _scaled_img_cache[key] = cached
 
     return _scaled_img_cache[key]
