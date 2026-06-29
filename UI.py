@@ -16,7 +16,6 @@ def init():
 from util import chargesToColor
 pygame.init()
 
-
 chargeTuples ={
     "white": (1,0,0),"blue":(0,1,0), "red":(0,0,1)
 }
