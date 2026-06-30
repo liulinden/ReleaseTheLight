@@ -1,12 +1,12 @@
-import pygame,math,terrain,laser,particles,os
+import pygame,math,terrain,laser,laserProperties
 from util import rotateAndGetOffset, rgbBound, channelBound, chargesToColor
 from asset_manager import get_asset
+
 
 SPRITE_WIDTH=40
 SPRITE_HEIGHT=40
 ARM_PIVOT_X =20
 ARM_PIVOT_Y=21
-LASER_DISTANCE=18
 
 IMPACT_SIZE = 100   # world-space size in px — easy to change
 IMPACT_FPS = 24
@@ -120,25 +120,21 @@ class Player:
         self.armAngle=0
         self.armOffsetX=0
         self.armOffsetY=0
-        self.laserPower=10
-        self.laserKnockback=10
-        self.laserCooldown=400
+
         self.laserTimer=0
-        self.laserRamp=1
-        self.laserRampMax=20
+        self.laserRamps=0
+        self.laserFirstHit=False
         self.laser=[]
         self.impacts=[]  # active LaserImpact instances
+        self.laserAttributes = laserProperties.LaserAttributes(18,1,0.2,10,400,1,20,0.3,1,20,20,0.5,2,0.5)
+
         self.chargeCapacity=100
         self.charges={"white":self.chargeCapacity,"blue":0,"red":0}
         self.maxCharge=500
         self.immunityTimer=0
         self.immunityTime=500
-        self.queuedDamage=0
-
-
-        self.laserKbMultiplier = 2
-        self.laserDmgMultiplier = 1
-        self.LaserExplosionMultiplier = 0.5
+        self.queuedDamage=0    
+        self.queuedDrainDamage=0    
 
         self.playerIMGs = {}
         for zoom in self.defaultZooms:
@@ -214,10 +210,7 @@ class Player:
         self.color=chargesToColor(cw,cb,cr,self.maxCharge)
 
     def updateLaserStats(self):
-        white,blue,red=self.charges.values()
-        self.laserPower=15+white/15+red/5+blue/20
-        self.laserKnockback=8+white/35+red/35+blue/10
-        self.laserCooldown=500-white/5-blue/5+red/5
+        laserProperties.setLaserAttributes(self.laserAttributes,self.charges,self.maxCharge)
 
     def setCharges(self, white, blue, red):
         self.charges["white"]=white
@@ -263,10 +256,14 @@ class Player:
     def dealDamage(self,damage):
         self.queuedDamage+=damage
 
+    def drainDamage(self,damage):
+        self.queuedDrainDamage+=damage
+
     def tick(self,frameLength,cTerrain:terrain.Terrain,mousePos,keysDown,events):
-        if self.loseCharge(self.queuedDamage):
+        if self.loseCharge(self.queuedDamage) or self.loseCharge(self.queuedDrainDamage):
             return True
         self.queuedDamage=0
+        self.queuedDrainDamage=0
 
         self.ySpeed=min(0.4,self.ySpeed+0.0015*frameLength)
         if self.immunityTimer>0:
@@ -274,12 +271,11 @@ class Player:
             if self.immunityTimer<0:
                 self.immunityTimer=0
         
-        if keysDown["mouse"] and len(self.laser)==0 and self.laserTimer<=self.laserCooldown/4:
+        if keysDown["mouse"] and len(self.laser)==0 and self.laserTimer<=self.laserAttributes.cooldown/4:
             newLaser=laser.Laser()
             self.laser=[newLaser]
-            self.LaserExplosionMultiplier=0.5
-            self.laserDmgMultiplier=1
-            self.laserKbMultiplier=2
+            self.laserRamps=0
+            self.laserFirstHit=True
         
         if events["mouseUp"] and len(self.laser)>0:
             self.laserTimer=self.laser[0].timer
@@ -289,23 +285,26 @@ class Player:
         self.laserTimer=max(0,self.laserTimer)
         
         for lase in self.laser:
-            if not lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),-self.armAngle):
-                self.laserDmgMultiplier=1
+            locked= lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+self.laserAttributes.distance*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+self.laserAttributes.distance*math.sin(-self.armAngle),-self.armAngle)
             lase.tick(frameLength)
             if lase.damageFrame:
+                if not locked:
+                    self.laserRamps=0
+                    print(lase.previousTarget,lase.laserTarget)
                 if lase.collision:
                     point= lase.collision[0]
                     x,y=point
-                    cTerrain.addAirPocketClump(x, y, self.laserPower*self.LaserExplosionMultiplier, layerIndex=cTerrain._layerForY(y), playerMade=True, spreading=1/5)
+                    explosionSize=laserProperties.getLaserEXPL(self.laserAttributes,self.laserFirstHit)
+                    cTerrain.addAirPocketClump(x, y, explosionSize, layerIndex=cTerrain._layerForY(y), playerMade=True, spreading=1/5)
                     if lase.collision[1]=="ground":
-                        cTerrain.particles.spawnMiningParticles(10,(0,0,0),self.laserPower*self.laserDmgMultiplier*1.5,x,y)
-                    cTerrain.newKnockbackCircles.append([x,y,self.laserKnockback*self.laserKbMultiplier])
-                    cTerrain.newPlayerDamageCircles.append([x,y,self.laserPower*self.laserDmgMultiplier*0.1])
-                self.laserKbMultiplier=0.5
-                self.laserDmgMultiplier=min(self.laserRampMax,self.laserDmgMultiplier+self.laserRamp)
-                self.LaserExplosionMultiplier=1
+                        cTerrain.particles.spawnMiningParticles(10,(0,0,0),explosionSize*1.5,x,y)
+                    cTerrain.newKnockbackCircles.append([laserProperties.getLaserKB(self.laserAttributes,self.laserFirstHit),x,y,self.laserAttributes.KBRange, self.laserAttributes.areaKBFalloff])
+                    cTerrain.newPlayerDamageCircles.append([laserProperties.getLaserDMG(self.laserAttributes,self.laserFirstHit, self.laserRamps),x,y,self.laserAttributes.DMGRange,self.laserAttributes.areaDMGFalloff])
+                
+                self.laserFirstHit=False
+                self.laserRamps+=1
 
-                if self.loseCharge(1):
+                if self.loseCharge(0.5):
                     return True
                 
                 # spawn impact — position follows live laser, freezes when laser released
@@ -319,19 +318,13 @@ class Player:
                 del self.impacts[i]
 
         for knockbackCircle in cTerrain.knockbackCircles:
-            dx = self.x-knockbackCircle[0]
-            dy = self.y-knockbackCircle[1]
+            dx = self.x-knockbackCircle[1]
+            dy = self.y-knockbackCircle[2]
             distance=math.sqrt(dx**2+dy**2)
-            """if distance<30:
-                dx*=30/distance
-                dy*=30/distance
-                distance=30
-            knockback=knockbackCircle[2]/distance/100"""
-            knockback=knockbackCircle[2]/2000
-            #if distance < 100:
-            self.xSpeed+=frameLength*dx/distance*knockback
-            self.ySpeed+=frameLength*dy/distance*knockback
-            #should probably do this from the enemy not in the player tick
+            knockback=knockbackCircle[0]
+
+            self.xSpeed+=frameLength*dx/distance*knockback/60
+            self.ySpeed+=frameLength*dy/distance*knockback/60
 
         for li in cTerrain.activeLayers:
             for nest in cTerrain.nests[li]:
@@ -371,7 +364,7 @@ class Player:
         self.updateCostume(frameLength,mousePos)
 
         for lase in self.laser:
-            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+LASER_DISTANCE*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+LASER_DISTANCE*math.sin(-self.armAngle),-self.armAngle,self.laserCooldown)
+            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+self.laserAttributes.distance*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+self.laserAttributes.distance*math.sin(-self.armAngle),-self.armAngle,self.laserAttributes.cooldown)
         return False
     
     def moveHorizontal(self, frameLength,cTerrain):

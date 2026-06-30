@@ -278,12 +278,13 @@ class Gateway:
         self.entryTiles = [t for t in self.tiles if isinstance(t, EntryTile)]
         self.exitTiles  = [t for t in self.tiles if isinstance(t, ExitTile)]
 
-    def tick(self, frameLength, terrain, lx,ly,laserPower):
+    def tick(self, terrain, player, lx,ly):
         """Check laser hits on activators each frame. Returns True if activator is hit."""
         for entry in self.entryTiles:
             if entry.isLaserHittingActivator(lx,ly):
                 if not self.unlocked:
-                    if entry.addCharge(laserPower):
+                    player.drainDamage(10)
+                    if entry.addCharge(10):
                         self._unlock(terrain)
                     entry.healthBar.trigger()
                 return True

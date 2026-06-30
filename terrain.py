@@ -11,7 +11,7 @@ visual_chunk_size = 500
 rocks_world_span = 8 * hitbox_chunk_size
 
 # Placeholder charge required to unlock each gateway (index = gateway index)
-GATEWAY_CHARGE = [500, 100, 1500, 3000, 4000, 5000, 6000, 7000, 8000]
+GATEWAY_CHARGE = [100, 200, 300, 500, 700, 900, 1000, 1200, 1500]
 
 PALETTES = [
             [

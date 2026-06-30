@@ -219,35 +219,34 @@ class Enemy:
                 self.ySpeed = min(0.4, self.ySpeed + 0.0015 * frameLength)
 
             for knockbackCircle in cTerrain.knockbackCircles:
-                dx = self.x - knockbackCircle[0]
-                dy = self.y - knockbackCircle[1]
-                d = math.sqrt(dx ** 2 + dy ** 2)
-                """if 50 > d:
-                    dx *= 50 / d
-                    dy *= 50 / d
-                    d = 50
-                knockback = knockbackCircle[2] / d ** 2 / 1.5"""
-                if d < 20+self.r:
-                    knockback = knockbackCircle[2] / 50
-                    self.xSpeed += frameLength * dx / d / self.size * knockback
-                    self.ySpeed += frameLength * dy / d / self.size * knockback
-                # FIX 2 (minor): removed print(dx,dy,d) — was printing every frame per enemy
+                pow,x,y,r,falloff=knockbackCircle
+
+                for lase in player.laser:
+                    dx = self.x - x
+                    dy = self.y - y
+                    d = math.sqrt(dx ** 2 + dy ** 2)
+                    if lase.laserTarget is self:
+                        self.xSpeed += frameLength * dx / d / self.size * pow
+                        self.ySpeed += frameLength * dy / d / self.size * pow
+                    elif d < r+self.r:
+                        self.xSpeed += frameLength * dx / d / self.size * pow * falloff
+                        self.ySpeed += frameLength * dy / d / self.size * pow * falloff
             
             for damageCircle in cTerrain.playerDamageCircles:
-                x, y, r = damageCircle
+                pow, x, y, r, falloff = damageCircle
                 
                 for lase in player.laser:
                     if lase.laserTarget is self:
-                        cTerrain.particles.spawnMiningParticles(10, self.color, r/2, x, y)
-                        if self.dealDamage(r/2):
+                        cTerrain.particles.spawnMiningParticles(10, self.color, pow*10, x, y)
+                        if self.dealDamage(pow):
                             return True
                     else:
-                        d = math.sqrt(dx ** 2 + dy ** 2)
                         dx = self.x - x
                         dy = self.y - y
+                        d = math.sqrt(dx ** 2 + dy ** 2)
                         if d < r + self.r:
-                            cTerrain.particles.spawnMiningParticles(5, self.color, r / 6, x, y)
-                            if self.dealDamage(r / 6):
+                            cTerrain.particles.spawnMiningParticles(5, self.color, pow*falloff*10, x, y)
+                            if self.dealDamage(pow*falloff):
                                 return True
 
             if self.x < 50:

@@ -32,7 +32,7 @@ class World:
         self.bg_width, self.bg_height = self.background.get_size()
         objects_loading_screen.put(0.9, "Creating foreground surface")
         foreground_raw   = get_asset("Foreground")
-        self.foreground  = pygame.transform.scale(foreground_raw, (6000, 6000))
+        self.foreground  = pygame.transform.scale(foreground_raw, (10000, 10000))
         self.fg_width, self.fg_height = self.foreground.get_size()
         objects_loading_screen.put(1.0, "Object creation complete.")
 
@@ -104,7 +104,7 @@ class World:
             if self.terrain.playerDamageCircles and lase.collision:
                 lx,ly=lase.collision[0]
                 for gw in self.terrain.gateways:
-                    if gw.tick(frameLength, self.terrain, lx,ly,self.player.laserPower):
+                    if gw.tick(self.terrain, self.player, lx,ly):
                         self.terrain.particles.spawnMiningParticles(10, (255,255,255), 10, lx,ly)
                         break
 

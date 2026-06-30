@@ -111,6 +111,7 @@ class Laser:
         self.startX, self.startY = startX, startY
         self.angle = angle
         self.length = self.getLength(terrain, angle)
+        print(self.laserTarget,self.previousTarget)
         if laserCooldown != 0:
             self.laserTime = laserCooldown
         return self.laserTarget is self.previousTarget and not self.laserTarget is None
