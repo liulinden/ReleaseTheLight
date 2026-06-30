@@ -31,7 +31,7 @@ class Lighting:
             self.resizedLightIMGs["Gradient" + str(size)] = {}
             for zoom in defaultZooms:
                 self.resizedLightIMGs["Gradient" + str(size)][zoom] = pygame.transform.scale(lightGradient, (zoom * size, zoom * size))
-        size=200
+        size=300
         self.resizedLightIMGs["ThickGradient"]={}
         for zoom in defaultZooms:
             self.resizedLightIMGs["ThickGradient"][zoom] = pygame.transform.scale(thickGradient, (zoom * size, zoom * size))

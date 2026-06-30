@@ -445,14 +445,10 @@ class Player:
             r  = float(self.rect.right - 1)
             t  = float(self.rect.top)
             b  = float(self.rect.bottom - 1)
-            step = (b - t) / 9
-            for i in range(10):
-                y = t + step * i
-                for wx, wy in [(l, y), (r, y)]:
-                    pygame.draw.circle(surface, self.color,
-                        (int((wx - camX) * zoom + offset_x),
-                         int((wy - camY) * zoom + offset_y)),
-                        max(2, int(zoom * 2)))
+            pygame.draw.line(surface,self.color,((l-camX) * zoom + offset_x,(t- camY) * zoom + offset_y),((l- camX) * zoom + offset_x,(b- camY) * zoom + offset_y))
+            pygame.draw.line(surface,self.color,((r-camX) * zoom + offset_x,(t- camY) * zoom + offset_y),((r- camX) * zoom + offset_x,(b- camY) * zoom + offset_y))
+            pygame.draw.line(surface,self.color,((l-camX) * zoom + offset_x,(t- camY) * zoom + offset_y),((r- camX) * zoom + offset_x,(t- camY) * zoom + offset_y))
+            pygame.draw.line(surface,self.color,((l-camX) * zoom + offset_x,(b- camY) * zoom + offset_y),((r- camX) * zoom + offset_x,(b- camY) * zoom + offset_y))
             for lase in self.laser:
                 lase.draw(surface,frame,self.color,hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)
         else:

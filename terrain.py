@@ -950,10 +950,15 @@ class Terrain:
     def _sampleRect(self, rect):
         l = float(rect.left);  r = float(rect.right - 1)
         t = float(rect.top);   b = float(rect.bottom - 1)
-        step = (b - t) / 9
-        for i in range(10):
+        #step = (b - t) / 9
+        step=1
+        for i in range(math.floor(b-t)):
             y = t + step * i
             if self._sampleChunk(l, y) or self._sampleChunk(r, y):
+                return True
+        for i in range(math.floor(r-l)):
+            x = l + step * i
+            if self._sampleChunk(x, b) or self._sampleChunk(x, t):
                 return True
         return False
 
