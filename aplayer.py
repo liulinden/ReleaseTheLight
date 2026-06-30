@@ -328,9 +328,9 @@ class Player:
                 distance=30
             knockback=knockbackCircle[2]/distance/100"""
             knockback=knockbackCircle[2]/2000
-            if distance < 100:
-                self.xSpeed+=frameLength*dx/distance*knockback
-                self.ySpeed+=frameLength*dy/distance*knockback
+            #if distance < 100:
+            self.xSpeed+=frameLength*dx/distance*knockback
+            self.ySpeed+=frameLength*dy/distance*knockback
             #should probably do this from the enemy not in the player tick
 
         for li in cTerrain.activeLayers:

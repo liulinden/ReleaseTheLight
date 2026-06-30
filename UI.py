@@ -14,7 +14,6 @@ def init():
     lightGradient=get_asset("LightGradient")
 
 from util import chargesToColor
-pygame.init()
 
 chargeTuples ={
     "white": (1,0,0),"blue":(0,1,0), "red":(0,0,1)
@@ -91,9 +90,12 @@ class ChargeDisplay():
         self.color=(0,0,0)
         self.worldHeight=worldHeight
         self.playerY=0
+        self.chargeCapacity=0
 
-    def update(self,fps,playerCharges,playerY):
+    def update(self,fps,playerCharges,chargeCapacity, playerY):
         frameLength=1000/fps
+
+        self.chargeCapacity=chargeCapacity
 
         totalCharge=sum(playerCharges.values())
         totalChargeChange=totalCharge-self.playerTotalCharge
@@ -111,7 +113,7 @@ class ChargeDisplay():
                     self.playerCharges[color]+=chargeChange/abs(chargeChange)*frameLength/16
         
         cw,cb,cr=self.playerCharges.values()
-        self.color=chargesToColor(cw,cb,cr,500)
+        self.color=chargesToColor(cw,cb,cr)
 
         if totalChargeChange>0.1:
             self.rotationGoal+=totalChargeChange/10
@@ -138,7 +140,7 @@ class ChargeDisplay():
         filter=pygame.Surface(transformedIcon.get_size(),flags=pygame.SRCALPHA)
         
         #different filter than above
-        mixedColor= chargesToColor(self.playerCharges["white"],self.playerCharges["blue"],self.playerCharges["red"],500)
+        mixedColor= chargesToColor(self.playerCharges["white"],self.playerCharges["blue"],self.playerCharges["red"],maximize=True)
         filterColor=mixedColor
 
         pygame.draw.line(surface,filterColor, (self.x+0,self.y+20),(self.x+14,self.y+20),2)
@@ -151,12 +153,19 @@ class ChargeDisplay():
         filter.blit(transformedIcon,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(filter,(self.x+100-filter.get_width()/2,self.y+80-filter.get_height()/2))
         
+        #draw max capacity outline
+        thickness=2
+        newAngle=math.pi*(1/2-2*self.chargeCapacity/500)
+        pygame.draw.arc(surface,self.color,pygame.Rect(self.x+40+4,self.y+20+4,120-8,120-8),newAngle,math.pi/2,thickness)
+        drawLineFromCenter(surface, self.color, (self.x+100,self.y+80),newAngle, 60-10-thickness,60+thickness,thickness)
+
+        #draw charges
         arcAngle=math.pi/2
         for color in self.playerCharges:
             if self.playerCharges[color]>0:
                 newAngle=arcAngle-2*math.pi*(self.playerCharges[color])/500
                 def getChannel(index): return chargeTuples[color][index]*self.playerCharges[color]
-                pygame.draw.arc(surface,chargesToColor(getChannel(0),getChannel(1),getChannel(2)),pygame.Rect(self.x+40,self.y+20,120,120),newAngle,arcAngle,10)
+                pygame.draw.arc(surface,chargesToColor(getChannel(0),getChannel(1),getChannel(2),maximize=True),pygame.Rect(self.x+40,self.y+20,120,120),newAngle,arcAngle,10)
                 arcAngle=newAngle
         
         #draw arc outline
@@ -179,3 +188,6 @@ class ChargeDisplay():
         pygame.draw.polygon(surface,(0,0,0),getTrianglePoints(self.x+100,self.y+80,0),3)
 
         pygame.draw.circle(surface, filterColor, (self.x+100,self.y+80), 67, 3)
+        drawLineFromCenter(surface,filterColor, (self.x+100,self.y+80), math.pi*(1/2-2*(150/500)), 60, 65,3)
+        drawLineFromCenter(surface,filterColor, (self.x+100,self.y+80), math.pi*(1/2-2*(200/500)), 60, 65,3)
+        drawLineFromCenter(surface,filterColor, (self.x+100,self.y+80), math.pi*(1/2-2*(400/500)), 60, 65,3)

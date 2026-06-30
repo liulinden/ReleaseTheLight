@@ -14,7 +14,7 @@ def main():
 
     pygame.init()
 
-    game=Game(pygame.display.set_mode((0,0), pygame.HIDDEN),FPS=60,fullWorld=False,developingMode=development_mode,loading_screen=loading_screen)
+    game=Game(pygame.display.set_mode((0,0), pygame.HIDDEN),FPS=100,fullWorld=False,developingMode=development_mode,loading_screen=loading_screen)
 
     try:
         game.setup()
