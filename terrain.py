@@ -946,6 +946,19 @@ class Terrain:
         px = max(0, min(int(hitbox_chunk_size - 1), int(wx % hitbox_chunk_size)))
         py = max(0, min(int(hitbox_chunk_size - 1), int(wy % hitbox_chunk_size)))
         return chunks[row][col].get_at((px, py))[0] > 128
+    
+    def _sampleChunkVisuals(self, wx, wy):
+        if wy < 0:
+            return False
+        if wx < 0 or wx >= self.worldWidth or wy >= self.worldHeight:
+            return True
+        chunks = self.chunkVisuals[1]
+        col = int(wx // visual_chunk_size);  row = int(wy // visual_chunk_size)
+        if row >= len(chunks) or col >= len(chunks[0]):
+            return True
+        px = max(0, min(int(visual_chunk_size - 1), int(wx % visual_chunk_size)))
+        py = max(0, min(int(visual_chunk_size - 1), int(wy % visual_chunk_size)))
+        return chunks[row][col].get_at((px, py))[3] > 128
 
     def _sampleRect(self, rect):
         l = float(rect.left);  r = float(rect.right - 1)
@@ -966,6 +979,11 @@ class Terrain:
         return self._sampleRect(rect)
 
     def laserCollidePoint(self, x, y):
+        # the two below are somewhat redundant
+        # samplechunkvisuals ensures all bits of visual terrain interact with laser, and samplechunk takes care of nests.
+        # in the future would have this function identify the laser target, because that is currently also done in a separate redundant function
+        if self._sampleChunkVisuals(x,y):
+            return True
         if self._sampleChunk(x,y):
             return True
         for n in self._activeNests():
