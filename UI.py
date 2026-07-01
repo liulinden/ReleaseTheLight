@@ -30,19 +30,16 @@ def drawSingleSideRoundedLine(surface, color, start, end, thickness):
     pygame.draw.circle(surface, color, end, thickness/2)
 
 def drawLineFromCenter(surface, color, center,angle,r1,r2,thickness):
-    cx,cy=center
-    x1,y1=polarToRect(r1,-angle)
-    x2,y2=polarToRect(r2,-angle)
-    pygame.draw.line(surface,color,(x1+cx,y1+cy),(x2+cx,y2+cy),thickness)
+    pygame.draw.line(surface,color,polarToRect(r1,-angle,center),polarToRect(r2,-angle,center),thickness)
 
-def polarToRect(r,angle):
-    return r*math.cos(angle), r*math.sin(angle)
+def polarToRect(r,angle,center=(0,0)):
+    return r*math.cos(angle)+center[0], r*math.sin(angle)+center[1]
 
-def getTrianglePoints(cx,cy,angle):
-    point=polarToRect(54,angle-math.pi*0.5)
-    p2=polarToRect(67,angle-math.pi*0.55)
-    p3=polarToRect(67,angle-math.pi*0.45)
-    return ((point[0]+cx,point[1]+cy),(p2[0]+cx,p2[1]+cy),(p3[0]+cx,p3[1]+cy))
+def getTrianglePoints(center,angle):
+    return (polarToRect(54,angle-math.pi*0.5,center),polarToRect(67,angle-math.pi*0.55,center),polarToRect(67,angle-math.pi*0.45,center))
+
+def getOuterTrianglePoints(center,angle):
+    return (polarToRect(77,angle-math.pi*0.5,center),polarToRect(67,angle-math.pi*0.52,center),polarToRect(67,angle-math.pi*0.48,center))
 
 class HealthBar():
     def __init__(self, maxHealth,thickness=5):
@@ -170,24 +167,24 @@ class ChargeDisplay():
         
         #draw arc outline
         thickness=3
+        center=(self.x+100,self.y+80)
         pygame.draw.arc(surface,self.color,pygame.Rect(self.x+40-thickness,self.y+20-thickness,120+2*thickness,120+2*thickness),newAngle,math.pi/2,thickness)
         pygame.draw.arc(surface,self.color,pygame.Rect(self.x+40+10,self.y+20+10,120-20,120-20),newAngle,math.pi/2,thickness)
-        drawLineFromCenter(surface, self.color, (self.x+100,self.y+80),math.pi/2, 60-10-thickness,60+thickness,thickness)
-        drawLineFromCenter(surface, self.color, (self.x+100,self.y+80),newAngle, 60-10-thickness,60+thickness,thickness)
+        drawLineFromCenter(surface, self.color, center,math.pi/2, 60-10-thickness,60+thickness,thickness)
+        drawLineFromCenter(surface, self.color, center,newAngle, 60-10-thickness,60+thickness,thickness)
 
-        pygame.draw.polygon(surface,(255/2,0,0),getTrianglePoints(self.x+100,self.y+80,math.pi*0.16))
-        pygame.draw.polygon(surface,(0,0,0),getTrianglePoints(self.x+100,self.y+80,math.pi*0.16),2)
+        pygame.draw.circle(surface, (0,0,0), center, 67, 5)
+        
+        pygame.draw.polygon(surface,mixedColor,getTrianglePoints(center,0))
+        pygame.draw.polygon(surface,(0,0,0),getTrianglePoints(center,0),3)
 
+        pygame.draw.polygon(surface,mixedColor,getOuterTrianglePoints(center,0))
+        pygame.draw.polygon(surface,(0,127/2,255),getOuterTrianglePoints(center,math.pi*0.06))
+        pygame.draw.polygon(surface,(255,0,0),getOuterTrianglePoints(center,math.pi*0.12))
 
-        pygame.draw.polygon(surface,(0,127/4,255/2),getTrianglePoints(self.x+100,self.y+80,math.pi*0.08))
-        pygame.draw.polygon(surface,(0,0,0),getTrianglePoints(self.x+100,self.y+80,math.pi*0.08),2)
+        pygame.draw.circle(surface, filterColor, center, 67, 3)
+        drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(150/500)), 60, 65,3)
+        drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(200/500)), 60, 66,3)
+        drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(400/500)), 60, 65,3)
 
-        pygame.draw.circle(surface, (0,0,0), (self.x+100,self.y+80), 67, 5)
-
-        pygame.draw.polygon(surface,mixedColor,getTrianglePoints(self.x+100,self.y+80,0))
-        pygame.draw.polygon(surface,(0,0,0),getTrianglePoints(self.x+100,self.y+80,0),3)
-
-        pygame.draw.circle(surface, filterColor, (self.x+100,self.y+80), 67, 3)
-        drawLineFromCenter(surface,filterColor, (self.x+100,self.y+80), math.pi*(1/2-2*(150/500)), 60, 65,3)
-        drawLineFromCenter(surface,filterColor, (self.x+100,self.y+80), math.pi*(1/2-2*(200/500)), 60, 65,3)
-        drawLineFromCenter(surface,filterColor, (self.x+100,self.y+80), math.pi*(1/2-2*(400/500)), 60, 65,3)
+        pygame.draw.circle(surface,filterColor,polarToRect(73,-math.pi*(1/2-2*(200/500)),center),6,4)
