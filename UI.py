@@ -184,7 +184,7 @@ class ChargeDisplay():
 
         pygame.draw.circle(surface, filterColor, center, 67, 3)
         drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(150/500)), 60, 65,3)
-        drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(200/500)), 60, 66,3)
+        drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(200/500)), 60, 65,3)
         drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(400/500)), 60, 65,3)
 
-        pygame.draw.circle(surface,filterColor,polarToRect(73,-math.pi*(1/2-2*(200/500)),center),6,4)
+        pygame.draw.circle(surface,filterColor,polarToRect(72,-math.pi*(1/2-2*(200/500)),center),6,3)
