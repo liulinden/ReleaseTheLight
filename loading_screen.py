@@ -68,8 +68,7 @@ class LoadingScreen:
     def _run(self, surface: pygame.Surface) -> bool:
         clock = pygame.time.Clock()
 
-        title_spinner_frames = [pygame.image.load(ASSETS / f"frame_{i}.webp") for i in range(1, 8)]
-        title_spinner = Animation(title_spinner_frames, int(surface.get_height() * (2/3)), 12)
+        title_spinner = TitleSpinner(int(surface.get_height() * (2/3)), 12)
         title_spinner.rect.center = (surface.get_width() // 2, surface.get_height() // 2)
 
         loading_bar = LoadingBar((title_spinner.rect.width * 0.9, surface.get_height() // 50), percentage_per_second=0.25)
@@ -135,13 +134,15 @@ class LoadingScreen:
         # print(f"Loading screen [{self.start_progress:.2f} - {self.end_progress:.2f}] finished.")
         return going
 
-class Animation(pygame.sprite.Sprite):
-    def __init__(self, frames: list[pygame.Surface], width: int, fps: int) -> None:
+class TitleSpinner(pygame.sprite.Sprite):
+    def __init__(self, width: int, fps: int) -> None:
         super().__init__()
 
-        self.frames: list[pygame.Surface] = [
-            pygame.transform.scale(frame, (width, width * frame.get_height() // frame.get_width())).convert_alpha() for frame in frames
-        ]
+        self.frames: list[pygame.Surface] = []
+        for i in range(8):
+            frame = pygame.image.load(ASSETS / f"frame_{i}.webp").convert_alpha()
+            frame = pygame.transform.scale(frame, (width, width * frame.get_height() // frame.get_width()))
+            self.frames.append(frame)
 
         self.frame_index = 0
 
