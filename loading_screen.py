@@ -1,12 +1,13 @@
 import pathlib
-import inspect
 import time
 import multiprocessing
 from multiprocessing import synchronize
+import config
 
 import pygame
 
 ASSETS = pathlib.Path("loading_assets")
+GAME_ASSETS = pathlib.Path("assets")
 
 FPS = 24 # double animation time
 
@@ -18,14 +19,13 @@ class LoadingScreen:
     debug_info = ""
 
     def __init__(self, *, _queue: multiprocessing.Queue = None, _has_quit_event: synchronize.Event = None,
-                  start_progress=0.0, end_progress=1.0, developer_mode=False, is_dummy=False) -> None:
+                  start_progress=0.0, end_progress=1.0, dev_mode=False) -> None:
 
         self.start_progress = start_progress
         self.end_progress = end_progress
-        self.developer_mode = developer_mode
-        self.is_dummy = is_dummy
+        self.dev_mode = dev_mode
 
-        if (_queue is None or _has_quit_event is None) and (not is_dummy):
+        if (_queue is None or _has_quit_event is None):
             self.queue = multiprocessing.Queue()
             self.has_quit_event = multiprocessing.Event()
         else:
@@ -35,32 +35,31 @@ class LoadingScreen:
     def _interpolate_progress(self, progress: float) -> float:
         return self.start_progress + (self.end_progress - self.start_progress) * progress
 
-    def put(self, progress: float, msg: str = "") -> None:   
-        if self.is_dummy:
-            return     
+    def put(self, progress: float, msg: str = "") -> None:    
         if self.is_quit():
             raise UserQuitDuringLoadingException("Loading screen has been quit.")
         self.queue.put((self._interpolate_progress(progress), msg))
 
     def is_quit(self) -> bool:
-        if self.is_dummy:
-            return False
         return self.has_quit_event.is_set()
 
     def subsection(self, start_at, end_at) -> "LoadingScreen":
         start_at = self._interpolate_progress(start_at)
         end_at = self._interpolate_progress(end_at)
-        return LoadingScreen(_queue=self.queue, _has_quit_event=self.has_quit_event, start_progress=start_at, end_progress=end_at, developer_mode=self.developer_mode, is_dummy=self.is_dummy)
+        return LoadingScreen(_queue=self.queue, _has_quit_event=self.has_quit_event, start_progress=start_at, end_progress=end_at, dev_mode=self.dev_mode)
 
     def subsections(self, *subsections: float) -> list["LoadingScreen"]:
         return [self.subsection(start_at, end_at) for start_at, end_at in zip(subsections, subsections[1:] + (1.0,))]
     
     def run(self):
-        if self.is_dummy:
-            return
 
         pygame.init()
+
         window = pygame.display.set_mode((0,0))
+
+        pygame.display.set_caption(config.WINDOW_NAME)
+        pygame.display.set_icon(pygame.image.load(config.WINDOW_ICON_PATH))
+
         going = self._run(window)
         if not going:
             self.has_quit_event.set()
@@ -82,13 +81,12 @@ class LoadingScreen:
 
         sprites = pygame.sprite.Group(gradient, title_spinner, loading_bar)
 
+        show_debug_display = self.dev_mode
         progress = self.start_progress
-        loading_bar.set_progress(progress)
 
-        # print(f"Loading screen [{self.start_progress:.2f} - {self.end_progress:.2f}] started.")
-
-        show_debug_display = self.developer_mode
         debug_message = ""
+
+        loading_bar.set_progress(progress)
 
         going = True
 
@@ -104,9 +102,11 @@ class LoadingScreen:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         going = False
-                    elif event.key == pygame.K_SPACE:
+                    elif event.key in (pygame.K_SPACE, pygame.K_F3):
                         show_debug_display = not show_debug_display
-            
+                    elif event.key == pygame.K_m:
+                        pygame.display.iconify()
+
             sprites.update()
             sprites.draw(surface)
 
@@ -118,7 +118,7 @@ class LoadingScreen:
                 debug_text = font.render(debug_message, True, (230,230,255), (0,0,0,150))
                 surface.blit(debug_text, (10, 10))
 
-                percentage_text = font.render(f"{progress:.1%} (display {loading_bar.get_display_progress():.1%})", True, (230,230,255), (0,0,0,150))
+                percentage_text = font.render(f"{progress:.1%}", True, (230,230,255), (0,0,0,150))
                 surface.blit(percentage_text, (10, 50))
 
                 time_text = font.render(f"{time.time() - start:.1f} seconds...", True, (230,230,255), (0,0,0,150))
@@ -176,12 +176,14 @@ class LoadingBar(pygame.sprite.Sprite):
     def set_percentage_per_second(self, percentage_per_second: float) -> None:
         self.max_progress_change_per_frame = percentage_per_second / FPS
 
-    def set_progress(self, progress: float) -> None:
+    def set_progress(self, progress: float, force_display: bool = False) -> None:
         self.progress = progress
-    
+        if force_display:
+            self.displayed_progress = progress
+
     def get_progress(self) -> float:
         return self.progress
-    
+
     def get_display_progress(self) -> float:
         return self.displayed_progress
 
