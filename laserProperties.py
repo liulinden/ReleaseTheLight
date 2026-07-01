@@ -60,3 +60,12 @@ def getLaserEXPL(attributes:LaserAttributes, firstHit:bool):
         return attributes.baseXPL*attributes.firstHitXPLMultiplier
     else:
         return attributes.baseXPL
+    
+def filterCharges(filterType,charges):
+    match filterType:
+        case "white":
+            return charges
+        case "blue":
+            return {"white": 0, "blue": charges["white"]+charges["blue"], "red":0}
+        case "red":
+            return {"white": 0, "blue": 0, "red": charges["white"]+charges["red"]}
