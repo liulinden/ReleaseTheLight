@@ -17,6 +17,33 @@ laserImpactIMGsRaw=[]  # raw unscaled images, loaded in init()
 animationLengths = {"Idle":8,"Run":8,"Backpedal":8,"Falling":1,"Jumping":1}
 animationFPS=13
 
+def filterCharges(filterType,charges):
+    match filterType:
+        case "white":
+            return charges
+        case "blue":
+            return {"white": 0, "blue": charges["white"]+charges["blue"], "red":0}
+        case "red":
+            return {"white": 0, "blue": 0, "red": charges["white"]+charges["red"]}
+
+filterFeeds={
+    "white":{
+        "white": (1,0,0),
+        "blue": (0,1,0),
+        "red": (0,0,1)
+    },
+        "blue":{
+        "white": (0,1,0),
+        "blue": (0,1,0),
+        "red": (0,0,0)
+    },
+    "red":{
+        "white": (0,0,1),
+        "blue": (0,0,0),
+        "red": (0,0,1)
+    }
+}
+
 def init():
     global playerIMGs, laserImpactIMGsRaw
 
@@ -121,7 +148,7 @@ class Player:
         self.armOffsetX=0
         self.armOffsetY=0
 
-        self.chargeFilter="white"
+        self.filterType="white"
         self.laserTimer=0
         self.laserRamps=0
         self.laserFirstHit=False
@@ -222,9 +249,17 @@ class Player:
 
         sumAdded=0
         for color in self.charges:
-            addend= chargeDistribution[color]*addedCharge
-            self.charges[color]+=addend
-            sumAdded+=addend
+            add=chargeDistribution[color]*addedCharge
+
+            addw=add*filterFeeds[self.filterType][color][0]
+            addb=add*filterFeeds[self.filterType][color][1]
+            addr=add*filterFeeds[self.filterType][color][2]
+
+            self.charges["white"]+=addw
+            self.charges["blue"]+=addb
+            self.charges["red"]+=addr
+
+            sumAdded+=addw+addb+addr
         
         totalCharge=sum(self.charges.values())
         overflow=0
@@ -237,18 +272,33 @@ class Player:
         return sumAdded-overflow
 
     def loseCharge(self,loss):
-        nSplit = 3
-        while nSplit>0:
-            splitLoss= loss/nSplit
-            for charge in self.charges:
-                if 0 < self.charges[charge] < splitLoss:
-                    loss-=self.charges[charge]
-                    self.charges[charge]=0
-                    nSplit-=1
-                    break
-            for charge in self.charges:
-                if self.charges[charge]>0: self.charges[charge]-=splitLoss
-            nSplit=0
+        if self.filterType=="white":
+            nSplit = 3
+            while nSplit>0:
+                splitLoss= loss/nSplit
+                for charge in self.charges:
+                    if 0 < self.charges[charge] < splitLoss:
+                        loss-=self.charges[charge]
+                        self.charges[charge]=0
+                        nSplit-=1
+                        break
+                for charge in self.charges:
+                    if self.charges[charge]>0: self.charges[charge]-=splitLoss
+                nSplit=0
+        else:
+            if loss < self.charges[self.filterType]:
+                self.charges[self.filterType]-=loss
+            else:
+                loss-=self.charges[self.filterType]
+                self.charges[self.filterType]=0
+                if loss < self.charges["white"]:
+                    self.charges["white"]-=loss
+                else:
+                    loss-=self.charges["white"]
+                    self.charges["white"]=0
+                    self.filterType="white"
+                    self.loseCharge(loss)
+
         if sum(self.charges.values())>0:
             return False
         self.resetPlayer()
@@ -272,6 +322,24 @@ class Player:
             if self.immunityTimer<0:
                 self.immunityTimer=0
         
+        if events[pygame.K_RIGHT]:
+            match self.filterType:
+                case "white":
+                    self.filterType="blue"
+                case "blue":
+                    self.filterType="red"
+                case "red":
+                    self.filterType="white"
+        
+        if events[pygame.K_LEFT]:
+            match self.filterType:
+                case "white":
+                    self.filterType="red"
+                case "blue":
+                    self.filterType="white"
+                case "red":
+                    self.filterType="blue"
+
         if keysDown["mouse"] and len(self.laser)==0 and self.laserTimer<=self.laserAttributes.cooldown/4:
             newLaser=laser.Laser()
             self.laser=[newLaser]

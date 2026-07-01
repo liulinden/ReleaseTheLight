@@ -119,7 +119,7 @@ class Game:
             mouseX,mouseY=pygame.mouse.get_pos()
             
             # player inputs
-            self.events = {"mouseDown":False,"mouseUp":False}
+            self.events = {"mouseDown":False,"mouseUp":False,pygame.K_RIGHT:False,pygame.K_LEFT:False}
             for event in pygame.event.get():
 
                 # close game
@@ -199,7 +199,7 @@ class Game:
                 self.gameWorld.healNests()
                 self.gameWorld.removeEnemies()
 
-            self.chargeDisplay.update(practicalFPS,self.gameWorld.player.charges,self.gameWorld.player.chargeCapacity,self.gameWorld.player.y)
+            self.chargeDisplay.update(practicalFPS,self.gameWorld.player)
 
             self.updateCamPos(practicalFPS,self.zoom,self.gameWorld.player.x,self.gameWorld.player.y,self.gameWorld.player.xSpeed,self.gameWorld.player.ySpeed)
             #world wrapping
