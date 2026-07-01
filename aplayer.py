@@ -158,6 +158,7 @@ class Player:
 
         self.chargeCapacity=100
         self.charges={"white":self.chargeCapacity,"blue":0,"red":0}
+        self.practicalCharges={"white":self.chargeCapacity,"blue":0,"red":0}
         self.maxCharge=500
         self.immunityTimer=0
         self.immunityTime=500
@@ -193,6 +194,8 @@ class Player:
         self.xSpeed=0
         self.ySpeed=0
         self.setCharges(max(150,self.chargeCapacity*2/3),0,0)
+        self.filterType="white"
+        self.practicalCharges=filterCharges(self.filterType,self.charges)
       
     def updateCostume(self,frameLength, mousePos):
         self.animationTimer=(self.animationTimer+frameLength)%(1000/animationFPS*(animationLengths[self.animationType]))
@@ -234,11 +237,11 @@ class Player:
         self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2
 
     def updateColor(self):
-        cw,cb,cr=self.charges.values()
+        cw,cb,cr=self.practicalCharges.values()
         self.color=chargesToColor(cw,cb,cr,self.maxCharge)
 
     def updateLaserStats(self):
-        laserProperties.setLaserAttributes(self.laserAttributes,self.charges,self.maxCharge)
+        laserProperties.setLaserAttributes(self.laserAttributes,self.practicalCharges,self.maxCharge)
 
     def setCharges(self, white, blue, red):
         self.charges["white"]=white
@@ -268,6 +271,8 @@ class Player:
             overflow=totalCharge-self.chargeCapacity
         
         self.loseCharge(overflow)
+
+        self.practicalCharges=filterCharges(self.filterType,self.charges)
         
         return sumAdded-overflow
 
@@ -299,6 +304,7 @@ class Player:
                     self.filterType="white"
                     self.loseCharge(loss)
 
+        self.practicalCharges=filterCharges(self.filterType,self.charges)
         if sum(self.charges.values())>0:
             return False
         self.resetPlayer()
@@ -399,6 +405,7 @@ class Player:
                 if nest.stage==nest.maxStage and nest.withinEffectRadius(self.x,self.y) and nest.charge>0:
                     chargeGain=self.addCharge(nest.chargeRate*frameLength, nest.charging,nest.maxCharge)
                     nest.loseCharge(chargeGain)
+
         self.updateLaserStats()
 
         if self.x<50:

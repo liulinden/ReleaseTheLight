@@ -118,7 +118,7 @@ class ChargeDisplay():
                 else:
                     self.playerCharges[color]+=chargeChange/abs(chargeChange)*frameLength/16
         
-        cw,cb,cr=self.playerCharges.values()
+        cw,cb,cr=player.practicalCharges.values()
         self.color=chargesToColor(cw,cb,cr)
 
         if totalChargeChange>0.1:
@@ -183,7 +183,6 @@ class ChargeDisplay():
                 arcAngle=newAngle
         outLineAngle=arcAngle
         for color in orderCharges[self.filterType][1]:
-            print(self.filterType,color,orderCharges[self.filterType][1])
             if self.playerCharges[color]>0:
                 newAngle=arcAngle-2*math.pi*(self.playerCharges[color])/500
                 def getChannel(index): return chargeTuples[color][index]*self.playerCharges[color]
