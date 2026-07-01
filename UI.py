@@ -43,9 +43,9 @@ def getOuterTrianglePoints(center,angle):
     return (polarToRect(77,angle-math.pi*0.5,center),polarToRect(67,angle-math.pi*0.52,center),polarToRect(67,angle-math.pi*0.48,center))
 
 orderCharges={
-    "white": (("white","blue","red"),()),
-    "blue": (("blue","white"),("red")),
-    "red": (("red","white"),("blue"))
+    "white": (["white","blue","red"],[]),
+    "blue": (["blue","white"],["red"]),
+    "red": (["red","white"],["blue"])
     }
         
 class HealthBar():
@@ -183,6 +183,7 @@ class ChargeDisplay():
                 arcAngle=newAngle
         outLineAngle=arcAngle
         for color in orderCharges[self.filterType][1]:
+            print(self.filterType,color,orderCharges[self.filterType][1])
             if self.playerCharges[color]>0:
                 newAngle=arcAngle-2*math.pi*(self.playerCharges[color])/500
                 def getChannel(index): return chargeTuples[color][index]*self.playerCharges[color]
