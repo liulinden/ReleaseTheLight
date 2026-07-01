@@ -1,8 +1,6 @@
 # imports
 import pygame ,world, random,UI, math, loading_screen, threading
 from asset_manager import load_assets
-import config
-import cProfile
 
 class Game:
     def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, dev_mode = False, loading_screen: loading_screen.LoadingScreen = None):
@@ -74,10 +72,6 @@ class Game:
 
     def setup(self):
 
-        if config.PROFILER_FOR_SETUP:
-            profile = cProfile.Profile()
-            profile.enable()
-        
         self.loading_screen.put(0.0, "Starting game setup")
 
         asset_loading, world_loading, _ = self.loading_screen.subsections(0, 0.3, 0.9999)
@@ -105,18 +99,9 @@ class Game:
 
         self.loading_screen.put(1.0, "Game setup complete.")
 
-        if config.PROFILER_FOR_SETUP:
-            profile.disable()
-            print("Dumping profiler stats to setup.prof")
-            profile.dump_stats("setup.prof")
-
         threading.Thread(target=self.gameWorld.generateNextLayer, daemon=True).start()
 
     def run(self):
-
-        if config.PROFILER_FOR_RUN:
-            profiler = cProfile.Profile()
-            profiler.enable()
 
         running = True
         
@@ -279,9 +264,3 @@ class Game:
 
             # tick game
             self.clock.tick(self.FPS)
-
-        if config.PROFILER_FOR_RUN:
-            profiler.disable()
-            print("Dumping profiler stats to run.prof")
-            profiler.dump_stats("run.prof")
-            
