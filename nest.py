@@ -1,6 +1,7 @@
 import pygame, random, math, enemies, os, UI
 from util import chargesToColor
-from asset_manager import get_asset
+from global_assets import get_asset
+
 
 def loadNestIMGSet(id, stages):
     IMGs = []

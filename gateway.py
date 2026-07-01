@@ -1,7 +1,8 @@
 import pygame, os, math
 from structure import Structure
 from UI import HealthBar
-from asset_manager import get_asset
+from global_assets import get_asset
+
 
 # ---------------------------------------------------------------------------
 # Gateway Y positions — one per boundary between layers.

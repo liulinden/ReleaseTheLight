@@ -1,5 +1,3 @@
-
-
 DEV_MODE = True
 
 WINDOW_NAME = "Release the Light"

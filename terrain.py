@@ -1,4 +1,5 @@
-from asset_manager import get_asset
+from global_assets import get_asset
+
 import pygame, random, math, nest, particles, os, time, threading, time
 from gateway import GATEWAY_Y_POSITIONS, Gateway
 from loading_screen import LoadingScreen

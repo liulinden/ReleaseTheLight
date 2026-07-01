@@ -42,7 +42,8 @@ class AssetManager:
         self.unused = set(self.images.keys())
 
         if self.use_cache:
-            loading_screen.put(1.0, "Saving asset cache")
+            if loading_screen:
+                loading_screen.put(1.0, "Saving asset cache")
             self._save_to_cache(paths)
 
         if verbose:
@@ -125,20 +126,3 @@ class AssetManager:
                 pickle.dump(blob, f, protocol=pickle.HIGHEST_PROTOCOL)
         except OSError as e:
             print(f"[assets] could not write cache: {e}")
-
-asset_manager = AssetManager("assets", use_cache=True)
-
-def load_assets(loading_screen=None) -> None:
-    asset_manager.load(loading_screen=loading_screen)
-
-def get_asset(name: str) -> pygame.Surface:
-    return asset_manager.get(name)
-
-
-if __name__ == "__main__":
-    pygame.init()
-    pygame.display.set_mode((1, 1), pygame.HIDDEN)
-
-    asset_manager.load()
-
-    pygame.quit()

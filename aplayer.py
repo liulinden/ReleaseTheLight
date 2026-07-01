@@ -1,6 +1,6 @@
 import pygame,math,terrain,laser,laserProperties
 from util import rotateAndGetOffset, rgbBound, channelBound, chargesToColor
-from asset_manager import get_asset
+from global_assets import get_asset
 
 
 SPRITE_WIDTH=40

@@ -1,13 +1,11 @@
-import pathlib
 import time
 import multiprocessing
 from multiprocessing import synchronize
-import config
 
 import pygame
 
-ASSETS = pathlib.Path("loading_assets")
-GAME_ASSETS = pathlib.Path("assets")
+import config
+from asset_manager import AssetManager
 
 FPS = 24 # double animation time
 
@@ -16,7 +14,7 @@ class UserQuitDuringLoadingException(Exception):
 
 class LoadingScreen:
 
-    debug_info = ""
+    assets = AssetManager("loading_assets", use_cache=True)
 
     def __init__(self, *, _queue: multiprocessing.Queue = None, _has_quit_event: synchronize.Event = None,
                   start_progress=0.0, end_progress=1.0, dev_mode=False) -> None:
@@ -66,6 +64,9 @@ class LoadingScreen:
         pygame.quit()
 
     def _run(self, surface: pygame.Surface) -> bool:
+
+        LoadingScreen.assets.load()
+
         clock = pygame.time.Clock()
 
         title_spinner = TitleSpinner(int(surface.get_height() * (2/3)), 12)
@@ -140,7 +141,7 @@ class TitleSpinner(pygame.sprite.Sprite):
 
         self.frames: list[pygame.Surface] = []
         for i in range(8):
-            frame = pygame.image.load(ASSETS / f"frame_{i}.webp").convert_alpha()
+            frame = LoadingScreen.assets.get(f"frame_{i}")
             frame = pygame.transform.scale(frame, (width, width * frame.get_height() // frame.get_width()))
             self.frames.append(frame)
 
@@ -203,6 +204,6 @@ class GradientSurface(pygame.sprite.Sprite):
     def __init__(self, size: int) -> None:
         super().__init__()
         
-        self.image = pygame.image.load(ASSETS / "VignetteGradientTitle.webp").convert_alpha()
+        self.image = LoadingScreen.assets.get("VignetteGradientTitle")
         self.image = pygame.transform.scale(self.image, (size, size))
         self.rect = self.image.get_rect()

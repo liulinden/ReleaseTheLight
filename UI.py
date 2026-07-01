@@ -1,6 +1,7 @@
 import pygame,math,os
 
-from asset_manager import get_asset
+from global_assets import get_asset
+
 
 
 chargeIcon=None

@@ -1,5 +1,6 @@
 import pygame, math, random, os, UI
-from asset_manager import get_asset
+from global_assets import get_asset
+
 
 # FIX 2: images loaded in init() after display exists
 lightGradient = None

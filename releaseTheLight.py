@@ -1,6 +1,6 @@
 # imports
 import pygame ,world, random,UI, math, loading_screen, threading
-from asset_manager import load_assets
+from global_assets import load_assets
 
 class Game:
     def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, dev_mode = False, loading_screen: loading_screen.LoadingScreen = None):

@@ -1,5 +1,5 @@
 # imports
-from asset_manager import get_asset
+from global_assets import get_asset
 import pygame, random, terrain, decoration, aplayer, lighting, math, os, time, enemies, nest, laser, gateway, UI, loading_screen
 from util import rotateAndGetOffset
 
