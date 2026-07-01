@@ -17,7 +17,6 @@ class Laser:
         self.sinWaveOffset = 0
         self.timer = 0
         self.laserTime = 400
-        self.laserWidth = 10
         self.maxLength = 400
         self.collision = []
         self.damageFrame = False
@@ -25,7 +24,6 @@ class Laser:
         self.laserTarget = None
         self.previousTarget = None
 
-        # step size for ray march — 5px won't skip through any realistic terrain
         self._step = 1
 
     def getLaserPoints(self, n_points):
@@ -50,24 +48,34 @@ class Laser:
         distance = 0
 
         while distance < self.maxLength:
-            wx = self.startX + dx * distance
-            wy = self.startY + dy * distance
+            wx = int(self.startX + dx * distance)
+            wy = int(self.startY + dy * distance)
 
-            if terrain.laserCollideRect(pygame.Rect(wx, wy, 1, 1)):
-                hitRect = pygame.Rect(wx - self.laserWidth / 2,
-                                      wy - self.laserWidth / 2,
-                                      self.laserWidth, self.laserWidth)
+            if terrain.laserCollidePoint(wx,wy):
                 # nest check: AABB pre-screen then precise pixel sample from nest's hitbox image
                 hitNest = None
                 for n in terrain._activeNests():
-                    if n.close(wx, wy, self.laserWidth / 2):
+                    if n.close(wx, wy, 5):
                         # precise: sample nest's zoom=1 hitbox at local coordinates
-                        lx = int(wx - n.left)
-                        ly = int(wy - n.top)
-                        if 0 <= lx < int(n.size) and 0 <= ly < int(n.size):
-                            if n.resizedHitboxes[1].get_at((lx, ly))[3] > 128:
-                                hitNest = n
-                                break
+                        l = int(wx - n.left)-1
+                        t = int(wy - n.top)-1
+                        r = l+2
+                        b = t+2
+                        for lx in range(l,r+1):
+                            for ly in (t,b):
+                                if 0 <= lx < int(n.size) and 0 <= ly < int(n.size):
+                                    if n.resizedHitboxes[1].get_at((lx, ly))[3] > 128:
+                                        hitNest = n
+                                        break
+                        for ly in range(t,b+1):
+                            for ly in (l,r):
+                                if 0 <= lx < int(n.size) and 0 <= ly < int(n.size):
+                                    if n.resizedHitboxes[1].get_at((lx, ly))[3] > 128:
+                                        hitNest = n
+                                        break
+                        if hitNest is not None:
+                            break
+                            
                 if hitNest is not None:
                     self.collision = [(wx, wy), "nests"]
                     self.laserTarget = hitNest
@@ -75,7 +83,7 @@ class Laser:
                     hitEnemy = False
                     for n in terrain._activeNests():
                         for enemy in n.enemies:
-                            if enemy.mode != "Spawn" and hitRect.colliderect(enemy.rect):
+                            if enemy.mode != "Spawn" and enemy.rect.collidepoint(wx,wy):
                                 self.collision = [(wx, wy), "enemies"]
                                 self.laserTarget = enemy
                                 hitEnemy = True
@@ -91,27 +99,10 @@ class Laser:
 
         return distance + step / 2
 
-        dx *= self.laserWidth / 2 / self.length
-        dy *= self.laserWidth / 2 / self.length
-
-        self.collision = []
-
-        rect = pygame.Rect(self.startX - self.laserWidth / 2,
-                           self.startY - self.laserWidth / 2,
-                           self.laserWidth, self.laserWidth)
-        for i in range(math.ceil(self.maxLength / (self.laserWidth / 2))):
-            if terrain.collideRect(rect):
-                self.collision = [rect.center]
-                return angle, i * self.laserWidth / 2
-            rect.x += dx
-            rect.y += dy
-        return angle, self.maxLength
-
     def updateLaser(self, terrain, startX, startY, angle, laserCooldown=0):
         self.startX, self.startY = startX, startY
         self.angle = angle
         self.length = self.getLength(terrain, angle)
-        print(self.laserTarget,self.previousTarget)
         if laserCooldown != 0:
             self.laserTime = laserCooldown
         return self.laserTarget is self.previousTarget and not self.laserTarget is None

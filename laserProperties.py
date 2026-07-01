@@ -17,10 +17,10 @@ class LaserAttributes:
     firstHitKBMultiplier:float
     firstHitXPLMultiplier:float
 
-base=LaserAttributes(10,0.8,0.1,20,500,1,20,0.3,1,20,20,0.5,1.5,0.5)
+base=LaserAttributes(10,0.8,0.15,20,500,1,20,0.3,1,20,20,0.5,1.5,0.5)
 maxWhite=LaserAttributes(25,2,0.3,40,300,1,30,0.3,1,30,30,0.5,2,0.5)
-maxBlue=LaserAttributes(30,3,0.5,30,400,1,20,0.3,1,20,50,0.5,3,0.5)
-maxRed=LaserAttributes(5,5,0.1,60,500,0.2,20,1,1,50,20,0.8,1.5,0.8)
+maxBlue=LaserAttributes(30,3,0.8,35,400,1,20,0.3,1,20,50,0.5,3,0.5)
+maxRed=LaserAttributes(5,5,0.15,60,500,0.2,20,1,1,50,20,0.8,1.5,0.8)
 
 def setLaserAttributes(attributes:LaserAttributes, charges, maxCharge=500):
 

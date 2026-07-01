@@ -252,7 +252,7 @@ class Game:
             previousTime=pygame.time.get_ticks()
 
             if self.showScreenEffectStats:
-                fps_text = f"FPS: {self.clock.get_fps():.0f} Shake: {self.shake:.2f} Tilt: {self.tilt:.2f}"
+                fps_text = f"FPS: {self.clock.get_fps():.0f} Shake: {self.shake:.2f} Tilt: {self.tilt:.2f} Ramp: {self.gameWorld.player.laserRamps}"
             else:
                 fps_text = f"FPS: {self.clock.get_fps():.0f}"
             text_surf = self.font.render(fps_text, True, (255,255,255))

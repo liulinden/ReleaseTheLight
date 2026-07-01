@@ -288,9 +288,9 @@ class Player:
             locked= lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+self.laserAttributes.distance*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+self.laserAttributes.distance*math.sin(-self.armAngle),-self.armAngle)
             lase.tick(frameLength)
             if lase.damageFrame:
+                print(lase.previousTarget,lase.laserTarget)
                 if not locked:
                     self.laserRamps=0
-                    print(lase.previousTarget,lase.laserTarget)
                 if lase.collision:
                     point= lase.collision[0]
                     x,y=point

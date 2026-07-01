@@ -965,12 +965,12 @@ class Terrain:
     def collideRect(self, rect):
         return self._sampleRect(rect)
 
-    def laserCollideRect(self, rect):
-        if self._sampleChunk(float(rect.centerx), float(rect.centery)):
+    def laserCollidePoint(self, x, y):
+        if self._sampleChunk(x,y):
             return True
         for n in self._activeNests():
             for enemy in n.enemies:
-                if enemy.mode != "Spawn" and rect.colliderect(enemy.rect):
+                if enemy.mode != "Spawn" and enemy.rect.collidepoint(x,y):
                     return True
         return False
 

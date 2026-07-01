@@ -74,7 +74,7 @@ class Nest:
         if 1 not in self._draw_filter:
             self._draw_filter[1] = pygame.Surface((size, size), flags=pygame.SRCALPHA)
 
-        self.maxHealth = self.y * 120 * (random.random()+0.5) / worldHeight
+        self.maxHealth = self.y * 200 * (random.random()+0.2) / worldHeight
         if self.nestType == "white":
             self.maxHealth *= 1.2
             self.maxHealth += 10
@@ -182,7 +182,7 @@ class Nest:
                     directHit = any(lase.laserTarget is self for lase in player.laser)
                     damage = pow if directHit else pow*falloff
                     self.dealDamage(damage, cTerrain, player)
-                    newParticles.append([x, y, damage*10])
+                    newParticles.append([x, y, self.size/(5 if directHit else 10)])
                     self.healthBar.trigger()
         return newParticles
 

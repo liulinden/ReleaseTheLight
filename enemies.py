@@ -237,7 +237,7 @@ class Enemy:
                 
                 for lase in player.laser:
                     if lase.laserTarget is self:
-                        cTerrain.particles.spawnMiningParticles(10, self.color, pow*10, x, y)
+                        cTerrain.particles.spawnMiningParticles(10, self.color, self.size/5, x, y)
                         if self.dealDamage(pow):
                             return True
                     else:
@@ -245,7 +245,7 @@ class Enemy:
                         dy = self.y - y
                         d = math.sqrt(dx ** 2 + dy ** 2)
                         if d < r + self.r:
-                            cTerrain.particles.spawnMiningParticles(5, self.color, pow*falloff*10, x, y)
+                            cTerrain.particles.spawnMiningParticles(5, self.color, self.size/10, x, y)
                             if self.dealDamage(pow*falloff):
                                 return True
 
