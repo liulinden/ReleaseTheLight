@@ -5,7 +5,7 @@ import config
 import cProfile
 
 class Game:
-    def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False, loading_screen: loading_screen.LoadingScreen = None):
+    def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, dev_mode = False, loading_screen: loading_screen.LoadingScreen = None):
 
         self.set_window(window)
 
@@ -13,7 +13,7 @@ class Game:
  
         # constants
         self.FPS = FPS
-        if developingMode:
+        if dev_mode:
             self.DEFAULT_ZOOMS = [0.1,1,1.5]
         else:
             self.DEFAULT_ZOOMS = [1,1.5]
@@ -30,7 +30,7 @@ class Game:
         # set up variables
         self.mode = "play"
 
-        self.developingMode= developingMode
+        self.developingMode= dev_mode
         self.loading_screen = loading_screen
 
     def set_window(self, window: pygame.Surface):
