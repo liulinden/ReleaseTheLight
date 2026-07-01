@@ -18,7 +18,7 @@ def main():
     pygame.display.set_caption(config.WINDOW_NAME)
     pygame.display.set_icon(pygame.image.load(config.WINDOW_ICON_PATH))
 
-    game=Game(pygame.display.set_mode((0,0), pygame.HIDDEN),FPS=100,fullWorld=False,loading_screen=loading_screen)
+    game=Game(pygame.display.set_mode((0,0), pygame.HIDDEN),FPS=100,fullWorld=False,loading_screen=loading_screen,dev_mode=config.DEV_MODE)
 
     try:
         game.setup()
