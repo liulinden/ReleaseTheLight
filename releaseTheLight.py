@@ -1,13 +1,11 @@
 # imports
 import pygame ,world, random,UI, math, loading_screen, threading
 from asset_manager import load_assets
-import asset_manager
 
 class Game:
     def __init__(self, window: pygame.Surface, FPS = 60, fullWorld = True, developingMode = False, loading_screen: loading_screen.LoadingScreen = None):
 
-        self.window = window
-        self.window_width,self.window_height=window.get_size()
+        self.set_window(window)
 
         self.font = pygame.font.SysFont('Arial', 30)
  
