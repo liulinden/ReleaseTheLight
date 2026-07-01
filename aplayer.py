@@ -121,6 +121,7 @@ class Player:
         self.armOffsetX=0
         self.armOffsetY=0
 
+        self.chargeFilter="white"
         self.laserTimer=0
         self.laserRamps=0
         self.laserFirstHit=False
