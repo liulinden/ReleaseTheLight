@@ -750,7 +750,7 @@ class Terrain:
         y = max(yTop + max_airpocket_radius, min(yBottom - max_airpocket_radius, y))
         if size == 0:
             size = random.randint(100, 100 + (y * 150) // self.worldHeight)
-        newNest = nest.Nest(self.defaultZooms, self.worldHeight, nestType, x, y, size)
+        newNest = nest.Nest(self.defaultZooms, self.worldHeight, layerIndex, nestType, x, y, size)
         rect = newNest.getRect()
         for cnest in self.nests[layerIndex]:
             if rect.colliderect(cnest.getRect()):
