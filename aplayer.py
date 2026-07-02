@@ -149,6 +149,7 @@ class Player:
         self.armOffsetY=0
 
         self.filterType="white"
+        self.filterChangeRight=True
         self.laserTimer=0
         self.laserRamps=0
         self.laserFirstHit=False
@@ -329,6 +330,7 @@ class Player:
                 self.immunityTimer=0
         
         if events[pygame.K_RIGHT]:
+            self.filterChangeRight=True
             match self.filterType:
                 case "white":
                     self.filterType="blue"
@@ -338,6 +340,7 @@ class Player:
                     self.filterType="white"
         
         if events[pygame.K_LEFT]:
+            self.filterChangeRight=False
             match self.filterType:
                 case "white":
                     self.filterType="red"

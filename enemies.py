@@ -58,7 +58,7 @@ class Enemy:
         self.size = size
         self.width, self.height = self.size * 3 / 8, self.size * 3 / 4
         self.maxHealth = health
-        self.damage = self.maxHealth / 3
+        self.damage = self.maxHealth / 2
         self.speed = 1.5
         self.canFly = True
         if random.randint(1, 2) == 1:
