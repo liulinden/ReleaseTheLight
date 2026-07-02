@@ -22,9 +22,9 @@ def filterCharges(filterType,charges):
         case "white":
             return charges
         case "blue":
-            return {"white": 0, "blue": charges["white"]+charges["blue"], "red":0}
+            return {"white": 0, "blue": charges["white"]/2+charges["blue"], "red":0}
         case "red":
-            return {"white": 0, "blue": 0, "red": charges["white"]+charges["red"]}
+            return {"white": 0, "blue": 0, "red": charges["white"]/2+charges["red"]}
 
 filterFeeds={
     "white":{
@@ -32,13 +32,13 @@ filterFeeds={
         "blue": (0,1,0),
         "red": (0,0,1)
     },
-        "blue":{
-        "white": (0,1,0),
+    "blue":{
+        "white": (0,0.5,0),
         "blue": (0,1,0),
         "red": (0,0,0)
     },
     "red":{
-        "white": (0,0,1),
+        "white": (0,0,0.5),
         "blue": (0,0,0),
         "red": (0,0,1)
     }

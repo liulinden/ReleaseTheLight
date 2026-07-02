@@ -101,7 +101,9 @@ class ChargeDisplay():
 
         self.chargeCapacity=player.chargeCapacity
         self.filterType=player.filterType
-        playerCharges=player.charges
+        playerCharges=player.charges.copy()
+        if not player.filterType=="white":
+            playerCharges["white"]/=2
 
         totalCharge=sum(playerCharges.values())
         totalChargeChange=totalCharge-self.playerTotalCharge
