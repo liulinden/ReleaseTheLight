@@ -87,7 +87,7 @@ class Game:
                          pygame.K_a:False,
                          pygame.K_d:False,
                          "mouse":False}
-        self.events = {"mouseDown":False,"mouseUp":False,pygame.K_RIGHT:False,pygame.K_LEFT:False}
+        self.events = {"mouseDown":False,"mouseUp":False,pygame.K_SPACE:False,pygame.K_RIGHT:False,pygame.K_LEFT:False}
 
         self.zoom=self.DEFAULT_ZOOMS[len(self.DEFAULT_ZOOMS)-1]
         self.defaultCamCoords=self.getWorldCenteredCam()[0],-100
@@ -119,7 +119,7 @@ class Game:
             mouseX,mouseY=pygame.mouse.get_pos()
             
             # player inputs
-            self.events = {"mouseDown":False,"mouseUp":False,pygame.K_RIGHT:False,pygame.K_LEFT:False}
+            self.events = {"mouseDown":False,"mouseUp":False,pygame.K_SPACE:False,pygame.K_RIGHT:False,pygame.K_LEFT:False}
             for event in pygame.event.get():
 
                 # close game

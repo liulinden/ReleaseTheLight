@@ -155,7 +155,10 @@ class Player:
         self.laserFirstHit=False
         self.laser=[]
         self.impacts=[]  # active LaserImpact instances
-        self.laserAttributes = laserProperties.LaserAttributes(18,1,0.2,10,400,1,20,0.3,1,20,20,0.5,2,0.5)
+        self.laserAttributes = laserProperties.LaserAttributes(18,1,0.2,10,400,1,20,0.3,1,20,20,0.5,2,0.5,{"white":(0,False),"blue":(0,False),"red":(0,False)})
+
+        self.abilityTimer=0
+        self.abilityCooldown=800
 
         self.chargeCapacity=100
         self.charges={"white":self.chargeCapacity,"blue":0,"red":0}
@@ -242,7 +245,7 @@ class Player:
         self.color=chargesToColor(cw,cb,cr,self.maxCharge)
 
     def updateLaserStats(self):
-        laserProperties.setLaserAttributes(self.laserAttributes,self.practicalCharges,self.maxCharge)
+        laserProperties.setLaserAttributes(self.laserAttributes,self.practicalCharges,self.filterType,self.maxCharge)
 
     def setCharges(self, white, blue, red):
         self.charges["white"]=white
@@ -348,6 +351,31 @@ class Player:
                     self.filterType="white"
                 case "red":
                     self.filterType="blue"
+        
+        if events[pygame.K_SPACE] and self.abilityTimer==0 and self.laserAttributes.passedThresholds[self.filterType][1]:
+            match self.filterType:
+                case "white":
+                    mx,my=mousePos
+                    dx,dy=mx-self.x,my-self.y
+                    d=math.sqrt(dx**2+dy**2)
+                    self.xSpeed=dx/d/1.2
+                    self.ySpeed=dy/d/2
+                    self.abilityTimer=self.abilityCooldown
+                    cTerrain.particles.spawnPulseParticle(self.color,40,self.x,self.y)
+                case "blue":
+                    self.ySpeed-=0.3
+                    cTerrain.newKnockbackCircles.append([self.laserAttributes.baseKB*5,self.x,self.y,self.laserAttributes.KBRange*3, 1])
+                    cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.KBRange*3,self.x,self.y,800)
+                    self.abilityTimer=self.abilityCooldown
+                case "red":
+                    self.ySpeed-=0.3
+                    #explosionSize=self.laserAttributes.baseXPL*3
+                    #cTerrain.addAirPocketClump(self.x, self.y, explosionSize, layerIndex=cTerrain._layerForY(self.y), playerMade=True, spreading=1/5)
+                    #should detect ground and spawn particles if detected
+                    
+                    cTerrain.newPlayerDamageCircles.append([self.laserAttributes.baseDMG,self.x,self.y,self.laserAttributes.DMGRange*2,1])
+                    cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.DMGRange*2,self.x,self.y,800)
+                    self.abilityTimer=self.abilityCooldown
 
         if keysDown["mouse"] and len(self.laser)==0 and self.laserTimer<=self.laserAttributes.cooldown/4:
             newLaser=laser.Laser()
@@ -358,6 +386,9 @@ class Player:
         if events["mouseUp"] and len(self.laser)>0:
             self.laserTimer=self.laser[0].timer
             self.laser=[]
+
+        self.abilityTimer-=frameLength
+        self.abilityTimer=max(0,self.abilityTimer)
 
         self.laserTimer-=frameLength
         self.laserTimer=max(0,self.laserTimer)
@@ -371,13 +402,17 @@ class Player:
                 if lase.collision:
                     point= lase.collision[0]
                     x,y=point
-                    explosionSize=laserProperties.getLaserEXPL(self.laserAttributes,self.laserFirstHit)
+                    explosionSize=laserProperties.getLaserEXPL(self.laserAttributes,self.laserFirstHit,self.laserRamps)
                     cTerrain.addAirPocketClump(x, y, explosionSize, layerIndex=cTerrain._layerForY(y), playerMade=True, spreading=1/5)
                     if lase.collision[1]=="ground":
                         cTerrain.particles.spawnMiningParticles(10,(0,0,0),explosionSize*1.5,x,y)
-                    cTerrain.newKnockbackCircles.append([laserProperties.getLaserKB(self.laserAttributes,self.laserFirstHit),x,y,self.laserAttributes.KBRange, self.laserAttributes.areaKBFalloff])
+                        
+                    cTerrain.newKnockbackCircles.append([laserProperties.getLaserKB(self.laserAttributes,self.laserFirstHit,self.laserRamps),x,y,self.laserAttributes.KBRange, self.laserAttributes.areaKBFalloff])
                     cTerrain.newPlayerDamageCircles.append([laserProperties.getLaserDMG(self.laserAttributes,self.laserFirstHit, self.laserRamps),x,y,self.laserAttributes.DMGRange,self.laserAttributes.areaDMGFalloff])
-                
+                    cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.DMGRange,x,y)
+                    #cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.KBRange,x,y)
+                    #cTerrain.particles.spawnPulseParticle(self.color,explosionSize,x,y)
+
                 self.laserFirstHit=False
                 self.laserRamps+=1
 

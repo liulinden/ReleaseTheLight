@@ -179,7 +179,8 @@ class World:
         self.terrain.drawNestGradients(window_size, layer, frame,
                                        offset_x=offset_x, offset_y=offset_y)
 
-        
+        self.terrain.particles.drawPulseParticles(layer, frame,
+                                             offset_x=offset_x, offset_y=offset_y)
 
         self.drawBackground(scratchLayer, window_size, frame)
 
