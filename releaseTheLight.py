@@ -7,7 +7,7 @@ class Game:
 
         self.set_window(window)
 
-        self.font = pygame.font.SysFont('Arial', 30)
+        self.font = pygame.font.SysFont('Arial', 16)
  
         # constants
         self.FPS = FPS
@@ -111,7 +111,7 @@ class Game:
         self.visibleHitboxes=False
         self.loadingDebug=False
         self.crosshair=False
-        self.showScreenEffectStats=False
+        self.showFPS=self.developingMode
 
         while running:
 
@@ -145,24 +145,26 @@ class Game:
                     if event.key in self.events:
                         self.events[event.key]=True
                     
-                    if event.key== pygame.K_ESCAPE:
+                    if event.key == pygame.K_ESCAPE:
                         self.running=False
                         return
 
-                    # TEMPORARY - zoom in/out
+                    if event.key == pygame.K_F4:
+                        self.showFPS = not self.showFPS
+
                     if self.developingMode:
-                        if event.key== pygame.K_z:
+                        if event.key == pygame.K_z:
                             newZoom=0
                             if self.DEFAULT_ZOOMS.index(self.zoom)==len(self.DEFAULT_ZOOMS)-1:
                                 newZoom=self.DEFAULT_ZOOMS[0]
                             else:
                                 newZoom=self.DEFAULT_ZOOMS[self.DEFAULT_ZOOMS.index(self.zoom)+1]
                             self.setZoom(newZoom,(self.gameWorld.player.x,self.gameWorld.player.y))
-                        elif event.key==pygame.K_i:
+                        elif event.key == pygame.K_i:
                             self.gameWorld.player.addCharge(100,{"white":1,"red":0,"blue":0},500)
-                        elif event.key== pygame.K_0:
+                        elif event.key == pygame.K_0:
                             self.kindVisibility= not self.kindVisibility
-                        elif event.key== pygame.K_h:
+                        elif event.key == pygame.K_h:
                             self.visibleHitboxes=not self.visibleHitboxes
                         elif event.key== pygame.K_t:
                             x,y= self.coordsWindowToWorld((mouseX,mouseY))
@@ -183,8 +185,7 @@ class Game:
                             self.loadingDebug=not self.loadingDebug
                         elif event.key == pygame.K_F1:
                             self.crosshair= not self.crosshair
-                        elif event.key == pygame.K_F2:
-                            self.showScreenEffectStats= not self.showScreenEffectStats
+                        
 
 #                        elif event.key==pygame.K_F5:
 #                            with open("_save.pkl", "wb") as file:
@@ -252,12 +253,9 @@ class Game:
             practicalFPS=max(30,practicalFPS)
             previousTime=pygame.time.get_ticks()
 
-            if self.showScreenEffectStats:
-                fps_text = f"FPS: {self.clock.get_fps():.0f} Shake: {self.shake:.2f} Tilt: {self.tilt:.2f} Ramp: {self.gameWorld.player.laserRamps}"
-            else:
-                fps_text = f"FPS: {self.clock.get_fps():.0f}"
-            text_surf = self.font.render(fps_text, True, (255,255,255))
-            self.window.blit(text_surf, (self.window_width-20-text_surf.get_width(),20))
+            if self.showFPS:
+                text_surf = self.font.render(f"FPS: {self.clock.get_fps():.0f}", True, (255,255,255))
+                self.window.blit(text_surf, (self.window_width-10-text_surf.get_width(),10))
 
             # update window
             pygame.display.flip()
