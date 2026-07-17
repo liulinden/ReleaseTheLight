@@ -66,21 +66,24 @@ class MiningParticle:
 
 
 class PulseParticle:
-    def __init__(self, color, size, x, y, time=600):
+    def __init__(self, color, size, x, y, time=0):
         self.color = color
         self.x = x
         self.y = y
-        self.timer = time
+        self.timer = time if time != 0 else size * 20
         self.size = size
         self.opacity = 150
+
+        if self.timer == 0:
+            self.timer = size*10
 
     def tick(self, frame_length):
         self.timer -= frame_length
         factor = self.timer / (self.timer + frame_length)
         self.size *= factor
         self.opacity *= factor
-        return self.timer <= 0
+        return self.timer <= 5
 
     def draw(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
-        pygame.draw.circle(surface, (self.color[0], self.color[1], self.color[2], 100), ((self.x - left) * zoom + offset_x, (self.y - top) * zoom + offset_y), self.size * zoom)
+        pygame.draw.circle(surface, (self.color[0], self.color[1], self.color[2], 100), ((self.x - left) * zoom + offset_x, (self.y - top) * zoom + offset_y), self.size * zoom, 2)

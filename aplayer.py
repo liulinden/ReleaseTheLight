@@ -408,8 +408,7 @@ class Player:
                         [laserProperties.get_laser_dmg(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.dmg_range, self.laser_attributes.area_dmg_falloff]
                     )
                     c_terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range, x, y)
-                    # cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.KBRange,x,y)
-                    # cTerrain.particles.spawnPulseParticle(self.color,explosionSize,x,y)
+                    c_terrain.particles.spawn_pulse_particle(self.color,self.laser_attributes.kb_range,x,y)
 
                 self.laser_first_hit = False
                 self.laser_ramps += 1
