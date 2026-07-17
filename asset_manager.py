@@ -54,8 +54,8 @@ class AssetManager:
         try:
             self.unused.discard(name)
             return self.images[name]
-        except KeyError:
-            raise KeyError(f"No asset named {name!r}. Available: {sorted(self.images)[:10]}...")
+        except KeyError as e:
+            raise KeyError(f"No asset named {name!r}. Available: {sorted(self.images)[:10]}...") from e
 
     def __getitem__(self, name):
         return self.get(name)

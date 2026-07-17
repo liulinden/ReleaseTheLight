@@ -3,6 +3,7 @@ import math
 import pygame
 
 from global_assets import get_asset
+from util import charges_to_color
 
 charge_icon = None
 light_gradient = None
@@ -15,8 +16,6 @@ def init():
     charge_icon = pygame.transform.scale(get_asset("ChargeIcon"), (80, 80))
     light_gradient = get_asset("LightGradient")
 
-
-from util import charges_to_color
 
 charge_tuples = {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1)}
 
@@ -105,7 +104,7 @@ class ChargeDisplay:
         self.charge_capacity = player.charge_capacity
         self.filter_type = player.filter_type
         player_charges = player.charges.copy()
-        if not self.filter_type == "white":
+        if self.filter_type != "white":
             player_charges["white"] /= 2
             self.charge_capacity -= player_charges["white"]
             if self.filter_type not in self.filters:

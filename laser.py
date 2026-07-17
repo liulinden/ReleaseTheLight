@@ -133,7 +133,7 @@ class Laser:
                 scale = self.length / oglength
                 polygon_points = []
                 for point in laser_part:
-                    if True or point <= self.length:
+                    if True or point <= self.length:  # noqa: SIM222
                         wave_height = self.thickness * math.sin((point + self.sin_wave_offset) * 1.5) * (0.5 + self.timer / self.laser_time)
                         if laser_part.index(point) % (len(laser_part) / 2) == 0:
                             x, y = (point * math.cos(self.angle) * scale, point * math.sin(self.angle) * scale)

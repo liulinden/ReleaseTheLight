@@ -1,7 +1,7 @@
 from elements import Element
 
 
-class Bouncepad(Element):
+class BouncePad(Element):
     def __init__(self, default_zooms, x, y, size):
         super().__init__(x, y, x, y + size / 2, size / 4, True, False, default_zooms)
 

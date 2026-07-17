@@ -96,7 +96,7 @@ class Enemy:
         for zoom in default_zooms:
             zoom_set = {}
             for direction in ["Left", "Right"]:
-                IMGs = {}
+                imgs = {}
 
                 resizedspawns = []
                 for spawn_img in enemy_animations[self.variant_id]["Spawn"]:
@@ -104,7 +104,7 @@ class Enemy:
                     if direction == "Left":
                         resized = pygame.transform.flip(resized, True, False)
                     resizedspawns.append(resized)
-                IMGs["Spawn"] = resizedspawns
+                imgs["Spawn"] = resizedspawns
 
                 resizedwalks = []
                 for walk_img in enemy_animations[self.variant_id]["Walk"]:
@@ -112,7 +112,7 @@ class Enemy:
                     if direction == "Left":
                         resized = pygame.transform.flip(resized, True, False)
                     resizedwalks.append(resized)
-                IMGs["Walk"] = resizedwalks
+                imgs["Walk"] = resizedwalks
 
                 resized_attacks = []
                 for attack_img in enemy_animations[self.variant_id]["Attack"]:
@@ -120,14 +120,14 @@ class Enemy:
                     if direction == "Left":
                         resized = pygame.transform.flip(resized, True, False)
                     resized_attacks.append(resized)
-                IMGs["Attack"] = resized_attacks
+                imgs["Attack"] = resized_attacks
 
                 resized = pygame.transform.scale(enemy_animations[self.variant_id]["AttackHitbox"], (self.size * zoom, self.size * zoom))
                 if direction == "Left":
                     resized = pygame.transform.flip(resized, True, False)
-                IMGs["AttackHitbox"] = resized
+                imgs["AttackHitbox"] = resized
 
-                zoom_set[direction] = IMGs
+                zoom_set[direction] = imgs
             self.resized_im_gs[zoom] = zoom_set
 
             grad_img = pygame.transform.scale(light_gradient, (self.size * 2 * zoom, self.size * 2 * zoom))
@@ -152,12 +152,10 @@ class Enemy:
                 self.mode = "Walk"
                 self.animation_timer = 0
 
-        target_x, target_y = player.x, player.y
-
         if self.mode == "Walk":
-            if self.x < target_x:
+            if self.x < player.x:
                 self.facing = "Right"
-            elif self.x > target_x:
+            elif self.x > player.x:
                 self.facing = "Left"
 
         self.animation_frame = math.floor(self.animation_timer / (1000 / animation_fps))
@@ -272,12 +270,12 @@ class Enemy:
                 if self.can_fly:
                     if abs(player.x - self.x) > self.size / 2 or abs(player.y - self.y) > self.size / 2:
                         rand = random.randint(0, 3)
-                        if (player.x < self.x and not rand == 3) or rand == 0:
+                        if (player.x < self.x and rand != 3) or rand == 0:
                             self.x_speed -= 0.0003 * frame_length * self.speed
                         else:
                             self.x_speed += 0.0003 * frame_length * self.speed
                         rand = random.randint(0, 3)
-                        if (player.y < self.y and not rand == 3) or rand == 0:
+                        if (player.y < self.y and rand != 3) or rand == 0:
                             self.y_speed -= 0.0003 * frame_length * self.speed
                         else:
                             self.y_speed += 0.0003 * frame_length * self.speed
@@ -291,7 +289,7 @@ class Enemy:
                         self.y_speed = -0.3
                     if abs(player.x - self.x) > self.size / 2 or abs(player.y - self.y) > self.size / 2:
                         rand = random.randint(0, 3)
-                        if (player.x < self.x and not rand == 3) or rand == 0:
+                        if (player.x < self.x and rand != 3) or rand == 0:
                             if self.on_ground:
                                 self.x_speed -= 0.001 * frame_length * self.speed
                             else:
@@ -400,4 +398,4 @@ class Enemy:
         surface = pygame.Surface((rect.width, rect.height), flags=pygame.SRCALPHA)
         self.draw_attack_hitbox(surface, [rect.left, rect.y, 1])
         attack_mask = pygame.mask.from_surface(surface)
-        return not (attack_mask.overlap(rect_mask, (0, 0)) == None)
+        return attack_mask.overlap(rect_mask, (0, 0)) is not None

@@ -10,7 +10,7 @@ from asset_manager import AssetManager
 FPS = 24  # double animation time
 
 
-class UserQuitDuringLoadingException(Exception):
+class UserQuitDuringLoadingError(Exception):
     pass
 
 
@@ -35,7 +35,7 @@ class LoadingScreen:
 
     def put(self, progress: float, msg: str = "") -> None:
         if self.is_quit():
-            raise UserQuitDuringLoadingException("Loading screen has been quit.")
+            raise UserQuitDuringLoadingError("Loading screen has been quit.")
         self.queue.put((self._interpolate_progress(progress), msg))
 
     def is_quit(self) -> bool:
@@ -47,7 +47,7 @@ class LoadingScreen:
         return LoadingScreen(_queue=self.queue, _has_quit_event=self.has_quit_event, start_progress=start_at, end_progress=end_at, dev_mode=self.dev_mode)
 
     def subsections(self, *subsections: float) -> list["LoadingScreen"]:
-        return [self.subsection(start_at, end_at) for start_at, end_at in zip(subsections, subsections[1:] + (1.0,))]
+        return [self.subsection(start_at, end_at) for start_at, end_at in zip(subsections, subsections[1:] + (1.0,), strict=True)]
 
     def run(self):
 

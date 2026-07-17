@@ -10,10 +10,10 @@ from util import charges_to_color
 
 
 def load_nest_img_set(id, stages):
-    IMGs = []
+    imgs = []
     for i in range(stages):
-        IMGs.append(get_asset("Nest" + str(id) + "_" + str(i + 1)))
-    return IMGs, get_asset("Nest" + str(id) + "Hitbox")
+        imgs.append(get_asset("Nest" + str(id) + "_" + str(i + 1)))
+    return imgs, get_asset("Nest" + str(id) + "Hitbox")
 
 
 # FIX 2: module-level lightGradient and nestIMGs loaded in init() after display exists
@@ -28,13 +28,13 @@ def init():
     nest_im_gs = {}
     nest_hitboxes = {}
     for nest_type, n_stages, variants in [("white", 3, [1, 2, 3, 4]), ("blue", 4, [5, 6]), ("red", 4, [5, 6]), ("sun", 10, [])]:
-        IMGsets = []
+        img_sets = []
         hitboxes = []
         for variant in variants:
-            IMGset, hitbox = load_nest_img_set(variant, n_stages)
-            IMGsets.append(IMGset)
+            img_set, hitbox = load_nest_img_set(variant, n_stages)
+            img_sets.append(img_set)
             hitboxes.append(hitbox)
-        nest_im_gs[nest_type] = IMGsets
+        nest_im_gs[nest_type] = img_sets
         nest_hitboxes[nest_type] = hitboxes
 
 
@@ -67,10 +67,10 @@ class Nest:
         self._gradient_filter = {}
 
         for zoom in default_zooms:
-            IMGs = []
+            imgs = []
             for stage_img in stage_im_gs:
-                IMGs.append(pygame.transform.scale(stage_img, (size * zoom, size * zoom)))
-            self.resized_im_gs[zoom] = IMGs
+                imgs.append(pygame.transform.scale(stage_img, (size * zoom, size * zoom)))
+            self.resized_im_gs[zoom] = imgs
             self.resized_hitboxes[zoom] = pygame.transform.scale(hitbox, (size * zoom, size * zoom))
             grad_img = pygame.transform.scale(light_gradient, (size * zoom, size * zoom))
             self.resized_gradients[zoom] = grad_img
@@ -148,10 +148,7 @@ class Nest:
     def draw(self, surface, frame, hitbox=False, offset_x=0, offset_y=0):
         cam_x, cam_y, zoom = frame
 
-        if hitbox:
-            img = self.resized_hitboxes[zoom]
-        else:
-            img = self.resized_im_gs[zoom][self.stage]
+        img = self.resized_hitboxes[zoom] if hitbox else self.resized_im_gs[zoom][self.stage]
 
         self.update_color()
 
@@ -174,9 +171,7 @@ class Nest:
                 self.enemies.append(new_enemy)
 
     def within_effect_radius(self, x, y):
-        if math.dist((x, y), (self.x, self.y)) < self.size * 1.5:
-            return True
-        return False
+        return math.dist((x, y), (self.x, self.y)) < self.size * 1.5
 
     def apply_damage_from_circles(self, c_terrain, player):
         new_particles = []
@@ -211,8 +206,4 @@ class Nest:
         self.basic_enemy_cap = math.floor(self.stage * 1.5)
 
     def close(self, x: int, y: int, radius: int):
-        if abs(self.x - x) > radius + self.size / 2:
-            return False
-        if abs(self.y - y) > radius + self.size / 2:
-            return False
-        return True
+        return abs(self.x - x) < radius + self.size / 2 and abs(self.y - y) < radius + self.size / 2

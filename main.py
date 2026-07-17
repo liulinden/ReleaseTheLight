@@ -3,7 +3,7 @@ import multiprocessing
 import pygame
 
 import config
-from loading_screen import LoadingScreen, UserQuitDuringLoadingException
+from loading_screen import LoadingScreen, UserQuitDuringLoadingError
 from releaseTheLight import Game
 
 
@@ -19,11 +19,11 @@ def main():
     pygame.display.set_caption(config.WINDOW_NAME)
     pygame.display.set_icon(pygame.image.load(config.WINDOW_ICON_PATH))
 
-    game = Game(pygame.display.set_mode((0, 0), pygame.HIDDEN), FPS=100, full_world=False, loading_screen=loading_screen, dev_mode=config.DEV_MODE)
+    game = Game(pygame.display.set_mode((0, 0), pygame.HIDDEN), fps=100, full_world=False, loading_screen=loading_screen, dev_mode=config.DEV_MODE)
 
     try:
         game.setup()
-    except UserQuitDuringLoadingException:
+    except UserQuitDuringLoadingError:
         pass
 
     loading_process.join()

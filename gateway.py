@@ -179,10 +179,7 @@ class EntryTile(GatewayTile):
             else:
                 self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_im_gs["entryclosed"], zoom)
                 stage = self.charge_stage  # 0–3
-                if stage == 0:
-                    img = gateway_im_gs["entryclosed"]
-                else:
-                    img = gateway_im_gs[f"entrycharging{stage}"]
+                img = gateway_im_gs["entryclosed"] if stage == 0 else gateway_im_gs[f"entrycharging{stage}"]
                 self._front_surfs[zoom] = self._scaled_img(img, zoom)
             self._back_surfs[zoom] = self._scaled_img(gateway_im_gs["entryback"], zoom)
             self._erase_surfs[zoom] = self._scaled_img(gateway_im_gs["entryerase"], zoom)
@@ -287,7 +284,6 @@ class Gateway:
     def draw(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w = surface.get_width()
-        h = surface.get_height()
         # cull tiles outside view
         view_left = left - self.tile_size
         view_right = left + w / zoom + self.tile_size

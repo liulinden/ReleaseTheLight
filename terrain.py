@@ -77,7 +77,7 @@ def world_yto_layer_y(world_y):
     return world_y - (GATEWAY_Y_POSITIONS)[NUM_LAYERS - 2], NUM_LAYERS - 1
 
 
-def choose_unique_randoms(n: int, low: int, high: int, excluded=[]) -> list[int]:
+def choose_unique_randoms(n: int, low: int, high: int, excluded=()) -> list[int]:
     nums = set()
     excluded = set(excluded)
     while len(nums) < n:
@@ -133,7 +133,7 @@ def _get_cached_rim_scale(src_surface, pocket_type, img_index, radius, zoom):
 
 
 class Terrain:
-    def __init__(self, world_width: int, world_height: int, default_zooms: list = [0.1, 2]):
+    def __init__(self, world_width: int, world_height: int, default_zooms: list = (0.1, 2)):
 
         self.knockback_circles = []
         self.new_knockback_circles = []
@@ -510,10 +510,7 @@ class Terrain:
             row_end = min(math.ceil(y_bottom / visual_chunk_size), len(self.chunk_visuals[zoom]) - 1)
             total_rows = row_end - row_start
 
-            if loading_screen is not None:
-                loading_bar_section = loading_screen.subsection(i / len(self.default_zooms), (i + 1) / len(self.default_zooms))
-            else:
-                loading_bar_section = None
+            loading_bar_section = loading_screen.subsection(i / len(self.default_zooms), (i + 1) / len(self.default_zooms)) if loading_screen is not None else None
 
             for row in range(row_start, row_end):
                 if loading_bar_section is not None:
@@ -756,7 +753,7 @@ class Terrain:
                         return self.add_air_pocket((air_pocket.x + x) / 2, (air_pocket.y + y) / 2, (air_pocket.r + radius) / 2, layer_index=layer_index, recursions=recursions + 1)
         # ──────────────────────────────────────────────────────────────────
 
-        if (not player_made) and random.randint(1, 10) == 1:
+        if (not player_made) and random.randint(1, 10) == 1:  # noqa: SIM108
             new_air_pocket = AirPocket(x, y, radius, default_zooms=self.default_zooms, pocket_type="C1")
         else:
             new_air_pocket = AirPocket(x, y, radius, default_zooms=self.default_zooms)
@@ -1056,7 +1053,7 @@ class Terrain:
 
 
 class AirPocket:
-    def __init__(self, x, y, radius, default_zooms=[0.1, 2], pocket_type="Circle"):
+    def __init__(self, x, y, radius, default_zooms=(0.1, 2), pocket_type="Circle"):
         radius = _snap_radius(radius)
 
         self.x = x

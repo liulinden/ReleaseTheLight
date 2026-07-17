@@ -12,14 +12,14 @@ from global_assets import load_assets
 
 
 class Game:
-    def __init__(self, window: pygame.Surface, FPS=60, full_world=True, dev_mode=False, loading_screen: loading_screen.LoadingScreen = None):
+    def __init__(self, window: pygame.Surface, fps=60, full_world=True, dev_mode=False, loading_screen: loading_screen.LoadingScreen = None):
 
         self.set_window(window)
 
         self.font = pygame.font.SysFont("Arial", 16)
 
         # constants
-        self.FPS = FPS
+        self.fps = fps
         if dev_mode:
             self.DEFAULT_ZOOMS = [0.1, 1, 1.5]
         else:
@@ -62,11 +62,11 @@ class Game:
         self.cam_y -= (zoom_center[1] - self.cam_y) * (zoom_ratio - 1)
         self.zoom = new_zoom
 
-    def update_cam_pos(self, FPS, zoom, player_x, player_y, player_x_speed, player_y_speed):
+    def update_cam_pos(self, fps, zoom, player_x, player_y, player_x_speed, player_y_speed):
         max_y = self.WORLD_HEIGHT - 100
         if zoom != 0.1:
             max_y = self.game_world.terrain.get_first_locked_gateway_y() - self.window_height / zoom / 2
-        frame_length = 1000 / FPS
+        frame_length = 1000 / fps
         self.cam_offset_x += 2 * player_x_speed * frame_length
         self.cam_offset_y += 2 * player_y_speed * frame_length
         self.cam_offset_x = min(max(self.cam_offset_x, self.window_width / zoom * 1 / 6), self.window_width / zoom * (-1 / 6))
@@ -113,7 +113,7 @@ class Game:
 
         previous_time = pygame.time.get_ticks()
         self.kind_visibility = False
-        practical_fps = self.FPS
+        practical_fps = self.fps
         self.visible_hitboxes = False
         self.loading_debug = False
         self.crosshair = False
@@ -159,10 +159,7 @@ class Game:
                     if self.developing_mode:
                         if event.key == pygame.K_z:
                             new_zoom = 0
-                            if self.DEFAULT_ZOOMS.index(self.zoom) == len(self.DEFAULT_ZOOMS) - 1:
-                                new_zoom = self.DEFAULT_ZOOMS[0]
-                            else:
-                                new_zoom = self.DEFAULT_ZOOMS[self.DEFAULT_ZOOMS.index(self.zoom) + 1]
+                            new_zoom = self.DEFAULT_ZOOMS[0] if self.DEFAULT_ZOOMS.index(self.zoom) == len(self.DEFAULT_ZOOMS) - 1 else self.DEFAULT_ZOOMS[self.DEFAULT_ZOOMS.index(self.zoom) + 1]
                             self.set_zoom(new_zoom, (self.game_world.player.x, self.game_world.player.y))
                         elif event.key == pygame.K_i:
                             self.game_world.player.add_charge(100, {"white": 1, "red": 0, "blue": 0}, 500)
@@ -277,4 +274,4 @@ class Game:
             pygame.display.flip()
 
             # tick game
-            self.clock.tick(self.FPS)
+            self.clock.tick(self.fps)

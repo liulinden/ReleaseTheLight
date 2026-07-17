@@ -17,10 +17,10 @@ IMPACT_SIZE = 100  # world-space size in px — easy to change
 IMPACT_FPS = 24
 IMPACT_FRAMES = 7
 
-player_im_gs = {}
-laser_impact_im_gs_raw = []  # raw unscaled images, loaded in init()
-animation_lengths = {"Idle": 8, "Run": 8, "Backpedal": 8, "Falling": 1, "Jumping": 1}
-animation_fps = 13
+PLAYER_IMGS = {}
+LASER_IMPACT_IMGS_RAW = []  # raw unscaled images, loaded in init()
+ANIMATION_LENGTHS = {"Idle": 8, "Run": 8, "Backpedal": 8, "Falling": 1, "Jumping": 1}
+ANIMATION_FPS = 13
 
 
 def filter_charges(filter_type, charges):
@@ -37,34 +37,34 @@ filter_feeds = {"white": {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1
 
 
 def init():
-    global player_im_gs, laser_impact_im_gs_raw
+    global PLAYER_IMGS, LASER_IMPACT_IMGS_RAW
 
-    IMGSet = []
+    img_set = []
     for i in range(5):
-        IMGSet.append(get_asset("PlayerIdle" + str(i + 1)))
+        img_set.append(get_asset("PlayerIdle" + str(i + 1)))
     for i in range(3):
-        IMGSet.append(get_asset("PlayerIdle" + str(4 - i)))
-    player_im_gs["Idle"] = IMGSet
+        img_set.append(get_asset("PlayerIdle" + str(4 - i)))
+    PLAYER_IMGS["Idle"] = img_set
 
-    IMGSet = []
+    img_set = []
     for i in range(8):
-        IMGSet.append(get_asset("PlayerRun" + str(i + 1)))
-    player_im_gs["Run"] = IMGSet
+        img_set.append(get_asset("PlayerRun" + str(i + 1)))
+    PLAYER_IMGS["Run"] = img_set
 
     # TEMPORARY ANIMATION
-    IMGSet = []
+    img_set = []
     for i in range(8):
-        IMGSet.append(get_asset("PlayerRun" + str(8 - i)))
-    player_im_gs["Backpedal"] = IMGSet
+        img_set.append(get_asset("PlayerRun" + str(8 - i)))
+    PLAYER_IMGS["Backpedal"] = img_set
 
-    player_im_gs["Falling"] = [get_asset("PlayerFalling")]
-    player_im_gs["Jumping"] = [get_asset("PlayerJumping")]
+    PLAYER_IMGS["Falling"] = [get_asset("PlayerFalling")]
+    PLAYER_IMGS["Jumping"] = [get_asset("PlayerJumping")]
     # playerIMGs["Sliding"]=[get_asset("PlayerSliding")]
-    player_im_gs["Arm"] = [get_asset("Arm")]
+    PLAYER_IMGS["Arm"] = [get_asset("Arm")]
 
-    laser_impact_im_gs_raw = []
+    LASER_IMPACT_IMGS_RAW = []
     for i in range(1, IMPACT_FRAMES + 1):
-        laser_impact_im_gs_raw.append(get_asset(f"LaserImpact{i}"))
+        LASER_IMPACT_IMGS_RAW.append(get_asset(f"LaserImpact{i}"))
 
 
 class LaserImpact:
@@ -118,7 +118,7 @@ class LaserImpact:
 
 
 class Player:
-    def __init__(self, default_zooms, x, y, dimensions=[10, 30]):
+    def __init__(self, default_zooms, x, y, dimensions=(10, 30)):
         self.spawn_x = x
         self.spawn_y = y
         self.x = x
@@ -164,9 +164,9 @@ class Player:
             zoom_img_sets = {}
             for direction in ["Left", "Right"]:
                 direction_set = {}
-                for animation_type in player_im_gs:
+                for animation_type in PLAYER_IMGS:
                     direction_set[animation_type] = []
-                    for img in player_im_gs[animation_type]:
+                    for img in PLAYER_IMGS[animation_type]:
                         resized_img = pygame.transform.scale(img, (SPRITE_WIDTH * zoom, SPRITE_HEIGHT * zoom))
                         if direction == "Left":
                             resized_img = pygame.transform.flip(resized_img, True, False)
@@ -178,7 +178,7 @@ class Player:
         self._impact_im_gs = {}
         for zoom in self.default_zooms:
             size = int(IMPACT_SIZE * zoom)
-            self._impact_im_gs[zoom] = [pygame.transform.scale(img, (size, size)) for img in laser_impact_im_gs_raw]
+            self._impact_im_gs[zoom] = [pygame.transform.scale(img, (size, size)) for img in LASER_IMPACT_IMGS_RAW]
 
     def reset_player(self):
         self.x = self.spawn_x
@@ -190,7 +190,7 @@ class Player:
         self.practical_charges = filter_charges(self.filter_type, self.charges)
 
     def update_costume(self, frame_length, mouse_pos):
-        self.animation_timer = (self.animation_timer + frame_length) % (1000 / animation_fps * (animation_lengths[self.animation_type]))
+        self.animation_timer = (self.animation_timer + frame_length) % (1000 / ANIMATION_FPS * (ANIMATION_LENGTHS[self.animation_type]))
         previous_animation_type = self.animation_type
 
         target_x, target_y = mouse_pos
@@ -219,11 +219,11 @@ class Player:
         if self.animation_type != previous_animation_type:
             self.animation_timer = 0
 
-        animation_length = animation_lengths[self.animation_type]
+        animation_length = ANIMATION_LENGTHS[self.animation_type]
         if animation_length == 1:
             self.animation_frame = 0
         else:
-            self.animation_frame = math.floor(self.animation_timer / (1000 / animation_fps))
+            self.animation_frame = math.floor(self.animation_timer / (1000 / ANIMATION_FPS))
 
     def update_rect(self):
         self.rect.x, self.rect.y = self.x - self.width / 2, self.y - self.height / 2
@@ -401,7 +401,9 @@ class Player:
                     if lase.collision[1] == "ground":
                         c_terrain.particles.spawn_mining_particles(10, (0, 0, 0), explosion_size * 1.5, x, y)
 
-                    c_terrain.new_knockback_circles.append([laserProperties.get_laser_kb(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.KBRange, self.laser_attributes.area_kb_falloff])
+                    c_terrain.new_knockback_circles.append(
+                        [laserProperties.get_laser_kb(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.KBRange, self.laser_attributes.area_kb_falloff]
+                    )
                     c_terrain.new_player_damage_circles.append(
                         [laserProperties.get_laser_dmg(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.DMGRange, self.laser_attributes.area_dmg_falloff]
                     )

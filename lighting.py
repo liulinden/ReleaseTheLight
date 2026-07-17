@@ -20,16 +20,16 @@ def init():
 
 
 class Lighting:
-    def __init__(self, default_zooms=[0.1, 2]):
+    def __init__(self, default_zooms=(0.1, 2)):
         self.particles = []
         self.resized_light_im_gs = {}
         self.resized_light_im_gs["MistParticles"] = []
         for light_img in mist_particle_im_gs:
             for size in [110, 130, 150]:
-                IMGs = {}
+                imgs = {}
                 for zoom in default_zooms:
-                    IMGs[zoom] = pygame.transform.scale(light_img, (zoom * size, zoom * size))
-                self.resized_light_im_gs["MistParticles"].append(IMGs)
+                    imgs[zoom] = pygame.transform.scale(light_img, (zoom * size, zoom * size))
+                self.resized_light_im_gs["MistParticles"].append(imgs)
         for size in [400, 600, 800]:
             self.resized_light_im_gs["Gradient" + str(size)] = {}
             for zoom in default_zooms:
@@ -97,7 +97,7 @@ class Lighting:
 
 
 class MistParticle:
-    def __init__(self, x, y, IMGs, color=(255, 255, 255)):
+    def __init__(self, x, y, imgs, color=(255, 255, 255)):
         self.color = color
         self.x_speed = (random.random() - 0.5) / 12
         self.y_speed = (random.random() - 0.5) / 12
@@ -110,11 +110,11 @@ class MistParticle:
         # Now we only build the tinted dict once
         self.IMGs = {}
         self._premul = {}
-        for key in IMGs:
-            dimensions = (IMGs[key].get_width(), IMGs[key].get_height())
+        for key in imgs:
+            dimensions = (imgs[key].get_width(), imgs[key].get_height())
             filt = pygame.Surface(dimensions, flags=pygame.SRCALPHA)
             filt.fill((self.color[0], self.color[1], self.color[2], 255))
-            filt.blit(IMGs[key], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            filt.blit(imgs[key], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
             self.IMGs[key] = filt
             self._premul[key] = pygame.Surface(dimensions)  # black opaque, reused each draw
 

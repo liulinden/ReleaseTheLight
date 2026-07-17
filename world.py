@@ -18,7 +18,7 @@ from util import rotate_and_get_offset
 
 
 class World:
-    def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=[0.1, 2], developing_mode=False):
+    def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=(0.1, 2), developing_mode=False):
         self.world_width = world_width
         self.world_height = world_height
         self.default_zooms = default_zooms
@@ -86,9 +86,9 @@ class World:
             for n in self.terrain.nests[li]:
                 n.enemies.clear()
 
-    def tick(self, FPS, window_size, frame, mouse_pos, keys_down, events):
+    def tick(self, fps, window_size, frame, mouse_pos, keys_down, events):
         left, top, zoom = frame
-        frame_length = 1000 / FPS
+        frame_length = 1000 / fps
 
         # update which layers are active this frame
         self.terrain.update_active_layers(self.player.y)
@@ -99,10 +99,10 @@ class World:
         if self.player.tick(frame_length, self.terrain, mouse_pos, keys_down, events):
             return True
 
-        if random.randint(1, math.ceil(FPS / 7)) == 1:
+        if random.randint(1, math.ceil(fps / 7)) == 1:
             self.light.add_mist_particle(self.player.x, self.player.y, color=self.player.color)
         for lase in self.player.laser:
-            if random.randint(1, math.ceil(FPS / max(1, lase.length) * 25)) == 1:
+            if random.randint(1, math.ceil(fps / max(1, lase.length) * 25)) == 1:
                 mist_pos = random.random()
                 self.light.add_mist_particle(lase.start_x + mist_pos * lase.length * math.cos(lase.angle), lase.start_y + mist_pos * lase.length * math.sin(lase.angle), color=self.player.color)
 
@@ -138,7 +138,7 @@ class World:
                         if enemy.tick(frame_length, self.terrain, self.player):
                             del n.enemies[i]
 
-                if random.randint(1, math.ceil(FPS / 6)) == 1 and n.close(x, y, w_r) and n.stage == n.max_stage:
+                if random.randint(1, math.ceil(fps / 6)) == 1 and n.close(x, y, w_r) and n.stage == n.max_stage:
                     self.light.add_mist_particle(n.x, n.y, color=n.color)
 
         self.light.tick_effects(frame_length)

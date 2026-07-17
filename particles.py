@@ -58,9 +58,7 @@ class MiningParticle:
         self.x += self.x_speed * frame_length
         self.y += self.y_speed * frame_length
         self.timer -= frame_length
-        if self.timer <= 0:
-            return True
-        return False
+        return self.timer <= 0
 
     def draw(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
@@ -81,9 +79,7 @@ class PulseParticle:
         factor = self.timer / (self.timer + frame_length)
         self.size *= factor
         self.opacity *= factor
-        if self.timer <= 0:
-            return True
-        return False
+        return self.timer <= 0
 
     def draw(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
