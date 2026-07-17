@@ -17,6 +17,33 @@ laserImpactIMGsRaw=[]  # raw unscaled images, loaded in init()
 animationLengths = {"Idle":8,"Run":8,"Backpedal":8,"Falling":1,"Jumping":1}
 animationFPS=13
 
+def filterCharges(filterType,charges):
+    match filterType:
+        case "white":
+            return charges
+        case "blue":
+            return {"white": 0, "blue": charges["white"]/2+charges["blue"], "red":0}
+        case "red":
+            return {"white": 0, "blue": 0, "red": charges["white"]/2+charges["red"]}
+
+filterFeeds={
+    "white":{
+        "white": (1,0,0),
+        "blue": (0,1,0),
+        "red": (0,0,1)
+    },
+    "blue":{
+        "white": (0,0.5,0),
+        "blue": (0,1,0),
+        "red": (0,0,0)
+    },
+    "red":{
+        "white": (0,0,0.5),
+        "blue": (0,0,0),
+        "red": (0,0,1)
+    }
+}
+
 def init():
     global playerIMGs, laserImpactIMGsRaw
 
@@ -121,16 +148,21 @@ class Player:
         self.armOffsetX=0
         self.armOffsetY=0
 
-        self.chargeFilter="white"
+        self.filterType="white"
+        self.filterChangeRight=True
         self.laserTimer=0
         self.laserRamps=0
         self.laserFirstHit=False
         self.laser=[]
         self.impacts=[]  # active LaserImpact instances
-        self.laserAttributes = laserProperties.LaserAttributes(18,1,0.2,10,400,1,20,0.3,1,20,20,0.5,2,0.5)
+        self.laserAttributes = laserProperties.LaserAttributes(18,1,0.2,10,400,1,20,0.3,1,20,20,0.5,2,0.5,{"white":(0,False),"blue":(0,False),"red":(0,False)})
+
+        self.abilityTimer=0
+        self.abilityCooldown=800
 
         self.chargeCapacity=100
         self.charges={"white":self.chargeCapacity,"blue":0,"red":0}
+        self.practicalCharges={"white":self.chargeCapacity,"blue":0,"red":0}
         self.maxCharge=500
         self.immunityTimer=0
         self.immunityTime=500
@@ -166,6 +198,8 @@ class Player:
         self.xSpeed=0
         self.ySpeed=0
         self.setCharges(max(150,self.chargeCapacity*2/3),0,0)
+        self.filterType="white"
+        self.practicalCharges=filterCharges(self.filterType,self.charges)
       
     def updateCostume(self,frameLength, mousePos):
         self.animationTimer=(self.animationTimer+frameLength)%(1000/animationFPS*(animationLengths[self.animationType]))
@@ -207,11 +241,11 @@ class Player:
         self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2
 
     def updateColor(self):
-        cw,cb,cr=self.charges.values()
+        cw,cb,cr=self.practicalCharges.values()
         self.color=chargesToColor(cw,cb,cr,self.maxCharge)
 
     def updateLaserStats(self):
-        laserProperties.setLaserAttributes(self.laserAttributes,self.charges,self.maxCharge)
+        laserProperties.setLaserAttributes(self.laserAttributes,self.practicalCharges,self.filterType,self.maxCharge)
 
     def setCharges(self, white, blue, red):
         self.charges["white"]=white
@@ -222,9 +256,17 @@ class Player:
 
         sumAdded=0
         for color in self.charges:
-            addend= chargeDistribution[color]*addedCharge
-            self.charges[color]+=addend
-            sumAdded+=addend
+            add=chargeDistribution[color]*addedCharge
+
+            addw=add*filterFeeds[self.filterType][color][0]
+            addb=add*filterFeeds[self.filterType][color][1]
+            addr=add*filterFeeds[self.filterType][color][2]
+
+            self.charges["white"]+=addw
+            self.charges["blue"]+=addb
+            self.charges["red"]+=addr
+
+            sumAdded+=addw+addb+addr
         
         totalCharge=sum(self.charges.values())
         overflow=0
@@ -233,22 +275,40 @@ class Player:
             overflow=totalCharge-self.chargeCapacity
         
         self.loseCharge(overflow)
+
+        self.practicalCharges=filterCharges(self.filterType,self.charges)
         
         return sumAdded-overflow
 
     def loseCharge(self,loss):
-        nSplit = 3
-        while nSplit>0:
-            splitLoss= loss/nSplit
-            for charge in self.charges:
-                if 0 < self.charges[charge] < splitLoss:
-                    loss-=self.charges[charge]
-                    self.charges[charge]=0
-                    nSplit-=1
-                    break
-            for charge in self.charges:
-                if self.charges[charge]>0: self.charges[charge]-=splitLoss
-            nSplit=0
+        if self.filterType=="white":
+            nSplit = 3
+            while nSplit>0:
+                splitLoss= loss/nSplit
+                for charge in self.charges:
+                    if 0 < self.charges[charge] < splitLoss:
+                        loss-=self.charges[charge]
+                        self.charges[charge]=0
+                        nSplit-=1
+                        break
+                for charge in self.charges:
+                    if self.charges[charge]>0: self.charges[charge]-=splitLoss
+                nSplit=0
+        else:
+            if loss < self.charges[self.filterType]:
+                self.charges[self.filterType]-=loss
+            else:
+                loss-=self.charges[self.filterType]
+                self.charges[self.filterType]=0
+                if loss < self.charges["white"]:
+                    self.charges["white"]-=loss
+                else:
+                    loss-=self.charges["white"]
+                    self.charges["white"]=0
+                    self.filterType="white"
+                    self.loseCharge(loss)
+
+        self.practicalCharges=filterCharges(self.filterType,self.charges)
         if sum(self.charges.values())>0:
             return False
         self.resetPlayer()
@@ -272,6 +332,51 @@ class Player:
             if self.immunityTimer<0:
                 self.immunityTimer=0
         
+        if events[pygame.K_RIGHT]:
+            self.filterChangeRight=True
+            match self.filterType:
+                case "white":
+                    self.filterType="blue"
+                case "blue":
+                    self.filterType="red"
+                case "red":
+                    self.filterType="white"
+        
+        if events[pygame.K_LEFT]:
+            self.filterChangeRight=False
+            match self.filterType:
+                case "white":
+                    self.filterType="red"
+                case "blue":
+                    self.filterType="white"
+                case "red":
+                    self.filterType="blue"
+        
+        if events[pygame.K_SPACE] and self.abilityTimer==0 and self.laserAttributes.passedThresholds[self.filterType][1]:
+            match self.filterType:
+                case "white":
+                    mx,my=mousePos
+                    dx,dy=mx-self.x,my-self.y
+                    d=math.sqrt(dx**2+dy**2)
+                    self.xSpeed=dx/d/1.2
+                    self.ySpeed=dy/d/2
+                    self.abilityTimer=self.abilityCooldown
+                    cTerrain.particles.spawnPulseParticle(self.color,40,self.x,self.y)
+                case "blue":
+                    self.ySpeed-=0.3
+                    cTerrain.newKnockbackCircles.append([self.laserAttributes.baseKB*5,self.x,self.y,self.laserAttributes.KBRange*3, 1])
+                    cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.KBRange*3,self.x,self.y,800)
+                    self.abilityTimer=self.abilityCooldown
+                case "red":
+                    self.ySpeed-=0.3
+                    #explosionSize=self.laserAttributes.baseXPL*3
+                    #cTerrain.addAirPocketClump(self.x, self.y, explosionSize, layerIndex=cTerrain._layerForY(self.y), playerMade=True, spreading=1/5)
+                    #should detect ground and spawn particles if detected
+                    
+                    cTerrain.newPlayerDamageCircles.append([self.laserAttributes.baseDMG,self.x,self.y,self.laserAttributes.DMGRange*2,1])
+                    cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.DMGRange*2,self.x,self.y,800)
+                    self.abilityTimer=self.abilityCooldown
+
         if keysDown["mouse"] and len(self.laser)==0 and self.laserTimer<=self.laserAttributes.cooldown/4:
             newLaser=laser.Laser()
             self.laser=[newLaser]
@@ -281,6 +386,9 @@ class Player:
         if events["mouseUp"] and len(self.laser)>0:
             self.laserTimer=self.laser[0].timer
             self.laser=[]
+
+        self.abilityTimer-=frameLength
+        self.abilityTimer=max(0,self.abilityTimer)
 
         self.laserTimer-=frameLength
         self.laserTimer=max(0,self.laserTimer)
@@ -294,13 +402,17 @@ class Player:
                 if lase.collision:
                     point= lase.collision[0]
                     x,y=point
-                    explosionSize=laserProperties.getLaserEXPL(self.laserAttributes,self.laserFirstHit)
+                    explosionSize=laserProperties.getLaserEXPL(self.laserAttributes,self.laserFirstHit,self.laserRamps)
                     cTerrain.addAirPocketClump(x, y, explosionSize, layerIndex=cTerrain._layerForY(y), playerMade=True, spreading=1/5)
                     if lase.collision[1]=="ground":
                         cTerrain.particles.spawnMiningParticles(10,(0,0,0),explosionSize*1.5,x,y)
-                    cTerrain.newKnockbackCircles.append([laserProperties.getLaserKB(self.laserAttributes,self.laserFirstHit),x,y,self.laserAttributes.KBRange, self.laserAttributes.areaKBFalloff])
+                        
+                    cTerrain.newKnockbackCircles.append([laserProperties.getLaserKB(self.laserAttributes,self.laserFirstHit,self.laserRamps),x,y,self.laserAttributes.KBRange, self.laserAttributes.areaKBFalloff])
                     cTerrain.newPlayerDamageCircles.append([laserProperties.getLaserDMG(self.laserAttributes,self.laserFirstHit, self.laserRamps),x,y,self.laserAttributes.DMGRange,self.laserAttributes.areaDMGFalloff])
-                
+                    cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.DMGRange,x,y)
+                    #cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.KBRange,x,y)
+                    #cTerrain.particles.spawnPulseParticle(self.color,explosionSize,x,y)
+
                 self.laserFirstHit=False
                 self.laserRamps+=1
 
@@ -331,6 +443,7 @@ class Player:
                 if nest.stage==nest.maxStage and nest.withinEffectRadius(self.x,self.y) and nest.charge>0:
                     chargeGain=self.addCharge(nest.chargeRate*frameLength, nest.charging,nest.maxCharge)
                     nest.loseCharge(chargeGain)
+
         self.updateLaserStats()
 
         if self.x<50:

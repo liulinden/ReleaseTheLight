@@ -179,7 +179,8 @@ class World:
         self.terrain.drawNestGradients(window_size, layer, frame,
                                        offset_x=offset_x, offset_y=offset_y)
 
-        
+        self.terrain.particles.drawPulseParticles(layer, frame,
+                                             offset_x=offset_x, offset_y=offset_y)
 
         self.drawBackground(scratchLayer, window_size, frame)
 
@@ -212,7 +213,11 @@ class World:
         self.terrain.drawHealthBars(window_size, layer, frame, pygame.time.get_ticks(),offset_x=offset_x,offset_y=offset_y)
 
         self.drawForeground(scratchLayer, window_size, frame)
-        self.light.drawThickGradient(scratchLayer,frame,self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y) 
+        self.light.drawThickGradient(scratchLayer,frame,self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
+        if self.player.laser:
+            if self.player.laser[0].collision:
+                cx, cy = self.player.laser[0].collision[0]
+                self.light.drawThickGradient(scratchLayer,frame,cx, cy, offset_x=offset_x, offset_y=offset_y)
         layer.blit(self.scratch_layer, (0,0), special_flags=pygame.BLEND_MULT)
 
         if crosshair:
