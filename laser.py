@@ -1,4 +1,8 @@
-import pygame, math, random
+import math
+import random
+
+import pygame
+
 
 def init():
     pass  # impact images now loaded in aplayer.init() and scaled in Player.__init__
@@ -51,31 +55,31 @@ class Laser:
             wx = int(self.startX + dx * distance)
             wy = int(self.startY + dy * distance)
 
-            if terrain.laserCollidePoint(wx,wy):
+            if terrain.laserCollidePoint(wx, wy):
                 # nest check: AABB pre-screen then precise pixel sample from nest's hitbox image
                 hitNest = None
                 for n in terrain._activeNests():
                     if n.close(wx, wy, 5):
                         # precise: sample nest's zoom=1 hitbox at local coordinates
-                        l = int(wx - n.left)-1
-                        t = int(wy - n.top)-1
-                        r = l+2
-                        b = t+2
-                        for lx in range(l,r+1):
-                            for ly in (t,b):
+                        l = int(wx - n.left) - 1
+                        t = int(wy - n.top) - 1
+                        r = l + 2
+                        b = t + 2
+                        for lx in range(l, r + 1):
+                            for ly in (t, b):
                                 if 0 <= lx < int(n.size) and 0 <= ly < int(n.size):
                                     if n.resizedHitboxes[1].get_at((lx, ly))[3] > 128:
                                         hitNest = n
                                         break
-                        for ly in range(t,b+1):
-                            for ly in (l,r):
+                        for ly in range(t, b + 1):
+                            for ly in (l, r):
                                 if 0 <= lx < int(n.size) and 0 <= ly < int(n.size):
                                     if n.resizedHitboxes[1].get_at((lx, ly))[3] > 128:
                                         hitNest = n
                                         break
                         if hitNest is not None:
                             break
-                            
+
                 if hitNest is not None:
                     self.collision = [(wx, wy), "nests"]
                     self.laserTarget = hitNest
@@ -83,7 +87,7 @@ class Laser:
                     hitEnemy = False
                     for n in terrain._activeNests():
                         for enemy in n.enemies:
-                            if enemy.mode != "Spawn" and enemy.rect.collidepoint(wx,wy):
+                            if enemy.mode != "Spawn" and enemy.rect.collidepoint(wx, wy):
                                 self.collision = [(wx, wy), "enemies"]
                                 self.laserTarget = enemy
                                 hitEnemy = True
@@ -105,7 +109,7 @@ class Laser:
         self.length = self.getLength(terrain, angle)
         if laserCooldown != 0:
             self.laserTime = laserCooldown
-        return self.laserTarget is self.previousTarget and not self.laserTarget is None
+        return self.laserTarget is self.previousTarget and self.laserTarget is not None
 
     def tick(self, frameLength):
         self.sinWaveOffset += frameLength / 100
@@ -116,17 +120,13 @@ class Laser:
             self.laserPoints = self.getLaserPoints(6)
             self.laserPoints2 = self.getLaserPoints(6)
             self.damageFrame = True
-            self.previousTarget=self.laserTarget
-            
+            self.previousTarget = self.laserTarget
 
     def draw(self, surface, frame, color, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
         if hitboxes:
             for wx, wy in self.hitboxes:
-                pygame.draw.circle(surface, color,
-                    (int((wx - left) * zoom + offset_x),
-                     int((wy - top) * zoom + offset_y)),
-                    max(2, int(zoom * 2)))
+                pygame.draw.circle(surface, color, (int((wx - left) * zoom + offset_x), int((wy - top) * zoom + offset_y)), max(2, int(zoom * 2)))
         else:
             for laserPart in [self.laserPoints, self.laserPoints2]:
                 oglength = laserPart[int(len(laserPart) / 2)]
@@ -134,20 +134,12 @@ class Laser:
                 polygonPoints = []
                 for point in laserPart:
                     if True or point <= self.length:
-                        waveHeight = (self.thickness
-                                      * math.sin((point + self.sinWaveOffset) * 1.5)
-                                      * (0.5 + self.timer / self.laserTime))
+                        waveHeight = self.thickness * math.sin((point + self.sinWaveOffset) * 1.5) * (0.5 + self.timer / self.laserTime)
                         if laserPart.index(point) % (len(laserPart) / 2) == 0:
-                            x, y = (point * math.cos(self.angle) * scale,
-                                    point * math.sin(self.angle) * scale)
+                            x, y = (point * math.cos(self.angle) * scale, point * math.sin(self.angle) * scale)
                         else:
-                            x, y = (point * math.cos(self.angle) * scale
-                                     + waveHeight * math.sin(self.angle),
-                                     point * math.sin(self.angle) * scale
-                                     - waveHeight * math.cos(self.angle))
-                        polygonPoints.append((
-                            (x + self.startX - left) * zoom + offset_x,
-                            (y + self.startY - top + 3) * zoom + offset_y))
+                            x, y = (point * math.cos(self.angle) * scale + waveHeight * math.sin(self.angle), point * math.sin(self.angle) * scale - waveHeight * math.cos(self.angle))
+                        polygonPoints.append(((x + self.startX - left) * zoom + offset_x, (y + self.startY - top + 3) * zoom + offset_y))
                     else:
                         print(self.length)
                         self.laserPoints = self.getLaserPoints(6)

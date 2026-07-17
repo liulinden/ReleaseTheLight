@@ -1,12 +1,14 @@
-import pygame, random, copy, os
+import random
+
+import pygame
 
 from global_assets import get_asset
-
 
 # FIX 2: images loaded in init() after display exists
 mistParticleIMGs = []
 lightGradient = None
 thickGradient = None
+
 
 def init():
     global mistParticleIMGs, lightGradient, thickGradient
@@ -14,7 +16,7 @@ def init():
     for i in range(5):
         mistParticleIMGs.append(get_asset("MistParticle" + str(i + 1)))
     lightGradient = get_asset("LightGradient")
-    thickGradient= get_asset("ThickGradient")
+    thickGradient = get_asset("ThickGradient")
 
 
 class Lighting:
@@ -32,8 +34,8 @@ class Lighting:
             self.resizedLightIMGs["Gradient" + str(size)] = {}
             for zoom in defaultZooms:
                 self.resizedLightIMGs["Gradient" + str(size)][zoom] = pygame.transform.scale(lightGradient, (zoom * size, zoom * size))
-        size=300
-        self.resizedLightIMGs["ThickGradient"]={}
+        size = 300
+        self.resizedLightIMGs["ThickGradient"] = {}
         for zoom in defaultZooms:
             self.resizedLightIMGs["ThickGradient"][zoom] = pygame.transform.scale(thickGradient, (zoom * size, zoom * size))
 
@@ -123,8 +125,8 @@ class MistParticle:
         self.x += self.xSpeed * frameLength
         self.y += self.ySpeed * frameLength
         self.ySpeed -= frameLength * 0.00001 * frameLength / 60
-        self.xSpeed *= 0.99994 ** frameLength
-        self.ySpeed *= 0.99994 ** frameLength
+        self.xSpeed *= 0.99994**frameLength
+        self.ySpeed *= 0.99994**frameLength
 
         if self.fadeIn < 1:
             self.fadeIn += 0.02 * frameLength / 16

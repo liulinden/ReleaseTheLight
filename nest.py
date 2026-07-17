@@ -1,6 +1,12 @@
-import pygame, random, math, enemies, os, UI
-from util import chargesToColor
+import math
+import random
+
+import pygame
+
+import enemies
+import UI
 from global_assets import get_asset
+from util import chargesToColor
 
 
 def loadNestIMGSet(id, stages):
@@ -14,6 +20,7 @@ def loadNestIMGSet(id, stages):
 lightGradient = None
 nestIMGs = {}
 nestHitboxes = {}
+
 
 def init():
     global lightGradient, nestIMGs, nestHitboxes
@@ -45,7 +52,7 @@ class Nest:
         self.size = size
         self.enemies = []
         self.basicEnemyCap = 1
-        self.totalEnemyCap = min(max(3,int(size/30)),10)
+        self.totalEnemyCap = min(max(3, int(size / 30)), 10)
         self.color = (255, 255, 255)
         self.glow = 0
         self.stage = 0
@@ -75,13 +82,11 @@ class Nest:
         if 1 not in self._draw_filter:
             self._draw_filter[1] = pygame.Surface((size, size), flags=pygame.SRCALPHA)
 
-        self.maxHealth = self.y * 200 * (random.random()+0.5) / worldHeight + 10*layerIndex
+        self.maxHealth = self.y * 200 * (random.random() + 0.5) / worldHeight + 10 * layerIndex
         if self.nestType == "white":
             self.maxHealth *= 1.2
             self.maxHealth += 10
-        elif self.nestType == "blue":
-            self.maxHealth += 50
-        elif self.nestType == "red":
+        elif self.nestType == "blue" or self.nestType == "red":
             self.maxHealth += 50
         elif self.nestType == "sun":
             self.maxHealth += 1000
@@ -93,8 +98,8 @@ class Nest:
         self.visualCharge = self.maxCharge
         self.charge = self.maxCharge * 0.5
         self.chargeRate = self.maxCharge / 10000
-        self.charging = {"white":0,"blue":0,"red":0}
-        self.charging[self.nestType]=1
+        self.charging = {"white": 0, "blue": 0, "red": 0}
+        self.charging[self.nestType] = 1
 
     def getRect(self):
         return pygame.Rect(self.left, self.top, self.size, self.size)
@@ -103,8 +108,8 @@ class Nest:
         cw, cb, cr = self.charging.values()
         cw, cb, cr = cw * self.visualCharge, cb * self.visualCharge, cr * self.visualCharge
 
-        self.color=chargesToColor(cw,cb,cr,500)
-        
+        self.color = chargesToColor(cw, cb, cr, 500)
+
         # r, g, b = 0, 0, 0
         # r += cr + cw
         # g += cw + cb / 4
@@ -127,7 +132,7 @@ class Nest:
             self.visualCharge -= frameLength / 10
             if self.visualCharge < 0:
                 self.visualCharge = 0
-        #self.visualCharge=self.charge
+        # self.visualCharge=self.charge
         self.glow += ((self.stage / self.maxStage * self.visualCharge / self.maxCharge * 150) - self.glow) / 1500 * frameLength
 
     def drawGradient(self, surface, frame, offset_x=0, offset_y=0):
@@ -155,11 +160,11 @@ class Nest:
         filt.fill(self.color)
         filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(filt, ((self.left - camX) * zoom + offset_x, (self.top - camY) * zoom + offset_y))
-            
-    def drawHealthBar(self,surface, frame, time=None, offset_x=0,offset_y=0):
+
+    def drawHealthBar(self, surface, frame, time=None, offset_x=0, offset_y=0):
         if self.stage != self.maxStage:
-            camX, camY, zoom = frame 
-            self.healthBar.draw(surface, self.color, ((self.x - camX) * zoom + offset_x, (self.top - camY) * zoom + offset_y), self.health,time)
+            camX, camY, zoom = frame
+            self.healthBar.draw(surface, self.color, ((self.x - camX) * zoom + offset_x, (self.top - camY) * zoom + offset_y), self.health, time)
 
     def addEnemy(self, cTerrain, player):
         if len(self.enemies) < self.basicEnemyCap:
@@ -181,9 +186,9 @@ class Nest:
                 if self.close(x, y, r):
                     # direct hit: full damage; splash: reduced damage
                     directHit = any(lase.laserTarget is self for lase in player.laser)
-                    damage = pow if directHit else pow*falloff
+                    damage = pow if directHit else pow * falloff
                     self.dealDamage(damage, cTerrain, player)
-                    newParticles.append([x, y, self.size/(5 if directHit else 10)])
+                    newParticles.append([x, y, self.size / (5 if directHit else 10)])
                     self.healthBar.trigger()
         return newParticles
 

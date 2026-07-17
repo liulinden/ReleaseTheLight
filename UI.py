@@ -1,235 +1,242 @@
-import pygame,math,os
+import math
+
+import pygame
 
 from global_assets import get_asset
 
+chargeIcon = None
+lightGradient = None
+chargeTuples = None
 
-
-chargeIcon=None
-lightGradient=None
-chargeTuples=None
 
 def init():
-    global chargeIcon,lightGradient,chargeColors
+    global chargeIcon, lightGradient, chargeColors
 
-    chargeIcon = pygame.transform.scale(get_asset("ChargeIcon"),(80,80))
-    lightGradient=get_asset("LightGradient")
+    chargeIcon = pygame.transform.scale(get_asset("ChargeIcon"), (80, 80))
+    lightGradient = get_asset("LightGradient")
+
 
 from util import chargesToColor
 
-chargeTuples ={
-    "white": (1,0,0),"blue":(0,1,0), "red":(0,0,1)
-}
+chargeTuples = {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1)}
+
 
 def drawRoundedLine(surface, color, start, end, thickness):
     pygame.draw.line(surface, color, start, end, thickness)
-    pygame.draw.circle(surface, color, start, thickness/2)
-    pygame.draw.circle(surface, color, end, thickness/2)
+    pygame.draw.circle(surface, color, start, thickness / 2)
+    pygame.draw.circle(surface, color, end, thickness / 2)
+
 
 def drawSingleSideRoundedLine(surface, color, start, end, thickness):
-    #thickness should be odd
+    # thickness should be odd
     pygame.draw.line(surface, color, start, end, thickness)
-    pygame.draw.circle(surface, color, end, thickness/2)
+    pygame.draw.circle(surface, color, end, thickness / 2)
 
-def drawLineFromCenter(surface, color, center,angle,r1,r2,thickness):
-    pygame.draw.line(surface,color,polarToRect(r1,-angle,center),polarToRect(r2,-angle,center),thickness)
 
-def polarToRect(r,angle,center=(0,0)):
-    return r*math.cos(angle)+center[0], r*math.sin(angle)+center[1]
+def drawLineFromCenter(surface, color, center, angle, r1, r2, thickness):
+    pygame.draw.line(surface, color, polarToRect(r1, -angle, center), polarToRect(r2, -angle, center), thickness)
 
-def getTrianglePoints(center,angle):
-    return (polarToRect(54,angle-math.pi*0.5,center),polarToRect(67,angle-math.pi*0.55,center),polarToRect(67,angle-math.pi*0.45,center))
 
-def getOuterTrianglePoints(center,angle):
-    return (polarToRect(77,angle-math.pi*0.5,center),polarToRect(67,angle-math.pi*0.52,center),polarToRect(67,angle-math.pi*0.48,center))
+def polarToRect(r, angle, center=(0, 0)):
+    return r * math.cos(angle) + center[0], r * math.sin(angle) + center[1]
 
-orderCharges={
-    "white": (["white","blue","red"],[]),
-    "blue": (["blue","white"],["red"]),
-    "red": (["red","white"],["blue"])
-    }
-        
-class HealthBar():
-    def __init__(self, maxHealth,thickness=5):
-        self.lastTriggered=0
-        self.maxHealth=maxHealth
-        self.thickness=thickness
-        self.scale=5/math.sqrt(maxHealth)
-        self.width=self.maxHealth*self.scale+self.thickness
-        self.surface=pygame.Surface((self.width,self.thickness))
+
+def getTrianglePoints(center, angle):
+    return (polarToRect(54, angle - math.pi * 0.5, center), polarToRect(67, angle - math.pi * 0.55, center), polarToRect(67, angle - math.pi * 0.45, center))
+
+
+def getOuterTrianglePoints(center, angle):
+    return (polarToRect(77, angle - math.pi * 0.5, center), polarToRect(67, angle - math.pi * 0.52, center), polarToRect(67, angle - math.pi * 0.48, center))
+
+
+orderCharges = {"white": (["white", "blue", "red"], []), "blue": (["blue", "white"], ["red"]), "red": (["red", "white"], ["blue"])}
+
+
+class HealthBar:
+    def __init__(self, maxHealth, thickness=5):
+        self.lastTriggered = 0
+        self.maxHealth = maxHealth
+        self.thickness = thickness
+        self.scale = 5 / math.sqrt(maxHealth)
+        self.width = self.maxHealth * self.scale + self.thickness
+        self.surface = pygame.Surface((self.width, self.thickness))
 
     def trigger(self):
-        self.lastTriggered=pygame.time.get_ticks()
+        self.lastTriggered = pygame.time.get_ticks()
 
-    def draw(self, surface, color, coords, health,time=None):
+    def draw(self, surface, color, coords, health, time=None):
         if time is None:
-            time=pygame.time.get_ticks()
-        opacity=max(0,255 - (time-self.lastTriggered-500)/2)
-        if opacity>0:
+            time = pygame.time.get_ticks()
+        opacity = max(0, 255 - (time - self.lastTriggered - 500) / 2)
+        if opacity > 0:
+            x, y = coords
 
-            x,y=coords
-            
-            drawRoundedLine(self.surface, (0,0,0), (self.thickness/2,self.thickness/2), (self.width-self.thickness/2,self.thickness/2),self.thickness)
-            drawRoundedLine(self.surface, color, (self.thickness/2,self.thickness/2), (self.thickness/2+self.scale*health,self.thickness/2),self.thickness)
+            drawRoundedLine(self.surface, (0, 0, 0), (self.thickness / 2, self.thickness / 2), (self.width - self.thickness / 2, self.thickness / 2), self.thickness)
+            drawRoundedLine(self.surface, color, (self.thickness / 2, self.thickness / 2), (self.thickness / 2 + self.scale * health, self.thickness / 2), self.thickness)
 
-            left = x - self.scale*self.maxHealth/2-self.thickness/2
-            top = y - self.thickness/2
+            left = x - self.scale * self.maxHealth / 2 - self.thickness / 2
+            top = y - self.thickness / 2
             self.surface.set_alpha(opacity)
 
-            surface.blit(self.surface,(left,top))
+            surface.blit(self.surface, (left, top))
 
 
+class ChargeDisplay:
+    def __init__(self, worldHeight):
+        self.rotation = 0
+        self.rotationGoal = 1
+        self.scale = 100
 
-class ChargeDisplay():
-    def __init__(self,worldHeight):
-        self.rotation=0
-        self.rotationGoal=1
-        self.scale=100
+        # x/y are left/top
+        self.x = 40
+        self.y = 40
+        self.rotationSpeed = 0
+        self.playerCharges = {"white": 0, "blue": 0, "red": 0}
+        self.playerTotalCharge = 0
+        self.color = (0, 0, 0)
+        self.worldHeight = worldHeight
+        self.playerY = 0
+        self.chargeCapacity = 0
+        self.filters = {"white": 0}
 
-        #x/y are left/top
-        self.x=40
-        self.y=40
-        self.rotationSpeed=0
-        self.playerCharges={"white":0,"blue":0,"red":0}
-        self.playerTotalCharge=0
-        self.color=(0,0,0)
-        self.worldHeight=worldHeight
-        self.playerY=0
-        self.chargeCapacity=0
-        self.filters={"white":0}
+    def update(self, fps, player):
+        frameLength = 1000 / fps
 
-    def update(self,fps,player):
-        frameLength=1000/fps
+        self.chargeCapacity = player.chargeCapacity
+        self.filterType = player.filterType
+        playerCharges = player.charges.copy()
+        if not self.filterType == "white":
+            playerCharges["white"] /= 2
+            self.chargeCapacity -= playerCharges["white"]
+            if self.filterType not in self.filters:
+                self.filters[self.filterType] = 0
 
-        self.chargeCapacity=player.chargeCapacity
-        self.filterType=player.filterType
-        playerCharges=player.charges.copy()
-        if not self.filterType=="white":
-            playerCharges["white"]/=2
-            self.chargeCapacity-=playerCharges["white"]
-            if not self.filterType in self.filters:
-                self.filters[self.filterType]=0
+        totalCharge = sum(playerCharges.values())
+        totalChargeChange = totalCharge - self.playerTotalCharge
+        self.playerTotalCharge = totalCharge
 
-        totalCharge=sum(playerCharges.values())
-        totalChargeChange=totalCharge-self.playerTotalCharge
-        self.playerTotalCharge=totalCharge
-
-        self.playerY=max(0,player.y)
+        self.playerY = max(0, player.y)
 
         for color in playerCharges:
-
-            chargeChange=int(playerCharges[color])-self.playerCharges[color]
+            chargeChange = int(playerCharges[color]) - self.playerCharges[color]
             if abs(chargeChange) > 0:
-                if abs(chargeChange) < frameLength/16:
-                    self.playerCharges[color]+=chargeChange
+                if abs(chargeChange) < frameLength / 16:
+                    self.playerCharges[color] += chargeChange
                 else:
-                    self.playerCharges[color]+=chargeChange/abs(chargeChange)*frameLength/16
-        
-        cw,cb,cr=player.practicalCharges.values()
-        self.color=chargesToColor(cw,cb,cr)
+                    self.playerCharges[color] += chargeChange / abs(chargeChange) * frameLength / 16
 
-        if totalChargeChange>0.1:
-            self.rotationGoal+=totalChargeChange/10
-            self.scale=90
-        elif totalChargeChange<-0.1:
-            #self.rotation=0
-            #self.rotationGoal=0
-            if self.scale<81:
-                self.scale=60
-        realGoal=math.floor(self.rotationGoal)
-        goalSpeed=(realGoal-self.rotation)/300
-        if goalSpeed>self.rotationSpeed:
-            self.rotationSpeed+=1/1000
-        if goalSpeed<self.rotationSpeed:
-            self.rotationSpeed=goalSpeed
-        self.rotation+=self.rotationSpeed*frameLength
-        self.scale+=(80-self.scale)/300*frameLength
-        if abs(self.rotation-realGoal)<0.001:
-            self.rotation=0
-            self.rotationGoal-=realGoal
-        
-        order=()
+        cw, cb, cr = player.practicalCharges.values()
+        self.color = chargesToColor(cw, cb, cr)
+
+        if totalChargeChange > 0.1:
+            self.rotationGoal += totalChargeChange / 10
+            self.scale = 90
+        elif totalChargeChange < -0.1:
+            # self.rotation=0
+            # self.rotationGoal=0
+            if self.scale < 81:
+                self.scale = 60
+        realGoal = math.floor(self.rotationGoal)
+        goalSpeed = (realGoal - self.rotation) / 300
+        if goalSpeed > self.rotationSpeed:
+            self.rotationSpeed += 1 / 1000
+        if goalSpeed < self.rotationSpeed:
+            self.rotationSpeed = goalSpeed
+        self.rotation += self.rotationSpeed * frameLength
+        self.scale += (80 - self.scale) / 300 * frameLength
+        if abs(self.rotation - realGoal) < 0.001:
+            self.rotation = 0
+            self.rotationGoal -= realGoal
+
+        order = ()
         match self.filterType:
             case "white":
-                order=("white","blue","red")
+                order = ("white", "blue", "red")
             case "blue":
-                order=("blue","red","white")
+                order = ("blue", "red", "white")
             case "red":
-                order=("red","white","blue")
+                order = ("red", "white", "blue")
 
         for color in self.filters:
-            diff=order.index(color)*math.pi/10-self.filters[color]
-            if diff>0 and player.filterChangeRight:
-                diff-=2*math.pi
-            elif diff<0 and not player.filterChangeRight:
-                diff+=2*math.pi
-            self.filters[color]=(self.filters[color]+diff/150*frameLength)%(2*math.pi)
+            diff = order.index(color) * math.pi / 10 - self.filters[color]
+            if diff > 0 and player.filterChangeRight:
+                diff -= 2 * math.pi
+            elif diff < 0 and not player.filterChangeRight:
+                diff += 2 * math.pi
+            self.filters[color] = (self.filters[color] + diff / 150 * frameLength) % (2 * math.pi)
 
-    def draw(self,surface):
-        transformedIcon=pygame.transform.rotate(pygame.transform.scale(chargeIcon,(self.scale,self.scale)),-self.rotation*(360))
-        filter=pygame.Surface(transformedIcon.get_size(),flags=pygame.SRCALPHA)
-        
-        #different filter than above
-        filterColors={
-            "white":chargesToColor(self.playerCharges["white"],self.playerCharges["blue"],self.playerCharges["red"],maximize=True),
-            "blue":chargesToColor(0,self.playerCharges["blue"]+1,0,maximize=True),
-            "red":chargesToColor(0,0,self.playerCharges["red"]+1,maximize=True)
+    def draw(self, surface):
+        transformedIcon = pygame.transform.rotate(pygame.transform.scale(chargeIcon, (self.scale, self.scale)), -self.rotation * (360))
+        filter = pygame.Surface(transformedIcon.get_size(), flags=pygame.SRCALPHA)
+
+        # different filter than above
+        filterColors = {
+            "white": chargesToColor(self.playerCharges["white"], self.playerCharges["blue"], self.playerCharges["red"], maximize=True),
+            "blue": chargesToColor(0, self.playerCharges["blue"] + 1, 0, maximize=True),
+            "red": chargesToColor(0, 0, self.playerCharges["red"] + 1, maximize=True),
         }
 
-        filterColor=filterColors[self.filterType]
-        
-        pygame.draw.line(surface,filterColor, (self.x+0,self.y+20),(self.x+14,self.y+20),2)
-        pygame.draw.line(surface,filterColor, (self.x+0,self.y+140),(self.x+14,self.y+140),2)
-        pygame.draw.line(surface,filterColor, (self.x+7,self.y+20),(self.x+7,self.y+140),2)
+        filterColor = filterColors[self.filterType]
 
-        pygame.draw.line(surface,filterColor, (self.x+0,self.y+20+120*self.playerY/self.worldHeight),(self.x+14,self.y+20+120*self.playerY/self.worldHeight),6)
+        pygame.draw.line(surface, filterColor, (self.x + 0, self.y + 20), (self.x + 14, self.y + 20), 2)
+        pygame.draw.line(surface, filterColor, (self.x + 0, self.y + 140), (self.x + 14, self.y + 140), 2)
+        pygame.draw.line(surface, filterColor, (self.x + 7, self.y + 20), (self.x + 7, self.y + 140), 2)
+
+        pygame.draw.line(surface, filterColor, (self.x + 0, self.y + 20 + 120 * self.playerY / self.worldHeight), (self.x + 14, self.y + 20 + 120 * self.playerY / self.worldHeight), 6)
 
         filter.fill(self.color)
-        filter.blit(transformedIcon,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
-        surface.blit(filter,(self.x+100-filter.get_width()/2,self.y+80-filter.get_height()/2))
-        
-        #draw max capacity arc
-        thickness=2
-        capacityAngle=math.pi*(1/2-2*self.chargeCapacity/500)
-        pygame.draw.arc(surface,filterColor,pygame.Rect(self.x+40+4,self.y+20+4,120-8,120-8),capacityAngle,math.pi/2,thickness)
+        filter.blit(transformedIcon, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        surface.blit(filter, (self.x + 100 - filter.get_width() / 2, self.y + 80 - filter.get_height() / 2))
 
-        #draw charges
-        arcAngle=math.pi/2
+        # draw max capacity arc
+        thickness = 2
+        capacityAngle = math.pi * (1 / 2 - 2 * self.chargeCapacity / 500)
+        pygame.draw.arc(surface, filterColor, pygame.Rect(self.x + 40 + 4, self.y + 20 + 4, 120 - 8, 120 - 8), capacityAngle, math.pi / 2, thickness)
+
+        # draw charges
+        arcAngle = math.pi / 2
         for color in orderCharges[self.filterType][0]:
-            if self.playerCharges[color]>0:
-                newAngle=arcAngle-2*math.pi*(self.playerCharges[color])/500
-                def getChannel(index): return chargeTuples[color][index]*self.playerCharges[color]
-                pygame.draw.arc(surface,chargesToColor(getChannel(0),getChannel(1),getChannel(2),maximize=True),pygame.Rect(self.x+40,self.y+20,120,120),newAngle,arcAngle,10)
-                arcAngle=newAngle
-        outLineAngle=arcAngle
+            if self.playerCharges[color] > 0:
+                newAngle = arcAngle - 2 * math.pi * (self.playerCharges[color]) / 500
+
+                def getChannel(index):
+                    return chargeTuples[color][index] * self.playerCharges[color]
+
+                pygame.draw.arc(surface, chargesToColor(getChannel(0), getChannel(1), getChannel(2), maximize=True), pygame.Rect(self.x + 40, self.y + 20, 120, 120), newAngle, arcAngle, 10)
+                arcAngle = newAngle
+        outLineAngle = arcAngle
         for color in orderCharges[self.filterType][1]:
-            if self.playerCharges[color]>0:
-                newAngle=arcAngle-2*math.pi*(self.playerCharges[color])/500
-                def getChannel(index): return chargeTuples[color][index]*self.playerCharges[color]
-                pygame.draw.arc(surface,chargesToColor(getChannel(0),getChannel(1),getChannel(2),maximize=True),pygame.Rect(self.x+40,self.y+20,120,120),newAngle,arcAngle,10)
-                arcAngle=newAngle
+            if self.playerCharges[color] > 0:
+                newAngle = arcAngle - 2 * math.pi * (self.playerCharges[color]) / 500
 
-        #draw arc outline
-        thickness=3
-        center=(self.x+100,self.y+80)
-        pygame.draw.arc(surface,filterColor,pygame.Rect(self.x+40-thickness,self.y+20-thickness,120+2*thickness,120+2*thickness),outLineAngle,math.pi/2,thickness)
-        pygame.draw.arc(surface,filterColor,pygame.Rect(self.x+40+10,self.y+20+10,120-20,120-20),outLineAngle,math.pi/2,thickness)
-        drawLineFromCenter(surface, filterColor, center,math.pi/2, 60-10-thickness,60+thickness,thickness)
-        drawLineFromCenter(surface, filterColor, center,outLineAngle, 60-10-thickness,60+thickness,thickness)
+                def getChannel(index):
+                    return chargeTuples[color][index] * self.playerCharges[color]
 
-        #draw max capacity end line
-        drawLineFromCenter(surface, filterColor, (self.x+100,self.y+80),min(capacityAngle,arcAngle), 60-10-thickness,60+thickness,thickness)
+                pygame.draw.arc(surface, chargesToColor(getChannel(0), getChannel(1), getChannel(2), maximize=True), pygame.Rect(self.x + 40, self.y + 20, 120, 120), newAngle, arcAngle, 10)
+                arcAngle = newAngle
 
-        pygame.draw.circle(surface, (0,0,0), center, 67, 5)
-        
-        pygame.draw.polygon(surface,filterColor,getTrianglePoints(center,self.filters[self.filterType]))
-        pygame.draw.polygon(surface,(0,0,0),getTrianglePoints(center,self.filters[self.filterType]),3)
+        # draw arc outline
+        thickness = 3
+        center = (self.x + 100, self.y + 80)
+        pygame.draw.arc(surface, filterColor, pygame.Rect(self.x + 40 - thickness, self.y + 20 - thickness, 120 + 2 * thickness, 120 + 2 * thickness), outLineAngle, math.pi / 2, thickness)
+        pygame.draw.arc(surface, filterColor, pygame.Rect(self.x + 40 + 10, self.y + 20 + 10, 120 - 20, 120 - 20), outLineAngle, math.pi / 2, thickness)
+        drawLineFromCenter(surface, filterColor, center, math.pi / 2, 60 - 10 - thickness, 60 + thickness, thickness)
+        drawLineFromCenter(surface, filterColor, center, outLineAngle, 60 - 10 - thickness, 60 + thickness, thickness)
+
+        # draw max capacity end line
+        drawLineFromCenter(surface, filterColor, (self.x + 100, self.y + 80), min(capacityAngle, arcAngle), 60 - 10 - thickness, 60 + thickness, thickness)
+
+        pygame.draw.circle(surface, (0, 0, 0), center, 67, 5)
+
+        pygame.draw.polygon(surface, filterColor, getTrianglePoints(center, self.filters[self.filterType]))
+        pygame.draw.polygon(surface, (0, 0, 0), getTrianglePoints(center, self.filters[self.filterType]), 3)
 
         for color in self.filters:
-            pygame.draw.polygon(surface,filterColors[color],getOuterTrianglePoints(center,self.filters[color]))
+            pygame.draw.polygon(surface, filterColors[color], getOuterTrianglePoints(center, self.filters[color]))
 
         pygame.draw.circle(surface, filterColor, center, 67, 3)
-        drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(150/500)), 60, 65,3)
-        drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(200/500)), 60, 65,3)
-        drawLineFromCenter(surface,filterColor, center, math.pi*(1/2-2*(400/500)), 60, 65,3)
+        drawLineFromCenter(surface, filterColor, center, math.pi * (1 / 2 - 2 * (150 / 500)), 60, 65, 3)
+        drawLineFromCenter(surface, filterColor, center, math.pi * (1 / 2 - 2 * (200 / 500)), 60, 65, 3)
+        drawLineFromCenter(surface, filterColor, center, math.pi * (1 / 2 - 2 * (400 / 500)), 60, 65, 3)
 
-        pygame.draw.circle(surface,filterColor,polarToRect(72,-math.pi*(1/2-2*(200/500)),center),6,3)
+        pygame.draw.circle(surface, filterColor, polarToRect(72, -math.pi * (1 / 2 - 2 * (200 / 500)), center), 6, 3)

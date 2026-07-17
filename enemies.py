@@ -1,21 +1,24 @@
-import pygame, math, random, os, UI
-from global_assets import get_asset
+import math
+import random
 
+import pygame
+
+import UI
+from global_assets import get_asset
 
 # FIX 2: images loaded in init() after display exists
 lightGradient = None
 enemyAnimations = {}
 
-enemyAttackFrames = {'1': [4, 5]}
-enemyAnimationLengths = {
-    '1': {"Spawn": 6, "Walk": 7, "Attack": 9}
-}
+enemyAttackFrames = {"1": [4, 5]}
+enemyAnimationLengths = {"1": {"Spawn": 6, "Walk": 7, "Attack": 9}}
+
 
 def init():
     global lightGradient, enemyAnimations
     lightGradient = get_asset("LightGradient")
     enemyAnimations = {}
-    for variantID in ['1']:
+    for variantID in ["1"]:
         animationIMGs = {}
 
         spawnIMGs = []
@@ -41,10 +44,10 @@ def getEnemy(cTerrain, player, nestType, color, nestHealth, nestX, nestY, nestSi
     for i in range(20):
         x, y = random.randint(int(nestX - 10 - nestSize / 2), int(nestX + 10 + nestSize / 2)), random.randint(int(nestY - 10 - nestSize / 2), int(nestY + 10 + nestSize / 2))
         size = random.randint(20, 70)
-        width, height = size * 3 / 8, size * 3 / 4 
-        newEnemyRect= pygame.Rect(x - width / 2, y - height / 2, width, height)
+        width, height = size * 3 / 8, size * 3 / 4
+        newEnemyRect = pygame.Rect(x - width / 2, y - height / 2, width, height)
         if not (cTerrain.collideRect(newEnemyRect) or newEnemyRect.colliderect(player.rect)):
-            newEnemy=Enemy(cTerrain.defaultZooms, x, y, color, nestHealth / 5, size)
+            newEnemy = Enemy(cTerrain.defaultZooms, x, y, color, nestHealth / 5, size)
             newEnemy.spawnParticles(cTerrain)
             return newEnemy
     return False
@@ -63,7 +66,7 @@ class Enemy:
         self.canFly = True
         if random.randint(1, 2) == 1:
             self.canFly = not self.canFly
-        self.variantID = '1'
+        self.variantID = "1"
         self.attackFrames = enemyAttackFrames[self.variantID]
         self.animationLengths = enemyAnimationLengths[self.variantID]
 
@@ -81,7 +84,7 @@ class Enemy:
         self.glow = 0
         self.r = math.dist((0, 0), (self.width / 2, self.height / 2))
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
-        self.healthBar=UI.HealthBar(self.maxHealth)
+        self.healthBar = UI.HealthBar(self.maxHealth)
 
         self.resizedGradients = {}
         self.resizedIMGs = {}
@@ -178,14 +181,14 @@ class Enemy:
         self.updateRect()
         if hitbox:
             if self.mode != "Spawn":
-                l  = float(self.rect.left)
-                r  = float(self.rect.right - 1)
-                t  = float(self.rect.top)
-                b  = float(self.rect.bottom - 1)
-                pygame.draw.line(surface,self.color,((l-camX) * zoom + offset_x,(t- camY) * zoom + offset_y),((l- camX) * zoom + offset_x,(b- camY) * zoom + offset_y))
-                pygame.draw.line(surface,self.color,((r-camX) * zoom + offset_x,(t- camY) * zoom + offset_y),((r- camX) * zoom + offset_x,(b- camY) * zoom + offset_y))
-                pygame.draw.line(surface,self.color,((l-camX) * zoom + offset_x,(t- camY) * zoom + offset_y),((r- camX) * zoom + offset_x,(t- camY) * zoom + offset_y))
-                pygame.draw.line(surface,self.color,((l-camX) * zoom + offset_x,(b- camY) * zoom + offset_y),((r- camX) * zoom + offset_x,(b- camY) * zoom + offset_y))
+                l = float(self.rect.left)
+                r = float(self.rect.right - 1)
+                t = float(self.rect.top)
+                b = float(self.rect.bottom - 1)
+                pygame.draw.line(surface, self.color, ((l - camX) * zoom + offset_x, (t - camY) * zoom + offset_y), ((l - camX) * zoom + offset_x, (b - camY) * zoom + offset_y))
+                pygame.draw.line(surface, self.color, ((r - camX) * zoom + offset_x, (t - camY) * zoom + offset_y), ((r - camX) * zoom + offset_x, (b - camY) * zoom + offset_y))
+                pygame.draw.line(surface, self.color, ((l - camX) * zoom + offset_x, (t - camY) * zoom + offset_y), ((r - camX) * zoom + offset_x, (t - camY) * zoom + offset_y))
+                pygame.draw.line(surface, self.color, ((l - camX) * zoom + offset_x, (b - camY) * zoom + offset_y), ((r - camX) * zoom + offset_x, (b - camY) * zoom + offset_y))
                 if self.mode == "Attack" and self.animationFrame in self.attackFrames:
                     self.drawAttackHitbox(surface, frame, offset_x=offset_x, offset_y=offset_y)
         else:
@@ -194,20 +197,20 @@ class Enemy:
             filt.fill(self.color)
             filt.blit(self.resizedIMGs[zoom][self.facing][self.mode][self.animationFrame], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
             surface.blit(filt, ((self.rect.centerx - self.size / 2 - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y))
-    
-    def drawHealthBar(self, surface,frame, time=None, offset_x=0,offset_y=0):
-        camX,camY,zoom = frame
-        self.healthBar.draw(surface, self.color, ((self.rect.centerx - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y),self.health,time)
+
+    def drawHealthBar(self, surface, frame, time=None, offset_x=0, offset_y=0):
+        camX, camY, zoom = frame
+        self.healthBar.draw(surface, self.color, ((self.rect.centerx - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y), self.health, time)
 
     def drawAttackHitbox(self, surface, frame, offset_x=0, offset_y=0):
-        #never used
+        # never used
         camX, camY, zoom = frame
         surface.blit(self.resizedIMGs[zoom][self.facing]["AttackHitbox"], ((self.rect.centerx - self.size / 2 - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y))
 
     def dealDamage(self, damage):
         self.glow = 255
         self.health -= damage
-        if damage>0:
+        if damage > 0:
             self.healthBar.trigger()
         if self.health < 0:
             self.health = 0
@@ -220,44 +223,44 @@ class Enemy:
                 self.ySpeed = min(0.4, self.ySpeed + 0.0015 * frameLength)
 
             for knockbackCircle in cTerrain.knockbackCircles:
-                pow,x,y,r,falloff=knockbackCircle
+                pow, x, y, r, falloff = knockbackCircle
 
                 dx = self.x - x
                 dy = self.y - y
-                d = math.sqrt(dx ** 2 + dy ** 2)
+                d = math.sqrt(dx**2 + dy**2)
                 if player.laser:
-                    lase= player.laser[0]
+                    lase = player.laser[0]
                     if lase.laserTarget is self:
                         self.xSpeed += frameLength * dx / d / self.size * pow
                         self.ySpeed += frameLength * dy / d / self.size * pow
-                    elif d < r+self.r:
+                    elif d < r + self.r:
                         self.xSpeed += frameLength * dx / d / self.size * pow * falloff
                         self.ySpeed += frameLength * dy / d / self.size * pow * falloff
                 else:
                     self.xSpeed += frameLength * dx / d / self.size * pow * falloff
                     self.ySpeed += frameLength * dy / d / self.size * pow * falloff
-            
+
             for damageCircle in cTerrain.playerDamageCircles:
                 pow, x, y, r, falloff = damageCircle
-                
+
                 dx = self.x - x
                 dy = self.y - y
-                d = math.sqrt(dx ** 2 + dy ** 2)
+                d = math.sqrt(dx**2 + dy**2)
                 if player.laser:
-                    lase= player.laser[0]
+                    lase = player.laser[0]
                     if lase.laserTarget is self:
-                        cTerrain.particles.spawnMiningParticles(10, self.color, self.size/5, x, y)
+                        cTerrain.particles.spawnMiningParticles(10, self.color, self.size / 5, x, y)
                         if self.dealDamage(pow):
                             return True
-                    else:                        
+                    else:
                         if d < r + self.r:
-                            cTerrain.particles.spawnMiningParticles(5, self.color, self.size/10, x, y)
-                            if self.dealDamage(pow*falloff):
+                            cTerrain.particles.spawnMiningParticles(5, self.color, self.size / 10, x, y)
+                            if self.dealDamage(pow * falloff):
                                 return True
                 else:
                     if d < r + self.r:
-                        cTerrain.particles.spawnMiningParticles(5, self.color, self.size/10, x, y)
-                        if self.dealDamage(pow*falloff):
+                        cTerrain.particles.spawnMiningParticles(5, self.color, self.size / 10, x, y)
+                        if self.dealDamage(pow * falloff):
                             return True
 
             if self.x < 50:
@@ -278,8 +281,8 @@ class Enemy:
                             self.ySpeed -= 0.0003 * frameLength * self.speed
                         else:
                             self.ySpeed += 0.0003 * frameLength * self.speed
-                        self.xSpeed *= 0.995 ** frameLength
-                        self.ySpeed *= 0.995 ** frameLength
+                        self.xSpeed *= 0.995**frameLength
+                        self.ySpeed *= 0.995**frameLength
                     else:
                         self.mode = "Attack"
                         self.animationTimer = 0
@@ -303,9 +306,9 @@ class Enemy:
                         self.animationTimer = 0
 
                     if self.onGround:
-                        self.xSpeed *= 0.98 ** frameLength
+                        self.xSpeed *= 0.98**frameLength
                     else:
-                        self.xSpeed *= 0.993 ** frameLength
+                        self.xSpeed *= 0.993**frameLength
 
             self.moveVertical(frameLength, cTerrain)
             self.moveHorizontal(frameLength, cTerrain)
@@ -361,7 +364,9 @@ class Enemy:
             if self.ySpeed > 0:
                 self.onGround = True
                 if not cTerrain.nestsCollideRect(self.rect):
-                    cTerrain.particles.spawnMiningParticles(int(abs((abs(max(0.005 * frameLength, abs(self.xSpeed))) - 0.005 * frameLength) + 3 * (self.ySpeed - 0.0015 * frameLength)) * 12), (0, 0, 0), 20, self.x, self.y + self.height / 2, time=200)
+                    cTerrain.particles.spawnMiningParticles(
+                        int(abs((abs(max(0.005 * frameLength, abs(self.xSpeed))) - 0.005 * frameLength) + 3 * (self.ySpeed - 0.0015 * frameLength)) * 12), (0, 0, 0), 20, self.x, self.y + self.height / 2, time=200
+                    )
             if self.ySpeed < 0:
                 slopeTolerance = math.ceil(abs(0.5 * frameLength * self.ySpeed))
                 for i in range(slopeTolerance):

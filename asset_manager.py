@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pygame
 
+
 class AssetManager:
     IMAGE_EXTS = {".png", ".bmp", ".jpg", ".jpeg", ".gif", ".webp"}
 
@@ -22,10 +23,8 @@ class AssetManager:
 
         if self.use_cache and self._load_from_cache(paths, loading_screen):
             if verbose:
-                print(f"[assets] loaded {len(self.images)} from cache "
-                      f"in {time.perf_counter() - start:.2f}s")
+                print(f"[assets] loaded {len(self.images)} from cache in {time.perf_counter() - start:.2f}s")
             return time.perf_counter() - start
-
 
         with ThreadPoolExecutor(max_workers=os.cpu_count() or 4) as ex:
             for name, surf in ex.map(self._load_one, paths.items()):
@@ -47,9 +46,8 @@ class AssetManager:
             self._save_to_cache(paths)
 
         if verbose:
-            print(f"[assets] loaded {len(self.images)} images "
-                  f"in {time.perf_counter() - start:.2f}s")
-        
+            print(f"[assets] loaded {len(self.images)} images in {time.perf_counter() - start:.2f}s")
+
         return time.perf_counter() - start
 
     def get(self, name):
@@ -57,8 +55,7 @@ class AssetManager:
             self.unused.discard(name)
             return self.images[name]
         except KeyError:
-            raise KeyError(f"No asset named {name!r}. "
-                           f"Available: {sorted(self.images)[:10]}...")
+            raise KeyError(f"No asset named {name!r}. Available: {sorted(self.images)[:10]}...")
 
     def __getitem__(self, name):
         return self.get(name)
@@ -90,7 +87,7 @@ class AssetManager:
         name, path = item
         try:
             return name, pygame.image.load(path)
-        except Exception as e:                     # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
             print(f"[assets] failed to load {path}: {e}")
             return name, None
 

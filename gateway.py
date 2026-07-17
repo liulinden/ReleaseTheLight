@@ -1,51 +1,54 @@
-import pygame, os, math
+import math
+
+import pygame
+
+from global_assets import get_asset
 from structure import Structure
 from UI import HealthBar
-from global_assets import get_asset
-
 
 # ---------------------------------------------------------------------------
 # Gateway Y positions — one per boundary between layers.
 # 5 layers → 4 gateways. Adjust values to tune layer spacing.
 # ---------------------------------------------------------------------------
-GATEWAY_Y_POSITIONS = [5000, 10000, 15000, 20000,25000,30000,35000,40000,45000]
+GATEWAY_Y_POSITIONS = [5000, 10000, 15000, 20000, 25000, 30000, 35000, 40000, 45000]
 
 # ---------------------------------------------------------------------------
 # Image storage — populated by init() after pygame.display.set_mode()
 # ---------------------------------------------------------------------------
-gatewayIMGs = {}   # keyed by tile type + state, e.g. "corridorclosed"
+gatewayIMGs = {}  # keyed by tile type + state, e.g. "corridorclosed"
 gatewayHitboxIMGs = {}  # keyed by tile type + state
+
 
 def init():
     global gatewayIMGs, gatewayHitboxIMGs
 
     # corridor
-    gatewayIMGs["corridorclosed"]  = get_asset("gateCorridorClosed")
-    gatewayIMGs["corridoropened"]  = get_asset("gateCorridorOpened")
-    gatewayIMGs["corridorback"]    = get_asset("gateCorridorErase")
-    gatewayIMGs["corridorerase"]   = get_asset("gateCorridorErase")    
-    gatewayHitboxIMGs["corridor"]  = get_asset("gateCorridorHitbox")
+    gatewayIMGs["corridorclosed"] = get_asset("gateCorridorClosed")
+    gatewayIMGs["corridoropened"] = get_asset("gateCorridorOpened")
+    gatewayIMGs["corridorback"] = get_asset("gateCorridorErase")
+    gatewayIMGs["corridorerase"] = get_asset("gateCorridorErase")
+    gatewayHitboxIMGs["corridor"] = get_asset("gateCorridorHitbox")
     gatewayHitboxIMGs["corridorerase"] = get_asset("gateCorridorEraseHitbox")
 
     # entry
-    gatewayIMGs["entryclosed"]     = get_asset("gateEntryClosed")
-    gatewayIMGs["entrycharging1"]  = get_asset("gateEntryCharging1")
-    gatewayIMGs["entrycharging2"]  = get_asset("gateEntryCharging2")
-    gatewayIMGs["entrycharging3"]  = get_asset("gateEntryCharging3")
-    gatewayIMGs["entryopened"]     = get_asset("gateEntryOpened")
-    gatewayIMGs["entryback"]       = get_asset("gateEntryBack")
-    gatewayIMGs["entryerase"]      = get_asset("gateEntryErase")
-    gatewayHitboxIMGs["entryerase"]   = get_asset("gateEntryEraseHitbox")
-    gatewayHitboxIMGs["entryclosed"]  = get_asset("gateEntryClosedHitbox")
-    gatewayHitboxIMGs["entryopened"]  = get_asset("gateEntryOpenedHitbox")
-    gatewayHitboxIMGs["activator"]    = get_asset("gatewayActivatorHitbox")
+    gatewayIMGs["entryclosed"] = get_asset("gateEntryClosed")
+    gatewayIMGs["entrycharging1"] = get_asset("gateEntryCharging1")
+    gatewayIMGs["entrycharging2"] = get_asset("gateEntryCharging2")
+    gatewayIMGs["entrycharging3"] = get_asset("gateEntryCharging3")
+    gatewayIMGs["entryopened"] = get_asset("gateEntryOpened")
+    gatewayIMGs["entryback"] = get_asset("gateEntryBack")
+    gatewayIMGs["entryerase"] = get_asset("gateEntryErase")
+    gatewayHitboxIMGs["entryerase"] = get_asset("gateEntryEraseHitbox")
+    gatewayHitboxIMGs["entryclosed"] = get_asset("gateEntryClosedHitbox")
+    gatewayHitboxIMGs["entryopened"] = get_asset("gateEntryOpenedHitbox")
+    gatewayHitboxIMGs["activator"] = get_asset("gatewayActivatorHitbox")
 
     # exit
-    gatewayIMGs["exitclosed"]      = get_asset("gateExitClosed")
-    gatewayIMGs["exitopened"]      = get_asset("gateExitOpened")
-    gatewayIMGs["exitback"]        = get_asset("gateExitBack")
-    gatewayIMGs["exiterase"]       = get_asset("gateExitErase")
-    gatewayHitboxIMGs["exit"]      = get_asset("gateExitHitbox")
+    gatewayIMGs["exitclosed"] = get_asset("gateExitClosed")
+    gatewayIMGs["exitopened"] = get_asset("gateExitOpened")
+    gatewayIMGs["exitback"] = get_asset("gateExitBack")
+    gatewayIMGs["exiterase"] = get_asset("gateExitErase")
+    gatewayHitboxIMGs["exit"] = get_asset("gateExitHitbox")
     gatewayHitboxIMGs["exiterase"] = get_asset("gateExitEraseHitbox")
 
 
@@ -54,22 +57,22 @@ def init():
 # ---------------------------------------------------------------------------
 
 _scaled_img__cache = {}
+
+
 class GatewayTile(Structure):
     """Single tile in a gateway row. Width and height = visual_chunk_size."""
 
-
     def __init__(self, tileX, tileY, tileSize, defaultZooms):
-        super().__init__(tileX + tileSize / 2, tileY + tileSize / 2,
-                         tileSize, tileSize, defaultZooms)
+        super().__init__(tileX + tileSize / 2, tileY + tileSize / 2, tileSize, tileSize, defaultZooms)
         self.tileSize = tileSize
         self.tileLeft = tileX
-        self.tileTop  = tileY
+        self.tileTop = tileY
         # pre-scaled surfaces keyed by zoom
         self._hitboxSurfs = {}
-        self._frontSurfs  = {}
-        self._backSurfs   = {}
+        self._frontSurfs = {}
+        self._backSurfs = {}
         self._eraseHitboxSurfs = {}
-        self._eraseSurfs={}
+        self._eraseSurfs = {}
 
     def _scaledIMG(self, img, zoom):
         size = int(self.tileSize * zoom)
@@ -80,29 +83,24 @@ class GatewayTile(Structure):
 
     def getHitboxSurface(self, zoom):
         return self._hitboxSurfs.get(zoom)
-    
-    def getEraseSurface(self,zoom):
+
+    def getEraseSurface(self, zoom):
         return self._eraseSurfs.get(zoom)
 
-    def getEraseHitboxSurface(self,zoom):
+    def getEraseHitboxSurface(self, zoom):
         return self._eraseHitboxSurfs.get(zoom)
-        
 
     def draw(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
         surf = self._frontSurfs.get(zoom)
         if surf:
-            surface.blit(surf,
-                ((self.tileLeft - left) * zoom + offset_x,
-                 (self.tileTop  - top)  * zoom + offset_y))
+            surface.blit(surf, ((self.tileLeft - left) * zoom + offset_x, (self.tileTop - top) * zoom + offset_y))
 
     def drawBack(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
         surf = self._backSurfs.get(zoom)
         if surf:
-            surface.blit(surf,
-                ((self.tileLeft - left) * zoom + offset_x,
-                 (self.tileTop  - top)  * zoom + offset_y))
+            surface.blit(surf, ((self.tileLeft - left) * zoom + offset_x, (self.tileTop - top) * zoom + offset_y))
 
     def tick(self, frameLength, terrain, player):
         return False
@@ -117,16 +115,11 @@ class CorridorTile(GatewayTile):
     def _buildSurfaces(self):
         state = "opened" if self.opened else "closed"
         for zoom in self.defaultZooms:
-            self._hitboxSurfs[zoom] = self._scaledIMG(
-                gatewayHitboxIMGs["corridor"], zoom)
-            self._frontSurfs[zoom]  = self._scaledIMG(
-                gatewayIMGs[f"corridor{state}"], zoom)
-            self._backSurfs[zoom]   = self._scaledIMG(
-                gatewayIMGs["corridorback"], zoom)
-            self._eraseSurfs[zoom]   = self._scaledIMG(
-                gatewayIMGs["corridorerase"], zoom)
-            self._eraseHitboxSurfs[zoom]   = self._scaledIMG(
-                gatewayHitboxIMGs["corridorerase"], zoom)
+            self._hitboxSurfs[zoom] = self._scaledIMG(gatewayHitboxIMGs["corridor"], zoom)
+            self._frontSurfs[zoom] = self._scaledIMG(gatewayIMGs[f"corridor{state}"], zoom)
+            self._backSurfs[zoom] = self._scaledIMG(gatewayIMGs["corridorback"], zoom)
+            self._eraseSurfs[zoom] = self._scaledIMG(gatewayIMGs["corridorerase"], zoom)
+            self._eraseHitboxSurfs[zoom] = self._scaledIMG(gatewayHitboxIMGs["corridorerase"], zoom)
 
     def open(self):
         if not self.opened:
@@ -136,6 +129,7 @@ class CorridorTile(GatewayTile):
 
 class ExitTile(GatewayTile):
     """Exit hitbox never changes — always solid regardless of gateway state."""
+
     def __init__(self, tileX, tileY, tileSize, defaultZooms, opened=False):
         super().__init__(tileX, tileY, tileSize, defaultZooms)
         self.opened = opened
@@ -144,16 +138,11 @@ class ExitTile(GatewayTile):
     def _buildSurfaces(self):
         state = "opened" if self.opened else "closed"
         for zoom in self.defaultZooms:
-            self._hitboxSurfs[zoom] = self._scaledIMG(
-                gatewayHitboxIMGs["exit"], zoom)
-            self._frontSurfs[zoom]  = self._scaledIMG(
-                gatewayIMGs[f"exit{state}"], zoom)
-            self._backSurfs[zoom]   = self._scaledIMG(
-                gatewayIMGs["exitback"], zoom)
-            self._eraseSurfs[zoom]   = self._scaledIMG(
-                gatewayIMGs["exiterase"], zoom)
-            self._eraseHitboxSurfs[zoom]   = self._scaledIMG(
-                gatewayHitboxIMGs["exiterase"], zoom)
+            self._hitboxSurfs[zoom] = self._scaledIMG(gatewayHitboxIMGs["exit"], zoom)
+            self._frontSurfs[zoom] = self._scaledIMG(gatewayIMGs[f"exit{state}"], zoom)
+            self._backSurfs[zoom] = self._scaledIMG(gatewayIMGs["exitback"], zoom)
+            self._eraseSurfs[zoom] = self._scaledIMG(gatewayIMGs["exiterase"], zoom)
+            self._eraseHitboxSurfs[zoom] = self._scaledIMG(gatewayHitboxIMGs["exiterase"], zoom)
 
     def open(self):
         if not self.opened:
@@ -168,19 +157,16 @@ class EntryTile(GatewayTile):
     # charge thresholds for visual stages (fraction of maxCharge)
     STAGE_THRESHOLDS = [0.0, 0.01, 0.5, 1.0]
 
-    def __init__(self, tileX, tileY, tileSize, defaultZooms, maxCharge,
-                 opened=False):
+    def __init__(self, tileX, tileY, tileSize, defaultZooms, maxCharge, opened=False):
         super().__init__(tileX, tileY, tileSize, defaultZooms)
         self.maxCharge = maxCharge
-        self.charge    = 0.0
-        self.opened    = opened
-        self.chargeStage = 0   # 0=closed, 1-3=charging stages, 4=opened
-        self.gateway   = None  # set by Gateway after construction
+        self.charge = 0.0
+        self.opened = opened
+        self.chargeStage = 0  # 0=closed, 1-3=charging stages, 4=opened
+        self.gateway = None  # set by Gateway after construction
 
         # pre-scale activator hitbox at zoom=1 for laser detection
-        self._activatorHitbox = pygame.transform.scale(
-            gatewayHitboxIMGs["activator"],
-            (int(tileSize), int(tileSize)))
+        self._activatorHitbox = pygame.transform.scale(gatewayHitboxIMGs["activator"], (int(tileSize), int(tileSize)))
 
         self._buildSurfaces()
         self.healthBar = HealthBar(self.maxCharge)
@@ -188,25 +174,19 @@ class EntryTile(GatewayTile):
     def _buildSurfaces(self):
         for zoom in self.defaultZooms:
             if self.opened:
-                self._hitboxSurfs[zoom] = self._scaledIMG(
-                    gatewayHitboxIMGs["entryopened"], zoom)
-                self._frontSurfs[zoom]  = self._scaledIMG(
-                    gatewayIMGs["entryopened"], zoom)
+                self._hitboxSurfs[zoom] = self._scaledIMG(gatewayHitboxIMGs["entryopened"], zoom)
+                self._frontSurfs[zoom] = self._scaledIMG(gatewayIMGs["entryopened"], zoom)
             else:
-                self._hitboxSurfs[zoom] = self._scaledIMG(
-                    gatewayHitboxIMGs["entryclosed"], zoom)
+                self._hitboxSurfs[zoom] = self._scaledIMG(gatewayHitboxIMGs["entryclosed"], zoom)
                 stage = self.chargeStage  # 0–3
                 if stage == 0:
                     img = gatewayIMGs["entryclosed"]
                 else:
                     img = gatewayIMGs[f"entrycharging{stage}"]
                 self._frontSurfs[zoom] = self._scaledIMG(img, zoom)
-            self._backSurfs[zoom] = self._scaledIMG(
-                gatewayIMGs["entryback"], zoom)
-            self._eraseSurfs[zoom]   = self._scaledIMG(
-                gatewayIMGs["entryerase"], zoom)
-            self._eraseHitboxSurfs[zoom]   = self._scaledIMG(
-                gatewayHitboxIMGs["entryerase"], zoom)
+            self._backSurfs[zoom] = self._scaledIMG(gatewayIMGs["entryback"], zoom)
+            self._eraseSurfs[zoom] = self._scaledIMG(gatewayIMGs["entryerase"], zoom)
+            self._eraseHitboxSurfs[zoom] = self._scaledIMG(gatewayHitboxIMGs["entryerase"], zoom)
 
     def isLaserHittingActivator(self, wx, wy):
         """Precise check: is world point (wx,wy) inside the activator sub-region?"""
@@ -229,36 +209,36 @@ class EntryTile(GatewayTile):
         if newStage != self.chargeStage:
             self.chargeStage = newStage
             self._buildSurfaces()
-        #print(self.charge, self.maxCharge)
+        # print(self.charge, self.maxCharge)
         return self.charge >= self.maxCharge
 
     def open(self):
         if not self.opened:
             self.opened = True
             self._buildSurfaces()
-    
-    def drawHealthBar(self,surface, frame, time=None, offset_x=0,offset_y=0):
-        camX, camY, zoom = frame 
-        self.healthBar.draw(surface, (255,255,255), ((self.x - camX +40) * zoom + offset_x, (self.top - camY) * zoom + offset_y), self.charge,time)
+
+    def drawHealthBar(self, surface, frame, time=None, offset_x=0, offset_y=0):
+        camX, camY, zoom = frame
+        self.healthBar.draw(surface, (255, 255, 255), ((self.x - camX + 40) * zoom + offset_x, (self.top - camY) * zoom + offset_y), self.charge, time)
 
 
 # ---------------------------------------------------------------------------
 # Gateway — one horizontal row of tiles
 # ---------------------------------------------------------------------------
 
+
 class Gateway:
     """A full-width horizontal gateway at a fixed Y position.
     Composed of CorridorTiles, EntryTiles, and ExitTiles.
     Entry positions and exit positions are supplied at construction time."""
 
-    def __init__(self, gatewayIndex, worldWidth, tileSize, defaultZooms,
-                 entryColumns, exitColumns, maxChargePerEntry):
-        self.gatewayIndex  = gatewayIndex
-        self.y             = GATEWAY_Y_POSITIONS[gatewayIndex]
-        self.tileSize      = tileSize
-        self.defaultZooms  = defaultZooms
-        self.unlocked      = False
-        self.onUnlock      = None   # callback set by terrain: called when unlocked
+    def __init__(self, gatewayIndex, worldWidth, tileSize, defaultZooms, entryColumns, exitColumns, maxChargePerEntry):
+        self.gatewayIndex = gatewayIndex
+        self.y = GATEWAY_Y_POSITIONS[gatewayIndex]
+        self.tileSize = tileSize
+        self.defaultZooms = defaultZooms
+        self.unlocked = False
+        self.onUnlock = None  # callback set by terrain: called when unlocked
 
         numTiles = math.ceil(worldWidth / tileSize)
         self.tiles = []
@@ -269,20 +249,19 @@ class Gateway:
             if col in exitColumns:
                 tile = ExitTile(tileX, tileY, tileSize, defaultZooms)
             elif col in entryColumns:
-                tile = EntryTile(tileX, tileY, tileSize, defaultZooms,
-                                 maxChargePerEntry)
+                tile = EntryTile(tileX, tileY, tileSize, defaultZooms, maxChargePerEntry)
                 tile.gateway = self
             else:
                 tile = CorridorTile(tileX, tileY, tileSize, defaultZooms)
             self.tiles.append(tile)
 
         self.entryTiles = [t for t in self.tiles if isinstance(t, EntryTile)]
-        self.exitTiles  = [t for t in self.tiles if isinstance(t, ExitTile)]
+        self.exitTiles = [t for t in self.tiles if isinstance(t, ExitTile)]
 
-    def tick(self, terrain, player, lx,ly):
+    def tick(self, terrain, player, lx, ly):
         """Check laser hits on activators each frame. Returns True if activator is hit."""
         for entry in self.entryTiles:
-            if entry.isLaserHittingActivator(lx,ly):
+            if entry.isLaserHittingActivator(lx, ly):
                 if not self.unlocked:
                     player.drainDamage(10)
                     if entry.addCharge(10):
@@ -310,7 +289,7 @@ class Gateway:
         w = surface.get_width()
         h = surface.get_height()
         # cull tiles outside view
-        viewLeft  = left - self.tileSize
+        viewLeft = left - self.tileSize
         viewRight = left + w / zoom + self.tileSize
         for tile in self.tiles:
             if tile.tileLeft < viewRight and tile.tileLeft + tile.tileSize > viewLeft:
@@ -319,7 +298,7 @@ class Gateway:
     def drawBack(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w = surface.get_width()
-        viewLeft  = left - self.tileSize
+        viewLeft = left - self.tileSize
         viewRight = left + w / zoom + self.tileSize
         for tile in self.tiles:
             if tile.tileLeft < viewRight and tile.tileLeft + tile.tileSize > viewLeft:
