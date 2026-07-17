@@ -7,397 +7,397 @@ import UI
 from global_assets import get_asset
 
 # FIX 2: images loaded in init() after display exists
-lightGradient = None
-enemyAnimations = {}
+light_gradient = None
+enemy_animations = {}
 
-enemyAttackFrames = {"1": [4, 5]}
-enemyAnimationLengths = {"1": {"Spawn": 6, "Walk": 7, "Attack": 9}}
+enemy_attack_frames = {"1": [4, 5]}
+enemy_animation_lengths = {"1": {"Spawn": 6, "Walk": 7, "Attack": 9}}
 
 
 def init():
-    global lightGradient, enemyAnimations
-    lightGradient = get_asset("LightGradient")
-    enemyAnimations = {}
-    for variantID in ["1"]:
-        animationIMGs = {}
+    global light_gradient, enemy_animations
+    light_gradient = get_asset("LightGradient")
+    enemy_animations = {}
+    for variant_id in ["1"]:
+        animation_im_gs = {}
 
-        spawnIMGs = []
-        for i in range(enemyAnimationLengths[variantID]["Spawn"]):
-            spawnIMGs.append(get_asset("Enemy" + variantID + "Spawn" + str(i + 1)))
-        animationIMGs["Spawn"] = spawnIMGs
+        spawn_im_gs = []
+        for i in range(enemy_animation_lengths[variant_id]["Spawn"]):
+            spawn_im_gs.append(get_asset("Enemy" + variant_id + "Spawn" + str(i + 1)))
+        animation_im_gs["Spawn"] = spawn_im_gs
 
-        walkIMGs = []
-        for i in range(enemyAnimationLengths[variantID]["Walk"]):
-            walkIMGs.append(get_asset("Enemy" + variantID + "Walk" + str(i + 1)))
-        animationIMGs["Walk"] = walkIMGs
+        walk_im_gs = []
+        for i in range(enemy_animation_lengths[variant_id]["Walk"]):
+            walk_im_gs.append(get_asset("Enemy" + variant_id + "Walk" + str(i + 1)))
+        animation_im_gs["Walk"] = walk_im_gs
 
-        attackIMGs = []
-        for i in range(enemyAnimationLengths[variantID]["Attack"]):
-            attackIMGs.append(get_asset("Enemy" + variantID + "Attack" + str(i + 1)))
-        animationIMGs["Attack"] = attackIMGs
-        animationIMGs["AttackHitbox"] = get_asset("Enemy" + variantID + "AttackHitbox")
+        attack_im_gs = []
+        for i in range(enemy_animation_lengths[variant_id]["Attack"]):
+            attack_im_gs.append(get_asset("Enemy" + variant_id + "Attack" + str(i + 1)))
+        animation_im_gs["Attack"] = attack_im_gs
+        animation_im_gs["AttackHitbox"] = get_asset("Enemy" + variant_id + "AttackHitbox")
 
-        enemyAnimations[variantID] = animationIMGs
+        enemy_animations[variant_id] = animation_im_gs
 
 
-def getEnemy(cTerrain, player, nestType, color, nestHealth, nestX, nestY, nestSize):
+def get_enemy(c_terrain, player, nest_type, color, nest_health, nest_x, nest_y, nest_size):
     for i in range(20):
-        x, y = random.randint(int(nestX - 10 - nestSize / 2), int(nestX + 10 + nestSize / 2)), random.randint(int(nestY - 10 - nestSize / 2), int(nestY + 10 + nestSize / 2))
+        x, y = random.randint(int(nest_x - 10 - nest_size / 2), int(nest_x + 10 + nest_size / 2)), random.randint(int(nest_y - 10 - nest_size / 2), int(nest_y + 10 + nest_size / 2))
         size = random.randint(20, 70)
         width, height = size * 3 / 8, size * 3 / 4
-        newEnemyRect = pygame.Rect(x - width / 2, y - height / 2, width, height)
-        if not (cTerrain.collideRect(newEnemyRect) or newEnemyRect.colliderect(player.rect)):
-            newEnemy = Enemy(cTerrain.defaultZooms, x, y, color, nestHealth / 5, size)
-            newEnemy.spawnParticles(cTerrain)
-            return newEnemy
+        new_enemy_rect = pygame.Rect(x - width / 2, y - height / 2, width, height)
+        if not (c_terrain.collide_rect(new_enemy_rect) or new_enemy_rect.colliderect(player.rect)):
+            new_enemy = Enemy(c_terrain.default_zooms, x, y, color, nest_health / 5, size)
+            new_enemy.spawn_particles(c_terrain)
+            return new_enemy
     return False
 
 
-animationFPS = 15
+animation_fps = 15
 
 
 class Enemy:
-    def __init__(self, defaultZooms, x, y, color, health, size):
+    def __init__(self, default_zooms, x, y, color, health, size):
         self.size = size
         self.width, self.height = self.size * 3 / 8, self.size * 3 / 4
-        self.maxHealth = health
-        self.damage = self.maxHealth
+        self.max_health = health
+        self.damage = self.max_health
         self.speed = 1.5
-        self.canFly = True
+        self.can_fly = True
         if random.randint(1, 2) == 1:
-            self.canFly = not self.canFly
-        self.variantID = "1"
-        self.attackFrames = enemyAttackFrames[self.variantID]
-        self.animationLengths = enemyAnimationLengths[self.variantID]
+            self.can_fly = not self.can_fly
+        self.variant_id = "1"
+        self.attack_frames = enemy_attack_frames[self.variant_id]
+        self.animation_lengths = enemy_animation_lengths[self.variant_id]
 
         self.x = x
         self.y = y
-        self.xSpeed = 0
-        self.ySpeed = 0
+        self.x_speed = 0
+        self.y_speed = 0
         self.color = color
-        self.health = self.maxHealth
-        self.onGround = False
-        self.animationTimer = 0
-        self.animationFrame = 0
+        self.health = self.max_health
+        self.on_ground = False
+        self.animation_timer = 0
+        self.animation_frame = 0
         self.facing = "Right"
         self.mode = "Spawn"
         self.glow = 0
         self.r = math.dist((0, 0), (self.width / 2, self.height / 2))
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
-        self.healthBar = UI.HealthBar(self.maxHealth)
+        self.health_bar = UI.HealthBar(self.max_health)
 
-        self.resizedGradients = {}
-        self.resizedIMGs = {}
+        self.resized_gradients = {}
+        self.resized_im_gs = {}
 
         # FIX 1: pre-allocate filter surfaces for draw() and drawGradient() per zoom
         self._draw_filter = {}
         self._gradient_filter = {}
 
-        for zoom in defaultZooms:
-            zoomSet = {}
+        for zoom in default_zooms:
+            zoom_set = {}
             for direction in ["Left", "Right"]:
                 IMGs = {}
 
                 resizedspawns = []
-                for spawnIMG in enemyAnimations[self.variantID]["Spawn"]:
-                    resized = pygame.transform.scale(spawnIMG, (self.size * zoom, self.size * zoom))
+                for spawn_img in enemy_animations[self.variant_id]["Spawn"]:
+                    resized = pygame.transform.scale(spawn_img, (self.size * zoom, self.size * zoom))
                     if direction == "Left":
                         resized = pygame.transform.flip(resized, True, False)
                     resizedspawns.append(resized)
                 IMGs["Spawn"] = resizedspawns
 
                 resizedwalks = []
-                for walkIMG in enemyAnimations[self.variantID]["Walk"]:
-                    resized = pygame.transform.scale(walkIMG, (self.size * zoom, self.size * zoom))
+                for walk_img in enemy_animations[self.variant_id]["Walk"]:
+                    resized = pygame.transform.scale(walk_img, (self.size * zoom, self.size * zoom))
                     if direction == "Left":
                         resized = pygame.transform.flip(resized, True, False)
                     resizedwalks.append(resized)
                 IMGs["Walk"] = resizedwalks
 
-                resizedAttacks = []
-                for attackIMG in enemyAnimations[self.variantID]["Attack"]:
-                    resized = pygame.transform.scale(attackIMG, (self.size * zoom, self.size * zoom))
+                resized_attacks = []
+                for attack_img in enemy_animations[self.variant_id]["Attack"]:
+                    resized = pygame.transform.scale(attack_img, (self.size * zoom, self.size * zoom))
                     if direction == "Left":
                         resized = pygame.transform.flip(resized, True, False)
-                    resizedAttacks.append(resized)
-                IMGs["Attack"] = resizedAttacks
+                    resized_attacks.append(resized)
+                IMGs["Attack"] = resized_attacks
 
-                resized = pygame.transform.scale(enemyAnimations[self.variantID]["AttackHitbox"], (self.size * zoom, self.size * zoom))
+                resized = pygame.transform.scale(enemy_animations[self.variant_id]["AttackHitbox"], (self.size * zoom, self.size * zoom))
                 if direction == "Left":
                     resized = pygame.transform.flip(resized, True, False)
                 IMGs["AttackHitbox"] = resized
 
-                zoomSet[direction] = IMGs
-            self.resizedIMGs[zoom] = zoomSet
+                zoom_set[direction] = IMGs
+            self.resized_im_gs[zoom] = zoom_set
 
-            grad_img = pygame.transform.scale(lightGradient, (self.size * 2 * zoom, self.size * 2 * zoom))
-            self.resizedGradients[zoom] = grad_img
+            grad_img = pygame.transform.scale(light_gradient, (self.size * 2 * zoom, self.size * 2 * zoom))
+            self.resized_gradients[zoom] = grad_img
             self._draw_filter[zoom] = pygame.Surface((self.size * zoom, self.size * zoom), flags=pygame.SRCALPHA)
             self._gradient_filter[zoom] = pygame.Surface(grad_img.get_size(), flags=pygame.SRCALPHA)
 
-    def spawnParticles(self, cTerrain):
-        cTerrain.particles.spawnMiningParticles(15, self.color, self.size / 3, self.x, self.y)
+    def spawn_particles(self, c_terrain):
+        c_terrain.particles.spawn_mining_particles(15, self.color, self.size / 3, self.x, self.y)
 
-    def updateCostume(self, frameLength, player):
-        self.glow += (0 - self.glow) / 500 * frameLength
-        self.animationTimer = self.animationTimer + frameLength
+    def update_costume(self, frame_length, player):
+        self.glow += (0 - self.glow) / 500 * frame_length
+        self.animation_timer = self.animation_timer + frame_length
         if self.mode == "Spawn":
-            if self.animationTimer >= self.animationLengths["Spawn"] * 1000 / animationFPS:
+            if self.animation_timer >= self.animation_lengths["Spawn"] * 1000 / animation_fps:
                 self.mode = "Walk"
-                self.animationTimer = 0
+                self.animation_timer = 0
         elif self.mode == "Walk":
-            self.animationTimer = self.animationTimer % (self.animationLengths["Walk"] * 1000 / animationFPS)
+            self.animation_timer = self.animation_timer % (self.animation_lengths["Walk"] * 1000 / animation_fps)
         elif self.mode == "Attack":
-            if self.animationTimer >= self.animationLengths["Attack"] * 1000 / animationFPS:
+            if self.animation_timer >= self.animation_lengths["Attack"] * 1000 / animation_fps:
                 self.mode = "Walk"
-                self.animationTimer = 0
+                self.animation_timer = 0
 
-        targetX, targetY = player.x, player.y
+        target_x, target_y = player.x, player.y
 
         if self.mode == "Walk":
-            if self.x < targetX:
+            if self.x < target_x:
                 self.facing = "Right"
-            elif self.x > targetX:
+            elif self.x > target_x:
                 self.facing = "Left"
 
-        self.animationFrame = math.floor(self.animationTimer / (1000 / animationFPS))
+        self.animation_frame = math.floor(self.animation_timer / (1000 / animation_fps))
 
-    def updateRect(self):
+    def update_rect(self):
         self.rect.x, self.rect.y = self.x - self.width / 2, self.y - self.height / 2
 
-    def drawGradient(self, surface, frame, offset_x=0, offset_y=0):
-        camX, camY, zoom = frame
-        img = self.resizedGradients[zoom]
+    def draw_gradient(self, surface, frame, offset_x=0, offset_y=0):
+        cam_x, cam_y, zoom = frame
+        img = self.resized_gradients[zoom]
         if self.glow > 0:
             # FIX 1: reuse pre-allocated gradient filter surface
             filt = self._gradient_filter[zoom]
             filt.fill((self.color[0], self.color[1], self.color[2], self.glow))
             filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-            surface.blit(filt, ((self.x - self.size - camX) * zoom + offset_x, (self.y - self.size - camY) * zoom + offset_y))
+            surface.blit(filt, ((self.x - self.size - cam_x) * zoom + offset_x, (self.y - self.size - cam_y) * zoom + offset_y))
 
     def draw(self, surface, frame, hitbox=False, offset_x=0, offset_y=0):
-        camX, camY, zoom = frame
+        cam_x, cam_y, zoom = frame
 
-        self.updateRect()
+        self.update_rect()
         if hitbox:
             if self.mode != "Spawn":
                 l = float(self.rect.left)
                 r = float(self.rect.right - 1)
                 t = float(self.rect.top)
                 b = float(self.rect.bottom - 1)
-                pygame.draw.line(surface, self.color, ((l - camX) * zoom + offset_x, (t - camY) * zoom + offset_y), ((l - camX) * zoom + offset_x, (b - camY) * zoom + offset_y))
-                pygame.draw.line(surface, self.color, ((r - camX) * zoom + offset_x, (t - camY) * zoom + offset_y), ((r - camX) * zoom + offset_x, (b - camY) * zoom + offset_y))
-                pygame.draw.line(surface, self.color, ((l - camX) * zoom + offset_x, (t - camY) * zoom + offset_y), ((r - camX) * zoom + offset_x, (t - camY) * zoom + offset_y))
-                pygame.draw.line(surface, self.color, ((l - camX) * zoom + offset_x, (b - camY) * zoom + offset_y), ((r - camX) * zoom + offset_x, (b - camY) * zoom + offset_y))
-                if self.mode == "Attack" and self.animationFrame in self.attackFrames:
-                    self.drawAttackHitbox(surface, frame, offset_x=offset_x, offset_y=offset_y)
+                pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((l - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
+                pygame.draw.line(surface, self.color, ((r - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
+                pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y))
+                pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
+                if self.mode == "Attack" and self.animation_frame in self.attack_frames:
+                    self.draw_attack_hitbox(surface, frame, offset_x=offset_x, offset_y=offset_y)
         else:
             # FIX 1: reuse pre-allocated draw filter surface
             filt = self._draw_filter[zoom]
             filt.fill(self.color)
-            filt.blit(self.resizedIMGs[zoom][self.facing][self.mode][self.animationFrame], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-            surface.blit(filt, ((self.rect.centerx - self.size / 2 - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y))
+            filt.blit(self.resized_im_gs[zoom][self.facing][self.mode][self.animation_frame], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            surface.blit(filt, ((self.rect.centerx - self.size / 2 - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y))
 
-    def drawHealthBar(self, surface, frame, time=None, offset_x=0, offset_y=0):
-        camX, camY, zoom = frame
-        self.healthBar.draw(surface, self.color, ((self.rect.centerx - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y), self.health, time)
+    def draw_health_bar(self, surface, frame, time=None, offset_x=0, offset_y=0):
+        cam_x, cam_y, zoom = frame
+        self.health_bar.draw(surface, self.color, ((self.rect.centerx - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y), self.health, time)
 
-    def drawAttackHitbox(self, surface, frame, offset_x=0, offset_y=0):
+    def draw_attack_hitbox(self, surface, frame, offset_x=0, offset_y=0):
         # never used
-        camX, camY, zoom = frame
-        surface.blit(self.resizedIMGs[zoom][self.facing]["AttackHitbox"], ((self.rect.centerx - self.size / 2 - camX) * zoom + offset_x, (self.rect.bottom - self.size - camY + 5) * zoom + offset_y))
+        cam_x, cam_y, zoom = frame
+        surface.blit(self.resized_im_gs[zoom][self.facing]["AttackHitbox"], ((self.rect.centerx - self.size / 2 - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y))
 
-    def dealDamage(self, damage):
+    def deal_damage(self, damage):
         self.glow = 255
         self.health -= damage
         if damage > 0:
-            self.healthBar.trigger()
+            self.health_bar.trigger()
         if self.health < 0:
             self.health = 0
             return True
         return False
 
-    def tick(self, frameLength, cTerrain, player):
+    def tick(self, frame_length, c_terrain, player):
         if self.mode != "Spawn":
-            if not self.canFly:
-                self.ySpeed = min(0.4, self.ySpeed + 0.0015 * frameLength)
+            if not self.can_fly:
+                self.y_speed = min(0.4, self.y_speed + 0.0015 * frame_length)
 
-            for knockbackCircle in cTerrain.knockbackCircles:
-                pow, x, y, r, falloff = knockbackCircle
+            for knockback_circle in c_terrain.knockback_circles:
+                pow, x, y, r, falloff = knockback_circle
 
                 dx = self.x - x
                 dy = self.y - y
                 d = math.sqrt(dx**2 + dy**2)
                 if player.laser:
                     lase = player.laser[0]
-                    if lase.laserTarget is self:
-                        self.xSpeed += frameLength * dx / d / self.size * pow
-                        self.ySpeed += frameLength * dy / d / self.size * pow
+                    if lase.laser_target is self:
+                        self.x_speed += frame_length * dx / d / self.size * pow
+                        self.y_speed += frame_length * dy / d / self.size * pow
                     elif d < r + self.r:
-                        self.xSpeed += frameLength * dx / d / self.size * pow * falloff
-                        self.ySpeed += frameLength * dy / d / self.size * pow * falloff
+                        self.x_speed += frame_length * dx / d / self.size * pow * falloff
+                        self.y_speed += frame_length * dy / d / self.size * pow * falloff
                 else:
-                    self.xSpeed += frameLength * dx / d / self.size * pow * falloff
-                    self.ySpeed += frameLength * dy / d / self.size * pow * falloff
+                    self.x_speed += frame_length * dx / d / self.size * pow * falloff
+                    self.y_speed += frame_length * dy / d / self.size * pow * falloff
 
-            for damageCircle in cTerrain.playerDamageCircles:
-                pow, x, y, r, falloff = damageCircle
+            for damage_circle in c_terrain.player_damage_circles:
+                pow, x, y, r, falloff = damage_circle
 
                 dx = self.x - x
                 dy = self.y - y
                 d = math.sqrt(dx**2 + dy**2)
                 if player.laser:
                     lase = player.laser[0]
-                    if lase.laserTarget is self:
-                        cTerrain.particles.spawnMiningParticles(10, self.color, self.size / 5, x, y)
-                        if self.dealDamage(pow):
+                    if lase.laser_target is self:
+                        c_terrain.particles.spawn_mining_particles(10, self.color, self.size / 5, x, y)
+                        if self.deal_damage(pow):
                             return True
                     else:
                         if d < r + self.r:
-                            cTerrain.particles.spawnMiningParticles(5, self.color, self.size / 10, x, y)
-                            if self.dealDamage(pow * falloff):
+                            c_terrain.particles.spawn_mining_particles(5, self.color, self.size / 10, x, y)
+                            if self.deal_damage(pow * falloff):
                                 return True
                 else:
                     if d < r + self.r:
-                        cTerrain.particles.spawnMiningParticles(5, self.color, self.size / 10, x, y)
-                        if self.dealDamage(pow * falloff):
+                        c_terrain.particles.spawn_mining_particles(5, self.color, self.size / 10, x, y)
+                        if self.deal_damage(pow * falloff):
                             return True
 
             if self.x < 50:
-                self.xSpeed += (50 - self.x) / 10000 * frameLength
-            elif self.x > cTerrain.worldWidth - 50:
-                self.xSpeed -= (self.x - cTerrain.worldWidth + 50) / 10000 * frameLength
+                self.x_speed += (50 - self.x) / 10000 * frame_length
+            elif self.x > c_terrain.world_width - 50:
+                self.x_speed -= (self.x - c_terrain.world_width + 50) / 10000 * frame_length
 
             if self.mode == "Walk":
-                if self.canFly:
+                if self.can_fly:
                     if abs(player.x - self.x) > self.size / 2 or abs(player.y - self.y) > self.size / 2:
                         rand = random.randint(0, 3)
                         if (player.x < self.x and not rand == 3) or rand == 0:
-                            self.xSpeed -= 0.0003 * frameLength * self.speed
+                            self.x_speed -= 0.0003 * frame_length * self.speed
                         else:
-                            self.xSpeed += 0.0003 * frameLength * self.speed
+                            self.x_speed += 0.0003 * frame_length * self.speed
                         rand = random.randint(0, 3)
                         if (player.y < self.y and not rand == 3) or rand == 0:
-                            self.ySpeed -= 0.0003 * frameLength * self.speed
+                            self.y_speed -= 0.0003 * frame_length * self.speed
                         else:
-                            self.ySpeed += 0.0003 * frameLength * self.speed
-                        self.xSpeed *= 0.995**frameLength
-                        self.ySpeed *= 0.995**frameLength
+                            self.y_speed += 0.0003 * frame_length * self.speed
+                        self.x_speed *= 0.995**frame_length
+                        self.y_speed *= 0.995**frame_length
                     else:
                         self.mode = "Attack"
-                        self.animationTimer = 0
+                        self.animation_timer = 0
                 else:
-                    if player.y < self.y - 10 and self.onGround and random.randint(1, 500) < frameLength:
-                        self.ySpeed = -0.3
+                    if player.y < self.y - 10 and self.on_ground and random.randint(1, 500) < frame_length:
+                        self.y_speed = -0.3
                     if abs(player.x - self.x) > self.size / 2 or abs(player.y - self.y) > self.size / 2:
                         rand = random.randint(0, 3)
                         if (player.x < self.x and not rand == 3) or rand == 0:
-                            if self.onGround:
-                                self.xSpeed -= 0.001 * frameLength * self.speed
+                            if self.on_ground:
+                                self.x_speed -= 0.001 * frame_length * self.speed
                             else:
-                                self.xSpeed -= 0.0003 * frameLength * self.speed
+                                self.x_speed -= 0.0003 * frame_length * self.speed
                         else:
-                            if self.onGround:
-                                self.xSpeed += 0.001 * frameLength * self.speed
+                            if self.on_ground:
+                                self.x_speed += 0.001 * frame_length * self.speed
                             else:
-                                self.xSpeed += 0.0003 * frameLength * self.speed
+                                self.x_speed += 0.0003 * frame_length * self.speed
                     else:
                         self.mode = "Attack"
-                        self.animationTimer = 0
+                        self.animation_timer = 0
 
-                    if self.onGround:
-                        self.xSpeed *= 0.98**frameLength
+                    if self.on_ground:
+                        self.x_speed *= 0.98**frame_length
                     else:
-                        self.xSpeed *= 0.993**frameLength
+                        self.x_speed *= 0.993**frame_length
 
-            self.moveVertical(frameLength, cTerrain)
-            self.moveHorizontal(frameLength, cTerrain)
+            self.move_vertical(frame_length, c_terrain)
+            self.move_horizontal(frame_length, c_terrain)
 
-            if player.immunityTimer == 0 and self.mode == "Attack" and self.animationFrame in self.attackFrames:
-                if self.attackCollideRect(player.rect):
-                    player.immunityTimer = player.immunityTime
+            if player.immunity_timer == 0 and self.mode == "Attack" and self.animation_frame in self.attack_frames:
+                if self.attack_collide_rect(player.rect):
+                    player.immunity_timer = player.immunity_time
                     if self.facing == "Right":
-                        player.xSpeed = 0.3
+                        player.x_speed = 0.3
                     else:
-                        player.xSpeed = -0.3
-                    player.ySpeed = -0.3
-                    player.dealDamage(self.damage)
+                        player.x_speed = -0.3
+                    player.y_speed = -0.3
+                    player.deal_damage(self.damage)
 
             if math.dist((self.x, self.y), (player.x, player.y)) > 500:
                 return True
 
-        self.updateCostume(frameLength, player)
+        self.update_costume(frame_length, player)
 
         return False
 
-    def moveHorizontal(self, frameLength, cTerrain):
-        self.x += frameLength * self.xSpeed
-        self.updateRect()
-        if self.collidingWithTerrain(cTerrain):
-            slopeTolerance = math.ceil(3 * abs(frameLength * self.xSpeed))
-            for i in range(slopeTolerance):
+    def move_horizontal(self, frame_length, c_terrain):
+        self.x += frame_length * self.x_speed
+        self.update_rect()
+        if self.colliding_with_terrain(c_terrain):
+            slope_tolerance = math.ceil(3 * abs(frame_length * self.x_speed))
+            for i in range(slope_tolerance):
                 self.y -= 1
-                self.updateRect()
-                if not self.collidingWithTerrain(cTerrain):
-                    if self.xSpeed > 0:
-                        self.xSpeed -= self.xSpeed * i / slopeTolerance
+                self.update_rect()
+                if not self.colliding_with_terrain(c_terrain):
+                    if self.x_speed > 0:
+                        self.x_speed -= self.x_speed * i / slope_tolerance
                     else:
-                        self.xSpeed -= self.xSpeed * i / slopeTolerance
+                        self.x_speed -= self.x_speed * i / slope_tolerance
                     return
-            self.y += slopeTolerance
-            self.x -= frameLength * self.xSpeed
-            backs = math.ceil(abs(frameLength * self.xSpeed / 1))
+            self.y += slope_tolerance
+            self.x -= frame_length * self.x_speed
+            backs = math.ceil(abs(frame_length * self.x_speed / 1))
             for i in range(backs):
-                self.x += frameLength * self.xSpeed / backs
-                self.updateRect()
-                if self.collidingWithTerrain(cTerrain):
-                    self.x -= frameLength * self.xSpeed / backs
-                    self.updateRect()
+                self.x += frame_length * self.x_speed / backs
+                self.update_rect()
+                if self.colliding_with_terrain(c_terrain):
+                    self.x -= frame_length * self.x_speed / backs
+                    self.update_rect()
                     break
-            self.xSpeed = 0
+            self.x_speed = 0
 
-    def moveVertical(self, frameLength, cTerrain):
-        self.onGround = False
-        self.y += frameLength * self.ySpeed
-        self.updateRect()
-        if self.collidingWithTerrain(cTerrain):
-            if self.ySpeed > 0:
-                self.onGround = True
-                if not cTerrain.nestsCollideRect(self.rect):
-                    cTerrain.particles.spawnMiningParticles(
-                        int(abs((abs(max(0.005 * frameLength, abs(self.xSpeed))) - 0.005 * frameLength) + 3 * (self.ySpeed - 0.0015 * frameLength)) * 12), (0, 0, 0), 20, self.x, self.y + self.height / 2, time=200
+    def move_vertical(self, frame_length, c_terrain):
+        self.on_ground = False
+        self.y += frame_length * self.y_speed
+        self.update_rect()
+        if self.colliding_with_terrain(c_terrain):
+            if self.y_speed > 0:
+                self.on_ground = True
+                if not c_terrain.nests_collide_rect(self.rect):
+                    c_terrain.particles.spawn_mining_particles(
+                        int(abs((abs(max(0.005 * frame_length, abs(self.x_speed))) - 0.005 * frame_length) + 3 * (self.y_speed - 0.0015 * frame_length)) * 12), (0, 0, 0), 20, self.x, self.y + self.height / 2, time=200
                     )
-            if self.ySpeed < 0:
-                slopeTolerance = math.ceil(abs(0.5 * frameLength * self.ySpeed))
-                for i in range(slopeTolerance):
+            if self.y_speed < 0:
+                slope_tolerance = math.ceil(abs(0.5 * frame_length * self.y_speed))
+                for i in range(slope_tolerance):
                     self.x -= 1
-                    self.updateRect()
-                    if not self.collidingWithTerrain(cTerrain):
+                    self.update_rect()
+                    if not self.colliding_with_terrain(c_terrain):
                         return
-                self.x += slopeTolerance
-                for i in range(slopeTolerance):
+                self.x += slope_tolerance
+                for i in range(slope_tolerance):
                     self.x += 1
-                    self.updateRect()
-                    if not self.collidingWithTerrain(cTerrain):
+                    self.update_rect()
+                    if not self.colliding_with_terrain(c_terrain):
                         return
-                self.x -= slopeTolerance
-            self.y -= frameLength * self.ySpeed
-            backs = math.ceil(abs(frameLength * self.ySpeed / 1))
+                self.x -= slope_tolerance
+            self.y -= frame_length * self.y_speed
+            backs = math.ceil(abs(frame_length * self.y_speed / 1))
             for i in range(backs):
-                self.y += frameLength * self.ySpeed / backs
-                self.updateRect()
-                if self.collidingWithTerrain(cTerrain):
-                    self.y -= frameLength * self.ySpeed / backs
-                    self.updateRect()
+                self.y += frame_length * self.y_speed / backs
+                self.update_rect()
+                if self.colliding_with_terrain(c_terrain):
+                    self.y -= frame_length * self.y_speed / backs
+                    self.update_rect()
                     break
-            self.ySpeed = 0
+            self.y_speed = 0
 
-    def collidingWithTerrain(self, cTerrain):
-        return cTerrain.collideRect(self.rect)
+    def colliding_with_terrain(self, c_terrain):
+        return c_terrain.collide_rect(self.rect)
 
-    def attackCollideRect(self, rect: pygame.Rect):
-        rectMask = pygame.Mask((rect.width, rect.height), fill=True)
+    def attack_collide_rect(self, rect: pygame.Rect):
+        rect_mask = pygame.Mask((rect.width, rect.height), fill=True)
         surface = pygame.Surface((rect.width, rect.height), flags=pygame.SRCALPHA)
-        self.drawAttackHitbox(surface, [rect.left, rect.y, 1])
-        attackMask = pygame.mask.from_surface(surface)
-        return not (attackMask.overlap(rectMask, (0, 0)) == None)
+        self.draw_attack_hitbox(surface, [rect.left, rect.y, 1])
+        attack_mask = pygame.mask.from_surface(surface)
+        return not (attack_mask.overlap(rect_mask, (0, 0)) == None)
