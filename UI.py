@@ -198,20 +198,20 @@ class ChargeDisplay:
             if self.player_charges[color] > 0:
                 new_angle = arc_angle - 2 * math.pi * (self.player_charges[color]) / 500
 
-                def get_channel(index):
+                def get_channel(index, color):
                     return charge_tuples[color][index] * self.player_charges[color]
 
-                pygame.draw.arc(surface, charges_to_color(get_channel(0), get_channel(1), get_channel(2), maximize=True), pygame.Rect(self.x + 40, self.y + 20, 120, 120), new_angle, arc_angle, 10)
+                pygame.draw.arc(surface, charges_to_color(get_channel(0, color), get_channel(1, color), get_channel(2, color), maximize=True), pygame.Rect(self.x + 40, self.y + 20, 120, 120), new_angle, arc_angle, 10)
                 arc_angle = new_angle
         out_line_angle = arc_angle
         for color in order_charges[self.filter_type][1]:
             if self.player_charges[color] > 0:
                 new_angle = arc_angle - 2 * math.pi * (self.player_charges[color]) / 500
 
-                def get_channel(index):
+                def get_channel(index, color):
                     return charge_tuples[color][index] * self.player_charges[color]
 
-                pygame.draw.arc(surface, charges_to_color(get_channel(0), get_channel(1), get_channel(2), maximize=True), pygame.Rect(self.x + 40, self.y + 20, 120, 120), new_angle, arc_angle, 10)
+                pygame.draw.arc(surface, charges_to_color(get_channel(0, color), get_channel(1, color), get_channel(2, color), maximize=True), pygame.Rect(self.x + 40, self.y + 20, 120, 120), new_angle, arc_angle, 10)
                 arc_angle = new_angle
 
         # draw arc outline
