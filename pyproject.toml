@@ -1,0 +1,25 @@
+[tool.ruff]
+line-length = 220
+
+[tool.ruff.lint]
+
+# https://docs.astral.sh/ruff/rules/
+# E and W are pycodestyle errors and warnings
+# F are pyflakes errors
+# I are isort errors (sorting imports)
+# N are pepe-8 naming convention errors
+# B are bugbear errors (potentially problematic code)
+# SIM is flake8-simplify
+
+# https://docs.astral.sh/ruff/rules/
+# select = ["E", "W", "F", "I"]
+# select = ["E", "W", "F", "I", "N"]
+select = ["E", "W", "F", "I", "N", "B", "SIM"]
+
+# Ignore E741: allow ambiguous single-character variable names like l, O, and I
+# Ignore B007: allow unused loop variables without _ prefix
+# Ignore SIM102: allow redundant nested if statements
+ignore = ["E741", "B007", "SIM102"]
+
+[tool.ruff.format]
+quote-style = "double"
