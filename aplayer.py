@@ -1,588 +1,593 @@
-import pygame,math,terrain,laser,laserProperties
-from util import rotateAndGetOffset, rgbBound, channelBound, chargesToColor
+import math
+
+import pygame
+
+import laser
+import laserProperties
+import terrain
 from global_assets import get_asset
+from util import channel_bound, charges_to_color, rotate_and_get_offset
 
+SPRITE_WIDTH = 40
+SPRITE_HEIGHT = 40
+ARM_PIVOT_X = 20
+ARM_PIVOT_Y = 21
 
-SPRITE_WIDTH=40
-SPRITE_HEIGHT=40
-ARM_PIVOT_X =20
-ARM_PIVOT_Y=21
-
-IMPACT_SIZE = 100   # world-space size in px — easy to change
+IMPACT_SIZE = 100  # world-space size in px — easy to change
 IMPACT_FPS = 24
 IMPACT_FRAMES = 7
 
-playerIMGs={}
-laserImpactIMGsRaw=[]  # raw unscaled images, loaded in init()
-animationLengths = {"Idle":8,"Run":8,"Backpedal":8,"Falling":1,"Jumping":1}
-animationFPS=13
+PLAYER_IMGS = {}
+LASER_IMPACT_IMGS_RAW = []  # raw unscaled images, loaded in init()
+ANIMATION_LENGTHS = {"Idle": 8, "Run": 8, "Backpedal": 8, "Falling": 1, "Jumping": 1}
+ANIMATION_FPS = 13
 
-def filterCharges(filterType,charges):
-    match filterType:
+
+def filter_charges(filter_type, charges):
+    match filter_type:
         case "white":
             return charges
         case "blue":
-            return {"white": 0, "blue": charges["white"]/2+charges["blue"], "red":0}
+            return {"white": 0, "blue": charges["white"] / 2 + charges["blue"], "red": 0}
         case "red":
-            return {"white": 0, "blue": 0, "red": charges["white"]/2+charges["red"]}
+            return {"white": 0, "blue": 0, "red": charges["white"] / 2 + charges["red"]}
 
-filterFeeds={
-    "white":{
-        "white": (1,0,0),
-        "blue": (0,1,0),
-        "red": (0,0,1)
-    },
-    "blue":{
-        "white": (0,0.5,0),
-        "blue": (0,1,0),
-        "red": (0,0,0)
-    },
-    "red":{
-        "white": (0,0,0.5),
-        "blue": (0,0,0),
-        "red": (0,0,1)
-    }
-}
+
+filter_feeds = {"white": {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1)}, "blue": {"white": (0, 0.5, 0), "blue": (0, 1, 0), "red": (0, 0, 0)}, "red": {"white": (0, 0, 0.5), "blue": (0, 0, 0), "red": (0, 0, 1)}}
+
 
 def init():
-    global playerIMGs, laserImpactIMGsRaw
+    global PLAYER_IMGS, LASER_IMPACT_IMGS_RAW
 
-    IMGSet=[]
+    img_set = []
     for i in range(5):
-        IMGSet.append(get_asset("PlayerIdle"+str(i+1)))
+        img_set.append(get_asset("PlayerIdle" + str(i + 1)))
     for i in range(3):
-        IMGSet.append(get_asset("PlayerIdle"+str(4-i)))
-    playerIMGs["Idle"]=IMGSet
+        img_set.append(get_asset("PlayerIdle" + str(4 - i)))
+    PLAYER_IMGS["Idle"] = img_set
 
-    IMGSet=[]
+    img_set = []
     for i in range(8):
-        IMGSet.append(get_asset("PlayerRun"+str(i+1)))
-    playerIMGs["Run"]=IMGSet
+        img_set.append(get_asset("PlayerRun" + str(i + 1)))
+    PLAYER_IMGS["Run"] = img_set
 
-    #TEMPORARY ANIMATION
-    IMGSet=[]
+    # TEMPORARY ANIMATION
+    img_set = []
     for i in range(8):
-        IMGSet.append(get_asset("PlayerRun"+str(8-i)))
-    playerIMGs["Backpedal"]=IMGSet
+        img_set.append(get_asset("PlayerRun" + str(8 - i)))
+    PLAYER_IMGS["Backpedal"] = img_set
 
-    playerIMGs["Falling"]=[get_asset("PlayerFalling")]
-    playerIMGs["Jumping"]=[get_asset("PlayerJumping")]
-    #playerIMGs["Sliding"]=[get_asset("PlayerSliding")]
-    playerIMGs["Arm"]=[get_asset("Arm")]
+    PLAYER_IMGS["Falling"] = [get_asset("PlayerFalling")]
+    PLAYER_IMGS["Jumping"] = [get_asset("PlayerJumping")]
+    # playerIMGs["Sliding"]=[get_asset("PlayerSliding")]
+    PLAYER_IMGS["Arm"] = [get_asset("Arm")]
 
-    laserImpactIMGsRaw = []
+    LASER_IMPACT_IMGS_RAW = []
     for i in range(1, IMPACT_FRAMES + 1):
-        laserImpactIMGsRaw.append(
-            get_asset(f"LaserImpact{i}")
-        )
+        LASER_IMPACT_IMGS_RAW.append(get_asset(f"LaserImpact{i}"))
 
 
 class LaserImpact:
     """Single impact animation instance. Follows the live laser endpoint while
     the laser is active, then freezes at its last known position."""
-    _frameDuration = 1000 / IMPACT_FPS
 
-    def __init__(self, x, y, angle, sourceLaser, scaledIMGs):
+    _frame_duration = 1000 / IMPACT_FPS
+
+    def __init__(self, x, y, angle, source_laser, scaled_im_gs):
         self.x = x
         self.y = y
         self.angle = angle
-        self.sourceLaser = sourceLaser  # reference to spawning Laser; set to None when gone
-        self.scaledIMGs = scaledIMGs    # pre-scaled images for all zooms
+        self.source_laser = source_laser  # reference to spawning Laser; set to None when gone
+        self.scaled_im_gs = scaled_im_gs  # pre-scaled images for all zooms
         self.timer = 0.0
 
-    def tick(self, frameLength, activeLasers):
+    def tick(self, frame_length, active_lasers):
         # update position if source laser is still active
-        if self.sourceLaser is not None:
-            if self.sourceLaser in activeLasers:
-                lase = self.sourceLaser
-                self.x = lase.startX + math.cos(lase.angle) * lase.length
-                self.y = lase.startY + math.sin(lase.angle) * lase.length
+        if self.source_laser is not None:
+            if self.source_laser in active_lasers:
+                lase = self.source_laser
+                self.x = lase.start_x + math.cos(lase.angle) * lase.length
+                self.y = lase.start_y + math.sin(lase.angle) * lase.length
                 self.angle = lase.angle
             else:
-                self.sourceLaser = None  # laser gone — freeze position
+                self.source_laser = None  # laser gone — freeze position
 
-        self.timer += frameLength
-        return self.timer >= self._frameDuration * IMPACT_FRAMES  # True = finished
+        self.timer += frame_length
+        return self.timer >= self._frame_duration * IMPACT_FRAMES  # True = finished
 
     def draw(self, surface, frame, color, zoom):
         left, top, _ = frame
-        frameIndex = min(IMPACT_FRAMES - 1, int(self.timer / self._frameDuration))
-        img = self.scaledIMGs[zoom][frameIndex]
+        frame_index = min(IMPACT_FRAMES - 1, int(self.timer / self._frame_duration))
+        img = self.scaled_im_gs[zoom][frame_index]
 
         size = img.get_size()
         tinted = img.copy()
-        colorSurf = pygame.Surface(size, pygame.SRCALPHA)
-        colorSurf.fill((color[0], color[1], color[2], 255))
-        tinted.blit(colorSurf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        color_surf = pygame.Surface(size, pygame.SRCALPHA)
+        color_surf.fill((color[0], color[1], color[2], 255))
+        tinted.blit(color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
         cx = size[0] / 2
         cy = size[1] / 2
-        rotAngle = math.pi - self.angle
-        rotated, offX, offY = rotateAndGetOffset(tinted, cx, cy, rotAngle)
+        rot_angle = math.pi - self.angle
+        rotated, off_x, off_y = rotate_and_get_offset(tinted, cx, cy, rot_angle)
 
-        halfH = size[1] / 2
-        screenX = (self.x - left) * zoom - cx + offX - math.cos(self.angle) * halfH
-        screenY = (self.y - top)  * zoom - cy + offY - math.sin(self.angle) * halfH
-        surface.blit(rotated, (screenX, screenY))
+        half_h = size[1] / 2
+        screen_x = (self.x - left) * zoom - cx + off_x - math.cos(self.angle) * half_h
+        screen_y = (self.y - top) * zoom - cy + off_y - math.sin(self.angle) * half_h
+        surface.blit(rotated, (screen_x, screen_y))
 
 
 class Player:
-
-    def __init__(self,defaultZooms, x,y,dimensions=[10,30]):
-        self.spawnX=x
-        self.spawnY=y
-        self.x=x
-        self.y=y
-        self.xSpeed=0
-        self.ySpeed=0
-        self.width,self.height=dimensions
-        self.rect=pygame.Rect(self.x-self.width/2,self.y-self.height/2,self.width,self.height)
-        self.onGround=False
-        self.color=(255,0,0)
-        self.defaultZooms=defaultZooms
+    def __init__(self, default_zooms, x, y, dimensions=(10, 30)):
+        self.spawn_x = x
+        self.spawn_y = y
+        self.x = x
+        self.y = y
+        self.x_speed = 0
+        self.y_speed = 0
+        self.width, self.height = dimensions
+        self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
+        self.on_ground = False
+        self.color = (255, 0, 0)
+        self.default_zooms = default_zooms
         self.facing = "Right"
-        self.animationTimer=0
-        self.animationType="Idle"
-        self.animationFrame=0
-        self.armAngle=0
-        self.armOffsetX=0
-        self.armOffsetY=0
+        self.animation_timer = 0
+        self.animation_type = "Idle"
+        self.animation_frame = 0
+        self.arm_angle = 0
+        self.arm_offset_x = 0
+        self.arm_offset_y = 0
 
-        self.filterType="white"
-        self.filterChangeRight=True
-        self.laserTimer=0
-        self.laserRamps=0
-        self.laserFirstHit=False
-        self.laser=[]
-        self.impacts=[]  # active LaserImpact instances
-        self.laserAttributes = laserProperties.LaserAttributes(18,1,0.2,10,400,1,20,0.3,1,20,20,0.5,2,0.5,{"white":(0,False),"blue":(0,False),"red":(0,False)})
+        self.filter_type = "white"
+        self.filter_change_right = True
+        self.laser_timer = 0
+        self.laser_ramps = 0
+        self.laser_first_hit = False
+        self.laser = []
+        self.impacts = []  # active LaserImpact instances
+        self.laser_attributes = laserProperties.LaserAttributes(18, 1, 0.2, 10, 400, 1, 20, 0.3, 1, 20, 20, 0.5, 2, 0.5, {"white": (0, False), "blue": (0, False), "red": (0, False)})
 
-        self.abilityTimer=0
-        self.abilityCooldown=800
+        self.ability_timer = 0
+        self.ability_cooldown = 800
 
-        self.chargeCapacity=100
-        self.charges={"white":self.chargeCapacity,"blue":0,"red":0}
-        self.practicalCharges={"white":self.chargeCapacity,"blue":0,"red":0}
-        self.maxCharge=500
-        self.immunityTimer=0
-        self.immunityTime=500
-        self.queuedDamage=0    
-        self.queuedDrainDamage=0    
+        self.charge_capacity = 100
+        self.charges = {"white": self.charge_capacity, "blue": 0, "red": 0}
+        self.practical_charges = {"white": self.charge_capacity, "blue": 0, "red": 0}
+        self.max_charge = 500
+        self.immunity_timer = 0
+        self.immunity_time = 500
+        self.queued_damage = 0
+        self.queued_drain_damage = 0
 
-        self.playerIMGs = {}
-        for zoom in self.defaultZooms:
-            zoomIMGSets={}
-            for direction in ["Left","Right"]:
-                directionSet={}
-                for animationType in playerIMGs:
-                    directionSet[animationType]=[]
-                    for img in playerIMGs[animationType]:
-                        resizedIMG=pygame.transform.scale(img,(SPRITE_WIDTH*zoom,SPRITE_HEIGHT*zoom))
-                        if direction=="Left":
-                            resizedIMG=pygame.transform.flip(resizedIMG,True,False)
-                        directionSet[animationType].append(resizedIMG)
-                zoomIMGSets[direction]=directionSet
-            self.playerIMGs[zoom]=zoomIMGSets
+        self.player_im_gs = {}
+        for zoom in self.default_zooms:
+            zoom_img_sets = {}
+            for direction in ["Left", "Right"]:
+                direction_set = {}
+                for animation_type in PLAYER_IMGS:
+                    direction_set[animation_type] = []
+                    for img in PLAYER_IMGS[animation_type]:
+                        resized_img = pygame.transform.scale(img, (SPRITE_WIDTH * zoom, SPRITE_HEIGHT * zoom))
+                        if direction == "Left":
+                            resized_img = pygame.transform.flip(resized_img, True, False)
+                        direction_set[animation_type].append(resized_img)
+                zoom_img_sets[direction] = direction_set
+            self.player_im_gs[zoom] = zoom_img_sets
 
         # pre-scale impact images for each zoom — done here since defaultZooms is available
-        self._impactIMGs = {}
-        for zoom in self.defaultZooms:
+        self._impact_im_gs = {}
+        for zoom in self.default_zooms:
             size = int(IMPACT_SIZE * zoom)
-            self._impactIMGs[zoom] = [
-                pygame.transform.scale(img, (size, size)) for img in laserImpactIMGsRaw
-            ]
+            self._impact_im_gs[zoom] = [pygame.transform.scale(img, (size, size)) for img in LASER_IMPACT_IMGS_RAW]
 
-    def resetPlayer(self):
-        self.x=self.spawnX
-        self.y=self.spawnY
-        self.xSpeed=0
-        self.ySpeed=0
-        self.setCharges(max(150,self.chargeCapacity*2/3),0,0)
-        self.filterType="white"
-        self.practicalCharges=filterCharges(self.filterType,self.charges)
-      
-    def updateCostume(self,frameLength, mousePos):
-        self.animationTimer=(self.animationTimer+frameLength)%(1000/animationFPS*(animationLengths[self.animationType]))
-        previousAnimationType=self.animationType
+    def reset_player(self):
+        self.x = self.spawn_x
+        self.y = self.spawn_y
+        self.x_speed = 0
+        self.y_speed = 0
+        self.set_charges(max(150, self.charge_capacity * 2 / 3), 0, 0)
+        self.filter_type = "white"
+        self.practical_charges = filter_charges(self.filter_type, self.charges)
 
-        targetX,targetY=mousePos
+    def update_costume(self, frame_length, mouse_pos):
+        self.animation_timer = (self.animation_timer + frame_length) % (1000 / ANIMATION_FPS * (ANIMATION_LENGTHS[self.animation_type]))
+        previous_animation_type = self.animation_type
 
-        if self.x<targetX:
-            self.facing="Right"
-        elif self.x>targetX:
-            self.facing="Left"
-        
-        self.armAngle=-math.atan2(targetY-self.y,targetX-self.x)
+        target_x, target_y = mouse_pos
 
-        if not self.onGround:
-            if self.ySpeed>0.2:
-                self.animationType="Falling"
-            elif self.ySpeed<-0.2:
-                self.animationType="Jumping"
+        if self.x < target_x:
+            self.facing = "Right"
+        elif self.x > target_x:
+            self.facing = "Left"
+
+        self.arm_angle = -math.atan2(target_y - self.y, target_x - self.x)
+
+        if not self.on_ground:
+            if self.y_speed > 0.2:
+                self.animation_type = "Falling"
+            elif self.y_speed < -0.2:
+                self.animation_type = "Jumping"
         else:
-            if abs(self.xSpeed)>0.1:
-                if (self.xSpeed>0 and self.facing=="Right") or (self.xSpeed<0 and self.facing=="Left"):
-                    self.animationType="Run"
+            if abs(self.x_speed) > 0.1:
+                if (self.x_speed > 0 and self.facing == "Right") or (self.x_speed < 0 and self.facing == "Left"):
+                    self.animation_type = "Run"
                 else:
-                    self.animationType="Backpedal"
+                    self.animation_type = "Backpedal"
             else:
-                self.animationType="Idle"
-            
-        if self.animationType!=previousAnimationType:
-            self.animationTimer=0
-        
-        animationLength=animationLengths[self.animationType]
-        if animationLength==1:
-            self.animationFrame=0
+                self.animation_type = "Idle"
+
+        if self.animation_type != previous_animation_type:
+            self.animation_timer = 0
+
+        animation_length = ANIMATION_LENGTHS[self.animation_type]
+        if animation_length == 1:
+            self.animation_frame = 0
         else:
-            self.animationFrame=math.floor(self.animationTimer/(1000/animationFPS))
+            self.animation_frame = math.floor(self.animation_timer / (1000 / ANIMATION_FPS))
 
-    def updateRect(self):
-        self.rect.x,self.rect.y=self.x-self.width/2,self.y-self.height/2
+    def update_rect(self):
+        self.rect.x, self.rect.y = self.x - self.width / 2, self.y - self.height / 2
 
-    def updateColor(self):
-        cw,cb,cr=self.practicalCharges.values()
-        self.color=chargesToColor(cw,cb,cr,self.maxCharge)
+    def update_color(self):
+        cw, cb, cr = self.practical_charges.values()
+        self.color = charges_to_color(cw, cb, cr, self.max_charge)
 
-    def updateLaserStats(self):
-        laserProperties.setLaserAttributes(self.laserAttributes,self.practicalCharges,self.filterType,self.maxCharge)
+    def update_laser_stats(self):
+        laserProperties.set_laser_attributes(self.laser_attributes, self.practical_charges, self.filter_type, self.max_charge)
 
-    def setCharges(self, white, blue, red):
-        self.charges["white"]=white
-        self.charges["blue"]=blue
-        self.charges["red"]=red
+    def set_charges(self, white, blue, red):
+        self.charges["white"] = white
+        self.charges["blue"] = blue
+        self.charges["red"] = red
 
-    def addCharge(self, addedCharge, chargeDistribution, maxCharge):
+    def add_charge(self, added_charge, charge_distribution, max_charge):
 
-        sumAdded=0
+        sum_added = 0
         for color in self.charges:
-            add=chargeDistribution[color]*addedCharge
+            add = charge_distribution[color] * added_charge
 
-            addw=add*filterFeeds[self.filterType][color][0]
-            addb=add*filterFeeds[self.filterType][color][1]
-            addr=add*filterFeeds[self.filterType][color][2]
+            addw = add * filter_feeds[self.filter_type][color][0]
+            addb = add * filter_feeds[self.filter_type][color][1]
+            addr = add * filter_feeds[self.filter_type][color][2]
 
-            self.charges["white"]+=addw
-            self.charges["blue"]+=addb
-            self.charges["red"]+=addr
+            self.charges["white"] += addw
+            self.charges["blue"] += addb
+            self.charges["red"] += addr
 
-            sumAdded+=addw+addb+addr
-        
-        totalCharge=sum(self.charges.values())
-        overflow=0
-        if totalCharge>self.chargeCapacity:
-            self.chargeCapacity=max(self.chargeCapacity, min(self.maxCharge,min(maxCharge, totalCharge)))
-            overflow=totalCharge-self.chargeCapacity
-        
-        self.loseCharge(overflow)
+            sum_added += addw + addb + addr
 
-        self.practicalCharges=filterCharges(self.filterType,self.charges)
-        
-        return sumAdded-overflow
+        total_charge = sum(self.charges.values())
+        overflow = 0
+        if total_charge > self.charge_capacity:
+            self.charge_capacity = max(self.charge_capacity, min(self.max_charge, min(max_charge, total_charge)))
+            overflow = total_charge - self.charge_capacity
 
-    def loseCharge(self,loss):
-        if self.filterType=="white":
-            nSplit = 3
-            while nSplit>0:
-                splitLoss= loss/nSplit
+        self.lose_charge(overflow)
+
+        self.practical_charges = filter_charges(self.filter_type, self.charges)
+
+        return sum_added - overflow
+
+    def lose_charge(self, loss):
+        if self.filter_type == "white":
+            n_split = 3
+            while n_split > 0:
+                split_loss = loss / n_split
                 for charge in self.charges:
-                    if 0 < self.charges[charge] < splitLoss:
-                        loss-=self.charges[charge]
-                        self.charges[charge]=0
-                        nSplit-=1
+                    if 0 < self.charges[charge] < split_loss:
+                        loss -= self.charges[charge]
+                        self.charges[charge] = 0
+                        n_split -= 1
                         break
                 for charge in self.charges:
-                    if self.charges[charge]>0: self.charges[charge]-=splitLoss
-                nSplit=0
+                    if self.charges[charge] > 0:
+                        self.charges[charge] -= split_loss
+                n_split = 0
         else:
-            if loss < self.charges[self.filterType]:
-                self.charges[self.filterType]-=loss
+            if loss < self.charges[self.filter_type]:
+                self.charges[self.filter_type] -= loss
             else:
-                loss-=self.charges[self.filterType]
-                self.charges[self.filterType]=0
+                loss -= self.charges[self.filter_type]
+                self.charges[self.filter_type] = 0
                 if loss < self.charges["white"]:
-                    self.charges["white"]-=loss
+                    self.charges["white"] -= loss
                 else:
-                    loss-=self.charges["white"]
-                    self.charges["white"]=0
-                    self.filterType="white"
-                    self.loseCharge(loss)
+                    loss -= self.charges["white"]
+                    self.charges["white"] = 0
+                    self.filter_type = "white"
+                    self.lose_charge(loss)
 
-        self.practicalCharges=filterCharges(self.filterType,self.charges)
-        if sum(self.charges.values())>0:
+        self.practical_charges = filter_charges(self.filter_type, self.charges)
+        if sum(self.charges.values()) > 0:
             return False
-        self.resetPlayer()
+        self.reset_player()
         return True
 
-    def dealDamage(self,damage):
-        self.queuedDamage+=damage
+    def deal_damage(self, damage):
+        self.queued_damage += damage
 
-    def drainDamage(self,damage):
-        self.queuedDrainDamage+=damage
+    def drain_damage(self, damage):
+        self.queued_drain_damage += damage
 
-    def tick(self,frameLength,cTerrain:terrain.Terrain,mousePos,keysDown,events):
-        if self.loseCharge(self.queuedDamage) or self.loseCharge(self.queuedDrainDamage):
+    def tick(self, frame_length, c_terrain: terrain.Terrain, mouse_pos, keys_down, events):
+        if self.lose_charge(self.queued_damage) or self.lose_charge(self.queued_drain_damage):
             return True
-        self.queuedDamage=0
-        self.queuedDrainDamage=0
+        self.queued_damage = 0
+        self.queued_drain_damage = 0
 
-        self.ySpeed=min(0.4,self.ySpeed+0.0015*frameLength)
-        if self.immunityTimer>0:
-            self.immunityTimer-=frameLength
-            if self.immunityTimer<0:
-                self.immunityTimer=0
-        
+        self.y_speed = min(0.4, self.y_speed + 0.0015 * frame_length)
+        if self.immunity_timer > 0:
+            self.immunity_timer -= frame_length
+            if self.immunity_timer < 0:
+                self.immunity_timer = 0
+
         if events[pygame.K_RIGHT]:
-            self.filterChangeRight=True
-            match self.filterType:
+            self.filter_change_right = True
+            match self.filter_type:
                 case "white":
-                    self.filterType="blue"
+                    self.filter_type = "blue"
                 case "blue":
-                    self.filterType="red"
+                    self.filter_type = "red"
                 case "red":
-                    self.filterType="white"
-        
+                    self.filter_type = "white"
+
         if events[pygame.K_LEFT]:
-            self.filterChangeRight=False
-            match self.filterType:
+            self.filter_change_right = False
+            match self.filter_type:
                 case "white":
-                    self.filterType="red"
+                    self.filter_type = "red"
                 case "blue":
-                    self.filterType="white"
+                    self.filter_type = "white"
                 case "red":
-                    self.filterType="blue"
-        
-        if events[pygame.K_SPACE] and self.abilityTimer==0 and self.laserAttributes.passedThresholds[self.filterType][1]:
-            match self.filterType:
+                    self.filter_type = "blue"
+
+        if events[pygame.K_SPACE] and self.ability_timer == 0 and self.laser_attributes.passed_thresholds[self.filter_type][1]:
+            match self.filter_type:
                 case "white":
-                    mx,my=mousePos
-                    dx,dy=mx-self.x,my-self.y
-                    d=math.sqrt(dx**2+dy**2)
-                    self.xSpeed=dx/d/1.2
-                    self.ySpeed=dy/d/2
-                    self.abilityTimer=self.abilityCooldown
-                    cTerrain.particles.spawnPulseParticle(self.color,40,self.x,self.y)
+                    mx, my = mouse_pos
+                    dx, dy = mx - self.x, my - self.y
+                    d = math.sqrt(dx**2 + dy**2)
+                    self.x_speed = dx / d / 1.2
+                    self.y_speed = dy / d / 2
+                    self.ability_timer = self.ability_cooldown
+                    c_terrain.particles.spawn_pulse_particle(self.color, 40, self.x, self.y)
                 case "blue":
-                    self.ySpeed-=0.3
-                    cTerrain.newKnockbackCircles.append([self.laserAttributes.baseKB*5,self.x,self.y,self.laserAttributes.KBRange*3, 1])
-                    cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.KBRange*3,self.x,self.y,800)
-                    self.abilityTimer=self.abilityCooldown
+                    self.y_speed -= 0.3
+                    c_terrain.new_knockback_circles.append([self.laser_attributes.base_kb * 5, self.x, self.y, self.laser_attributes.kb_range * 3, 1])
+                    c_terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.kb_range * 3, self.x, self.y, 800)
+                    self.ability_timer = self.ability_cooldown
                 case "red":
-                    self.ySpeed-=0.3
-                    #explosionSize=self.laserAttributes.baseXPL*3
-                    #cTerrain.addAirPocketClump(self.x, self.y, explosionSize, layerIndex=cTerrain._layerForY(self.y), playerMade=True, spreading=1/5)
-                    #should detect ground and spawn particles if detected
-                    
-                    cTerrain.newPlayerDamageCircles.append([self.laserAttributes.baseDMG,self.x,self.y,self.laserAttributes.DMGRange*2,1])
-                    cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.DMGRange*2,self.x,self.y,800)
-                    self.abilityTimer=self.abilityCooldown
+                    self.y_speed -= 0.3
+                    # explosionSize=self.laserAttributes.baseXPL*3
+                    # cTerrain.addAirPocketClump(self.x, self.y, explosionSize, layerIndex=cTerrain._layerForY(self.y), playerMade=True, spreading=1/5)
+                    # should detect ground and spawn particles if detected
 
-        if keysDown["mouse"] and len(self.laser)==0 and self.laserTimer<=self.laserAttributes.cooldown/4:
-            newLaser=laser.Laser()
-            self.laser=[newLaser]
-            self.laserRamps=0
-            self.laserFirstHit=True
-        
-        if events["mouseUp"] and len(self.laser)>0:
-            self.laserTimer=self.laser[0].timer
-            self.laser=[]
+                    c_terrain.new_player_damage_circles.append([self.laser_attributes.base_dmg, self.x, self.y, self.laser_attributes.dmg_range * 2, 1])
+                    c_terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range * 2, self.x, self.y, 800)
+                    self.ability_timer = self.ability_cooldown
 
-        self.abilityTimer-=frameLength
-        self.abilityTimer=max(0,self.abilityTimer)
+        if keys_down["mouse"] and len(self.laser) == 0 and self.laser_timer <= self.laser_attributes.cooldown / 4:
+            new_laser = laser.Laser()
+            self.laser = [new_laser]
+            self.laser_ramps = 0
+            self.laser_first_hit = True
 
-        self.laserTimer-=frameLength
-        self.laserTimer=max(0,self.laserTimer)
-        
+        if events["mouseUp"] and len(self.laser) > 0:
+            self.laser_timer = self.laser[0].timer
+            self.laser = []
+
+        self.ability_timer -= frame_length
+        self.ability_timer = max(0, self.ability_timer)
+
+        self.laser_timer -= frame_length
+        self.laser_timer = max(0, self.laser_timer)
+
         for lase in self.laser:
-            locked= lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+self.laserAttributes.distance*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+self.laserAttributes.distance*math.sin(-self.armAngle),-self.armAngle)
-            lase.tick(frameLength)
-            if lase.damageFrame:
+            locked = lase.update_laser(
+                c_terrain,
+                self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
+                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + self.laser_attributes.distance * math.sin(-self.arm_angle),
+                -self.arm_angle,
+            )
+            lase.tick(frame_length)
+            if lase.damage_frame:
                 if not locked:
-                    self.laserRamps=0
+                    self.laser_ramps = 0
                 if lase.collision:
-                    point= lase.collision[0]
-                    x,y=point
-                    explosionSize=laserProperties.getLaserEXPL(self.laserAttributes,self.laserFirstHit,self.laserRamps)
-                    cTerrain.addAirPocketClump(x, y, explosionSize, layerIndex=cTerrain._layerForY(y), playerMade=True, spreading=1/5)
-                    if lase.collision[1]=="ground":
-                        cTerrain.particles.spawnMiningParticles(10,(0,0,0),explosionSize*1.5,x,y)
-                        
-                    cTerrain.newKnockbackCircles.append([laserProperties.getLaserKB(self.laserAttributes,self.laserFirstHit,self.laserRamps),x,y,self.laserAttributes.KBRange, self.laserAttributes.areaKBFalloff])
-                    cTerrain.newPlayerDamageCircles.append([laserProperties.getLaserDMG(self.laserAttributes,self.laserFirstHit, self.laserRamps),x,y,self.laserAttributes.DMGRange,self.laserAttributes.areaDMGFalloff])
-                    cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.DMGRange,x,y)
-                    #cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.KBRange,x,y)
-                    #cTerrain.particles.spawnPulseParticle(self.color,explosionSize,x,y)
+                    point = lase.collision[0]
+                    x, y = point
+                    explosion_size = laserProperties.get_laser_expl(self.laser_attributes, self.laser_first_hit, self.laser_ramps)
+                    c_terrain.add_air_pocket_clump(x, y, explosion_size, layer_index=c_terrain._layer_for_y(y), player_made=True, spreading=1 / 5)
+                    if lase.collision[1] == "ground":
+                        c_terrain.particles.spawn_mining_particles(10, (0, 0, 0), explosion_size * 1.5, x, y)
 
-                self.laserFirstHit=False
-                self.laserRamps+=1
+                    c_terrain.new_knockback_circles.append(
+                        [laserProperties.get_laser_kb(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.kb_range, self.laser_attributes.area_kb_falloff]
+                    )
+                    c_terrain.new_player_damage_circles.append(
+                        [laserProperties.get_laser_dmg(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.dmg_range, self.laser_attributes.area_dmg_falloff]
+                    )
+                    c_terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range, x, y)
+                    # cTerrain.particles.spawnPulseParticle(self.color,self.laserAttributes.KBRange,x,y)
+                    # cTerrain.particles.spawnPulseParticle(self.color,explosionSize,x,y)
 
-                if self.loseCharge(0.5):
+                self.laser_first_hit = False
+                self.laser_ramps += 1
+
+                if self.lose_charge(0.5):
                     return True
-                
+
                 # spawn impact — position follows live laser, freezes when laser released
-                endX = lase.startX + math.cos(lase.angle) * lase.length
-                endY = lase.startY + math.sin(lase.angle) * lase.length
-                self.impacts.append(LaserImpact(endX, endY, lase.angle, lase, self._impactIMGs))
+                end_x = lase.start_x + math.cos(lase.angle) * lase.length
+                end_y = lase.start_y + math.sin(lase.angle) * lase.length
+                self.impacts.append(LaserImpact(end_x, end_y, lase.angle, lase, self._impact_im_gs))
 
         # tick impacts, passing current active lasers so they can track position
         for i in range(len(self.impacts) - 1, -1, -1):
-            if self.impacts[i].tick(frameLength, self.laser):
+            if self.impacts[i].tick(frame_length, self.laser):
                 del self.impacts[i]
 
-        for knockbackCircle in cTerrain.knockbackCircles:
-            dx = self.x-knockbackCircle[1]
-            dy = self.y-knockbackCircle[2]
-            distance=math.sqrt(dx**2+dy**2)
-            knockback=knockbackCircle[0]
+        for knockback_circle in c_terrain.knockback_circles:
+            dx = self.x - knockback_circle[1]
+            dy = self.y - knockback_circle[2]
+            distance = math.sqrt(dx**2 + dy**2)
+            knockback = knockback_circle[0]
 
-            self.xSpeed+=frameLength*dx/distance*knockback/60
-            self.ySpeed+=frameLength*dy/distance*knockback/60
+            self.x_speed += frame_length * dx / distance * knockback / 60
+            self.y_speed += frame_length * dy / distance * knockback / 60
 
-        for li in cTerrain.activeLayers:
-            for nest in cTerrain.nests[li]:
-                if nest.stage==nest.maxStage and nest.withinEffectRadius(self.x,self.y) and nest.charge>0:
-                    chargeGain=self.addCharge(nest.chargeRate*frameLength, nest.charging,nest.maxCharge)
-                    nest.loseCharge(chargeGain)
+        for li in c_terrain.active_layers:
+            for nest in c_terrain.nests[li]:
+                if nest.stage == nest.max_stage and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
+                    charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging, nest.max_charge)
+                    nest.lose_charge(charge_gain)
 
-        self.updateLaserStats()
+        self.update_laser_stats()
 
-        if self.x<50:
-            self.xSpeed +=(50-self.x)/10000*frameLength
-        elif self.x>cTerrain.worldWidth-50:
-            self.xSpeed -= (self.x-cTerrain.worldWidth+50)/10000*frameLength
+        if self.x < 50:
+            self.x_speed += (50 - self.x) / 10000 * frame_length
+        elif self.x > c_terrain.world_width - 50:
+            self.x_speed -= (self.x - c_terrain.world_width + 50) / 10000 * frame_length
 
-        if keysDown[pygame.K_w] and self.onGround:
-            self.ySpeed = -0.4
-        
-        if keysDown[pygame.K_a]:
-            if self.onGround:
-                self.xSpeed -= 0.005*frameLength
+        if keys_down[pygame.K_w] and self.on_ground:
+            self.y_speed = -0.4
+
+        if keys_down[pygame.K_a]:
+            if self.on_ground:
+                self.x_speed -= 0.005 * frame_length
             else:
-                self.xSpeed -= 0.0015*frameLength
-        if keysDown[pygame.K_d]:
-            if self.onGround:
-                self.xSpeed += 0.005*frameLength
+                self.x_speed -= 0.0015 * frame_length
+        if keys_down[pygame.K_d]:
+            if self.on_ground:
+                self.x_speed += 0.005 * frame_length
             else:
-                self.xSpeed += 0.0015*frameLength
-        
-        if self.onGround:
-            self.xSpeed*=0.98**frameLength
+                self.x_speed += 0.0015 * frame_length
+
+        if self.on_ground:
+            self.x_speed *= 0.98**frame_length
         else:
-            self.xSpeed*=0.993**frameLength
+            self.x_speed *= 0.993**frame_length
 
-        self.moveVertical(frameLength,cTerrain)
-        self.moveHorizontal(frameLength,cTerrain)
+        self.move_vertical(frame_length, c_terrain)
+        self.move_horizontal(frame_length, c_terrain)
 
-        self.updateColor()
-        self.updateCostume(frameLength,mousePos)
+        self.update_color()
+        self.update_costume(frame_length, mouse_pos)
 
         for lase in self.laser:
-            lase.updateLaser(cTerrain,self.x-SPRITE_WIDTH/2+ARM_PIVOT_X+self.laserAttributes.distance*math.cos(self.armAngle),self.y-SPRITE_HEIGHT/2+ARM_PIVOT_Y+self.laserAttributes.distance*math.sin(-self.armAngle),-self.armAngle,self.laserAttributes.cooldown)
+            lase.update_laser(
+                c_terrain,
+                self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
+                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + self.laser_attributes.distance * math.sin(-self.arm_angle),
+                -self.arm_angle,
+                self.laser_attributes.cooldown,
+            )
         return False
-    
-    def moveHorizontal(self, frameLength,cTerrain):
 
-        #TODO - add slope platforming
+    def move_horizontal(self, frame_length, c_terrain):
 
-        self.x+=frameLength*self.xSpeed
-        self.updateRect()
-        if self.collidingWithTerrain(cTerrain):
-            slopeTolerance=math.ceil(3*abs(frameLength*self.xSpeed))
-            for i in range(slopeTolerance):
-                self.y-=1
-                self.updateRect()
-                if not self.collidingWithTerrain(cTerrain):
-                    if self.xSpeed>0:
-                        self.xSpeed-=self.xSpeed*i/slopeTolerance
+        # TODO - add slope platforming
+
+        self.x += frame_length * self.x_speed
+        self.update_rect()
+        if self.colliding_with_terrain(c_terrain):
+            slope_tolerance = math.ceil(3 * abs(frame_length * self.x_speed))
+            for i in range(slope_tolerance):
+                self.y -= 1
+                self.update_rect()
+                if not self.colliding_with_terrain(c_terrain):
+                    if self.x_speed > 0:
+                        self.x_speed -= self.x_speed * i / slope_tolerance
                     else:
-                        self.xSpeed-=self.xSpeed*i/slopeTolerance
+                        self.x_speed -= self.x_speed * i / slope_tolerance
                     return
-            self.y+=slopeTolerance
-            self.x-=frameLength*self.xSpeed
-            backs=math.ceil(abs(frameLength*self.xSpeed/1))
+            self.y += slope_tolerance
+            self.x -= frame_length * self.x_speed
+            backs = math.ceil(abs(frame_length * self.x_speed / 1))
             for i in range(backs):
-                self.x+=frameLength*self.xSpeed/backs
-                self.updateRect()
-                if self.collidingWithTerrain(cTerrain):
-                    self.x-=frameLength*self.xSpeed/backs
-                    self.updateRect()
+                self.x += frame_length * self.x_speed / backs
+                self.update_rect()
+                if self.colliding_with_terrain(c_terrain):
+                    self.x -= frame_length * self.x_speed / backs
+                    self.update_rect()
                     break
-            self.xSpeed=0
-    
-    def moveVertical(self, frameLength,cTerrain:terrain.Terrain):
-        self.onGround=False
-        self.y+=frameLength*self.ySpeed
-        self.updateRect()
-        if self.collidingWithTerrain(cTerrain):
-            if self.ySpeed>0:
-                self.onGround=True
-                if not cTerrain.nestsCollideRect(self.rect):
-                    cTerrain.particles.spawnMiningParticles(int(abs((abs(max(0.005*frameLength,abs(self.xSpeed))-0.005*frameLength)+3*(self.ySpeed-0.0015*frameLength))*12)),(0,0,0),20,self.x,self.y+self.height/2,time=200)
-            if self.ySpeed<0:
-                slopeTolerance=math.ceil(abs(0.5*frameLength*self.ySpeed))
-                for i in range(slopeTolerance):
-                    self.x-=1
-                    self.updateRect()
-                    if not self.collidingWithTerrain(cTerrain):
+            self.x_speed = 0
+
+    def move_vertical(self, frame_length, c_terrain: terrain.Terrain):
+        self.on_ground = False
+        self.y += frame_length * self.y_speed
+        self.update_rect()
+        if self.colliding_with_terrain(c_terrain):
+            if self.y_speed > 0:
+                self.on_ground = True
+                if not c_terrain.nests_collide_rect(self.rect):
+                    c_terrain.particles.spawn_mining_particles(
+                        int(abs((abs(max(0.005 * frame_length, abs(self.x_speed)) - 0.005 * frame_length) + 3 * (self.y_speed - 0.0015 * frame_length)) * 12)), (0, 0, 0), 20, self.x, self.y + self.height / 2, time=200
+                    )
+            if self.y_speed < 0:
+                slope_tolerance = math.ceil(abs(0.5 * frame_length * self.y_speed))
+                for i in range(slope_tolerance):
+                    self.x -= 1
+                    self.update_rect()
+                    if not self.colliding_with_terrain(c_terrain):
                         return
-                self.x+=slopeTolerance
-                for i in range(slopeTolerance):
-                    self.x+=1
-                    self.updateRect()
-                    if not self.collidingWithTerrain(cTerrain):
+                self.x += slope_tolerance
+                for i in range(slope_tolerance):
+                    self.x += 1
+                    self.update_rect()
+                    if not self.colliding_with_terrain(c_terrain):
                         return
-                self.x-=slopeTolerance
-            self.y-=frameLength*self.ySpeed
-            backs=math.ceil(abs(frameLength*self.ySpeed/1))
+                self.x -= slope_tolerance
+            self.y -= frame_length * self.y_speed
+            backs = math.ceil(abs(frame_length * self.y_speed / 1))
             for i in range(backs):
-                self.y+=frameLength*self.ySpeed/backs
-                self.updateRect()
-                if self.collidingWithTerrain(cTerrain):
-                    self.y-=frameLength*self.ySpeed/backs
-                    self.updateRect()
+                self.y += frame_length * self.y_speed / backs
+                self.update_rect()
+                if self.colliding_with_terrain(c_terrain):
+                    self.y -= frame_length * self.y_speed / backs
+                    self.update_rect()
                     break
-            self.ySpeed=0
-    
+            self.y_speed = 0
+
     def draw(self, surface, frame, hitboxes=False, offset_x=0, offset_y=0, tilt=0):
-        camX,camY,zoom=frame
+        cam_x, cam_y, zoom = frame
         if hitboxes:
-            self.updateRect()
-            l  = float(self.rect.left)
-            r  = float(self.rect.right - 1)
-            t  = float(self.rect.top)
-            b  = float(self.rect.bottom - 1)
-            pygame.draw.line(surface,self.color,((l-camX) * zoom + offset_x,(t- camY) * zoom + offset_y),((l- camX) * zoom + offset_x,(b- camY) * zoom + offset_y))
-            pygame.draw.line(surface,self.color,((r-camX) * zoom + offset_x,(t- camY) * zoom + offset_y),((r- camX) * zoom + offset_x,(b- camY) * zoom + offset_y))
-            pygame.draw.line(surface,self.color,((l-camX) * zoom + offset_x,(t- camY) * zoom + offset_y),((r- camX) * zoom + offset_x,(t- camY) * zoom + offset_y))
-            pygame.draw.line(surface,self.color,((l-camX) * zoom + offset_x,(b- camY) * zoom + offset_y),((r- camX) * zoom + offset_x,(b- camY) * zoom + offset_y))
+            self.update_rect()
+            l = float(self.rect.left)
+            r = float(self.rect.right - 1)
+            t = float(self.rect.top)
+            b = float(self.rect.bottom - 1)
+            pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((l - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
+            pygame.draw.line(surface, self.color, ((r - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
+            pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y))
+            pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
             for lase in self.laser:
-                lase.draw(surface,frame,self.color,hitboxes=hitboxes,offset_x=offset_x,offset_y=offset_y)
+                lase.draw(surface, frame, self.color, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
         else:
-            boostedColor = (channelBound(self.color[0]+30),channelBound(self.color[1]+30),channelBound(self.color[2]+30))
-            playerSurface=pygame.Surface((SPRITE_WIDTH*zoom,SPRITE_HEIGHT*zoom),flags=pygame.SRCALPHA)
-            playerSurface.fill((boostedColor[0],boostedColor[1],boostedColor[2],255))
-            playerSurface.blit(self.playerIMGs[zoom][self.facing][self.animationType][self.animationFrame],(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+            boosted_color = (channel_bound(self.color[0] + 30), channel_bound(self.color[1] + 30), channel_bound(self.color[2] + 30))
+            player_surface = pygame.Surface((SPRITE_WIDTH * zoom, SPRITE_HEIGHT * zoom), flags=pygame.SRCALPHA)
+            player_surface.fill((boosted_color[0], boosted_color[1], boosted_color[2], 255))
+            player_surface.blit(self.player_im_gs[zoom][self.facing][self.animation_type][self.animation_frame], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
-            if tilt!=0:
-                playerSurface=pygame.transform.rotate(playerSurface,tilt)
+            if tilt != 0:
+                player_surface = pygame.transform.rotate(player_surface, tilt)
 
-            adjustedArmAngle=self.armAngle
-            if self.facing=="Left":
-                adjustedArmAngle+=math.pi
-            arm,offsetX,offsetY=rotateAndGetOffset(self.playerIMGs[zoom][self.facing]["Arm"][0],zoom*ARM_PIVOT_X,zoom*ARM_PIVOT_Y,adjustedArmAngle)
-            width,height=arm.get_size()
-            armSurface=pygame.Surface((width,height),flags=pygame.SRCALPHA)
-            armSurface.fill((boostedColor[0],boostedColor[1],boostedColor[2],255))
-            armSurface.blit(arm,(0,0),special_flags=pygame.BLEND_RGBA_MULT)
+            adjusted_arm_angle = self.arm_angle
+            if self.facing == "Left":
+                adjusted_arm_angle += math.pi
+            arm, arm_offset_x, arm_offset_y = rotate_and_get_offset(self.player_im_gs[zoom][self.facing]["Arm"][0], zoom * ARM_PIVOT_X, zoom * ARM_PIVOT_Y, adjusted_arm_angle)
+            width, height = arm.get_size()
+            arm_surface = pygame.Surface((width, height), flags=pygame.SRCALPHA)
+            arm_surface.fill((boosted_color[0], boosted_color[1], boosted_color[2], 255))
+            arm_surface.blit(arm, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
-            surface.blit(playerSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offset_y))
-            surface.blit(armSurface,((self.x-SPRITE_WIDTH/2-camX)*zoom+offsetX+offset_x,(3+self.rect.bottom-SPRITE_HEIGHT-camY)*zoom+offsetY+offset_y))
+            surface.blit(player_surface, ((self.x - SPRITE_WIDTH / 2 - cam_x) * zoom + offset_x, (3 + self.rect.bottom - SPRITE_HEIGHT - cam_y) * zoom + offset_y))
+            surface.blit(arm_surface, ((self.x - SPRITE_WIDTH / 2 - cam_x) * zoom + arm_offset_x + offset_x, (3 + self.rect.bottom - SPRITE_HEIGHT - cam_y) * zoom + arm_offset_y + offset_y))
             for lase in self.laser:
-                lase.draw(surface,frame,boostedColor,offset_x=offset_x,offset_y=offset_y)
+                lase.draw(surface, frame, boosted_color, offset_x=offset_x, offset_y=offset_y)
             # draw impact animations — rendered after laser so they appear on top
             for impact in self.impacts:
-                impact.draw(surface, frame, boostedColor, zoom)
+                impact.draw(surface, frame, boosted_color, zoom)
 
-    def collidingWithTerrain(self, cTerrain):
-        return cTerrain.collideRect(self.rect)
-        
+    def colliding_with_terrain(self, c_terrain):
+        return c_terrain.collide_rect(self.rect)

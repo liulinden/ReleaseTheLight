@@ -1,6 +1,7 @@
-import pygame, laser, terrain
+import terrain
+
 for i in range(10):
-    print(terrain.chooseUniqueRandoms(10,1,10))
+    print(terrain.choose_unique_randoms(10, 1, 10))
 """
 w=pygame.display.set_mode([500,500])
 

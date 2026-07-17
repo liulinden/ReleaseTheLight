@@ -1,5 +1,5 @@
-import time
 import multiprocessing
+import time
 from multiprocessing import synchronize
 
 import pygame
@@ -7,23 +7,23 @@ import pygame
 import config
 from asset_manager import AssetManager
 
-FPS = 24 # double animation time
+FPS = 24  # double animation time
 
-class UserQuitDuringLoadingException(Exception):
+
+class UserQuitDuringLoadingError(Exception):
     pass
 
-class LoadingScreen:
 
+class LoadingScreen:
     assets = AssetManager("loading_assets", use_cache=True)
 
-    def __init__(self, *, _queue: multiprocessing.Queue = None, _has_quit_event: synchronize.Event = None,
-                  start_progress=0.0, end_progress=1.0, dev_mode=False) -> None:
+    def __init__(self, *, _queue: multiprocessing.Queue = None, _has_quit_event: synchronize.Event = None, start_progress=0.0, end_progress=1.0, dev_mode=False) -> None:
 
         self.start_progress = start_progress
         self.end_progress = end_progress
         self.dev_mode = dev_mode
 
-        if (_queue is None or _has_quit_event is None):
+        if _queue is None or _has_quit_event is None:
             self.queue = multiprocessing.Queue()
             self.has_quit_event = multiprocessing.Event()
         else:
@@ -33,9 +33,9 @@ class LoadingScreen:
     def _interpolate_progress(self, progress: float) -> float:
         return self.start_progress + (self.end_progress - self.start_progress) * progress
 
-    def put(self, progress: float, msg: str = "") -> None:    
+    def put(self, progress: float, msg: str = "") -> None:
         if self.is_quit():
-            raise UserQuitDuringLoadingException("Loading screen has been quit.")
+            raise UserQuitDuringLoadingError("Loading screen has been quit.")
         self.queue.put((self._interpolate_progress(progress), msg))
 
     def is_quit(self) -> bool:
@@ -47,13 +47,13 @@ class LoadingScreen:
         return LoadingScreen(_queue=self.queue, _has_quit_event=self.has_quit_event, start_progress=start_at, end_progress=end_at, dev_mode=self.dev_mode)
 
     def subsections(self, *subsections: float) -> list["LoadingScreen"]:
-        return [self.subsection(start_at, end_at) for start_at, end_at in zip(subsections, subsections[1:] + (1.0,))]
-    
+        return [self.subsection(start_at, end_at) for start_at, end_at in zip(subsections, subsections[1:] + (1.0,), strict=True)]
+
     def run(self):
 
         pygame.init()
 
-        window = pygame.display.set_mode((0,0))
+        window = pygame.display.set_mode((0, 0))
 
         pygame.display.set_caption(config.WINDOW_NAME)
         pygame.display.set_icon(pygame.image.load(config.WINDOW_ICON_PATH))
@@ -69,7 +69,7 @@ class LoadingScreen:
 
         clock = pygame.time.Clock()
 
-        title_spinner = TitleSpinner(int(surface.get_height() * (2/3)), 12)
+        title_spinner = TitleSpinner(int(surface.get_height() * (2 / 3)), 12)
         title_spinner.rect.center = (surface.get_width() // 2, surface.get_height() // 2)
 
         loading_bar = LoadingBar((title_spinner.rect.width * 0.9, surface.get_height() // 50), percentage_per_second=0.25)
@@ -94,7 +94,6 @@ class LoadingScreen:
         start = time.time()
 
         while going and progress < self.end_progress:
-
             surface.fill("black")
 
             for event in pygame.event.get():
@@ -112,17 +111,16 @@ class LoadingScreen:
             sprites.draw(surface)
 
             if show_debug_display:
-
-                fps_text = font.render(f"FPS: {clock.get_fps():.0f}", True, (255,255,255))
+                fps_text = font.render(f"FPS: {clock.get_fps():.0f}", True, (255, 255, 255))
                 surface.blit(fps_text, fps_text.get_rect(topright=surface.get_rect().inflate(-20, -20).topright))
 
-                debug_text = font.render(debug_message, True, (230,230,255), (0,0,0,150))
+                debug_text = font.render(debug_message, True, (230, 230, 255), (0, 0, 0, 150))
                 surface.blit(debug_text, (10, 10))
 
-                percentage_text = font.render(f"{progress:.1%}", True, (230,230,255), (0,0,0,150))
+                percentage_text = font.render(f"{progress:.1%}", True, (230, 230, 255), (0, 0, 0, 150))
                 surface.blit(percentage_text, (10, 50))
 
-                time_text = font.render(f"{time.time() - start:.1f} seconds...", True, (230,230,255), (0,0,0,150))
+                time_text = font.render(f"{time.time() - start:.1f} seconds...", True, (230, 230, 255), (0, 0, 0, 150))
                 surface.blit(time_text, (10, 90))
 
             if not self.queue.empty():
@@ -131,9 +129,10 @@ class LoadingScreen:
 
             pygame.display.flip()
             clock.tick(FPS)
-        
+
         # print(f"Loading screen [{self.start_progress:.2f} - {self.end_progress:.2f}] finished.")
         return going
+
 
 class TitleSpinner(pygame.sprite.Sprite):
     def __init__(self, width: int, fps: int) -> None:
@@ -152,10 +151,10 @@ class TitleSpinner(pygame.sprite.Sprite):
 
         self.previous_time = pygame.time.get_ticks()
         self.set_fps(fps)
-    
+
     def set_fps(self, fps: int) -> None:
         self.frame_duration = 1000 // fps
-    
+
     def update(self) -> None:
         current_time = pygame.time.get_ticks()
         if current_time - self.previous_time >= self.frame_duration:
@@ -163,10 +162,11 @@ class TitleSpinner(pygame.sprite.Sprite):
             self.frame_index = (self.frame_index + 1) % len(self.frames)
             self.image = self.frames[self.frame_index]
 
+
 class LoadingBar(pygame.sprite.Sprite):
     def __init__(self, size: tuple[int, int], percentage_per_second: float = 1) -> None:
         super().__init__()
-        
+
         self.image = pygame.Surface(size, pygame.SRCALPHA)
         self.rect = self.image.get_rect()
 
@@ -193,17 +193,18 @@ class LoadingBar(pygame.sprite.Sprite):
         self.displayed_progress = min(self.progress, self.displayed_progress + self.max_progress_change_per_frame)
 
         outer_rect = self.image.get_rect()
-        pygame.draw.rect(self.image, (0,0,0,125), outer_rect, border_radius=10)
-        pygame.draw.rect(self.image, (255,255,255,255), outer_rect, width=2, border_radius=10)
+        pygame.draw.rect(self.image, (0, 0, 0, 125), outer_rect, border_radius=10)
+        pygame.draw.rect(self.image, (255, 255, 255, 255), outer_rect, width=2, border_radius=10)
 
         inner_rect = outer_rect.inflate(-10, -10)
         inner_rect.width *= self.displayed_progress
-        pygame.draw.rect(self.image, (255,255,255,245), inner_rect, border_radius=5)
+        pygame.draw.rect(self.image, (255, 255, 255, 245), inner_rect, border_radius=5)
+
 
 class GradientSurface(pygame.sprite.Sprite):
     def __init__(self, size: int) -> None:
         super().__init__()
-        
+
         self.image = LoadingScreen.assets.get("VignetteGradientTitle")
         self.image = pygame.transform.scale(self.image, (size, size))
         self.rect = self.image.get_rect()

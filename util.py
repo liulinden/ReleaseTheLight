@@ -1,7 +1,9 @@
 import math
+
 import pygame
 
-def rotateAndGetOffset(surface,cx,cy,angle,degrees=False):
+
+def rotate_and_get_offset(surface, cx, cy, angle, degrees=False):
     # Rotate the surface
     rotated_surface = pygame.transform.rotate(surface, math.degrees(angle))
     rect = surface.get_rect()
@@ -21,26 +23,30 @@ def rotateAndGetOffset(surface,cx,cy,angle,degrees=False):
 
     return rotated_surface, (offset_x), (offset_y)
 
-def rgbBound(color):
-    r,g,b=color
-    return (channelBound(r),channelBound(g),channelBound(b))
 
-def channelBound(value):
+def rgb_bound(color):
+    r, g, b = color
+    return (channel_bound(r), channel_bound(g), channel_bound(b))
+
+
+def channel_bound(value):
     return min(255, max(0, value))
 
-def chargesToColor(cw,cb,cr, maxCharge=500, maximize=False):
-    r=cr+cw
-    g=cw+cb/4
-    b=cw+cb
-    dominant=max(r,g,b)
-    if dominant==0: return (0,0,0)
-    factor=255/dominant
-    charge= cw+cb+cr
-    if charge<maxCharge/8:
+
+def charges_to_color(cw, cb, cr, max_charge=500, maximize=False):
+    r = cr + cw
+    g = cw + cb / 4
+    b = cw + cb
+    dominant = max(r, g, b)
+    if dominant == 0:
+        return (0, 0, 0)
+    factor = 255 / dominant
+    charge = cw + cb + cr
+    if charge < max_charge / 8:
         if not maximize:
-            factor *= charge/(maxCharge/8)*0.8
+            factor *= charge / (max_charge / 8) * 0.8
     else:
-        factor *= 0.8*(1+(2*(8*charge-maxCharge)/(maxCharge*8)))
+        factor *= 0.8 * (1 + (2 * (8 * charge - max_charge) / (max_charge * 8)))
     if maximize:
         factor *= 1.25
-    return rgbBound((r*factor,g*factor,b*factor))
+    return rgb_bound((r * factor, g * factor, b * factor))
