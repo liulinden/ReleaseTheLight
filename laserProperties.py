@@ -12,8 +12,8 @@ class LaserAttributes:
     ramp_max: float
     area_dmg_falloff: float
     area_kb_falloff: float
-    DMGRange: int
-    KBRange: int
+    dmg_range: int
+    kb_range: int
     first_hit_dmg_multiplier: float
     first_hit_kb_multiplier: float
     first_hit_xpl_multiplier: float
@@ -45,7 +45,7 @@ def set_laser_attributes(attributes: LaserAttributes, charges, filter, max_charg
     for field in fields(attributes):
         field_name = field.name
 
-        if field_name != "passedThresholds":
+        if field_name != "passed_thresholds":
             base_att = getattr(base, field_name)
             white_attr = getattr(max_white, field_name)
             blue_attr = getattr(max_blue, field_name)
@@ -66,7 +66,7 @@ def set_laser_attributes(attributes: LaserAttributes, charges, filter, max_charg
                 attributes.first_hit_kb_multiplier *= 1.5
         case "red":
             if attributes.passed_thresholds[filter][0] >= 1:
-                attributes.DMGRange += 30
+                attributes.dmg_range += 30
 
     return attributes
 
