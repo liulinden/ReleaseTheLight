@@ -21,15 +21,17 @@ def main():
 
     game = Game(pygame.display.set_mode((0, 0), pygame.HIDDEN), fps=100, full_world=False, loading_screen=loading_screen, dev_mode=config.DEV_MODE)
 
+    did_user_quit_during_loading = False
+
     try:
         game.setup()
     except UserQuitDuringLoadingError:
-        pass
+        did_user_quit_during_loading = True
 
     loading_process.join()
     loading_process.close()
 
-    if not loading_screen.is_quit():
+    if not did_user_quit_during_loading:
         game.set_window(pygame.display.set_mode((0, 0)))
         game.run()
 
