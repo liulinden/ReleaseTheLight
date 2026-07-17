@@ -573,14 +573,14 @@ class Player:
             adjustedArmAngle = self.armAngle
             if self.facing == "Left":
                 adjustedArmAngle += math.pi
-            arm, offsetX, offsetY = rotateAndGetOffset(self.playerIMGs[zoom][self.facing]["Arm"][0], zoom * ARM_PIVOT_X, zoom * ARM_PIVOT_Y, adjustedArmAngle)
+            arm, arm_offset_x, arm_offset_y = rotateAndGetOffset(self.playerIMGs[zoom][self.facing]["Arm"][0], zoom * ARM_PIVOT_X, zoom * ARM_PIVOT_Y, adjustedArmAngle)
             width, height = arm.get_size()
             armSurface = pygame.Surface((width, height), flags=pygame.SRCALPHA)
             armSurface.fill((boostedColor[0], boostedColor[1], boostedColor[2], 255))
             armSurface.blit(arm, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
             surface.blit(playerSurface, ((self.x - SPRITE_WIDTH / 2 - camX) * zoom + offset_x, (3 + self.rect.bottom - SPRITE_HEIGHT - camY) * zoom + offset_y))
-            surface.blit(armSurface, ((self.x - SPRITE_WIDTH / 2 - camX) * zoom + offsetX + offset_x, (3 + self.rect.bottom - SPRITE_HEIGHT - camY) * zoom + offsetY + offset_y))
+            surface.blit(armSurface, ((self.x - SPRITE_WIDTH / 2 - camX) * zoom + arm_offset_x + offset_x, (3 + self.rect.bottom - SPRITE_HEIGHT - camY) * zoom + arm_offset_y + offset_y))
             for lase in self.laser:
                 lase.draw(surface, frame, boostedColor, offset_x=offset_x, offset_y=offset_y)
             # draw impact animations — rendered after laser so they appear on top
