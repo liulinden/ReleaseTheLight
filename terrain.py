@@ -38,6 +38,7 @@ PALETTES = [
 # load images — call terrain.init() after pygame.display.set_mode()
 air_im_gs = {}
 circle_im_gs = []
+air_rim_im_gs = {}
 air_hitbox_im_gs = {}
 rocks_img = {}
 vignette_img = None
@@ -46,12 +47,20 @@ vignette_img = None
 def init():
     global air_im_gs, circle_im_gs, air_hitbox_im_gs, rocks_img, vignette_img
     circle_im_gs = []
-    for i in range(4):
+    circle_rim_im_gs = []
+    for i in range(2):
         circle_im_gs.append(get_asset("AirPocket" + str(i + 1)))
+    for i in range(1):
+        circle_rim_im_gs.append(get_asset("AirPocket" + str(i + 1) + "_rim"))
     air_im_gs["Circle"] = circle_im_gs
-    for custom_pocket in ["C1"]:
-        air_im_gs[custom_pocket] = [get_asset("AirPocket" + custom_pocket)]
-        air_hitbox_im_gs[custom_pocket] = get_asset("AirPocket" + custom_pocket + "Hitbox")
+    air_rim_im_gs["Circle"] = circle_rim_im_gs
+    air_hitbox_im_gs["Circle"] = get_asset("AirPocketHitbox")
+
+    #for custom_pocket in ["C1"]:
+    #    air_im_gs[custom_pocket] = [get_asset("AirPocket" + custom_pocket)]
+    #    air_hitbox_im_gs[custom_pocket] = get_asset("AirPocket" + custom_pocket + "Hitbox")
+    #    air_rim_im_gs[custom_pocket] = get_asset("AirPocket" + custom_pocket + "_rim")
+
     rocks_raw = get_asset("Rocks")
     rocks_img["raw"] = rocks_raw
     vignette_img = get_asset("VignetteGradient")
@@ -124,9 +133,9 @@ def _get_cached_rim_scale(src_surface, pocket_type, img_index, radius, zoom):
     key = (pocket_type, img_index, radius, zoom, "rim")
 
     if key not in _scaled_img_cache:
-        side = max(1, int(2 * radius * zoom * Terrain._RIM_MULT))
+        side = max(1, int(2 * radius * zoom))
         cached = pygame.transform.scale(src_surface, (side, side))
-        cached.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        #cached.fill((0, 0, 0, 255), special_flags=pygame.BLEND_RGBA_MULT)
         _scaled_img_cache[key] = cached
 
     return _scaled_img_cache[key]
@@ -353,15 +362,8 @@ class Terrain:
                 if row >= 0 and col >= 0 and row <= self.world_height / hitbox_chunk_size and col < self.world_width / hitbox_chunk_size:
                     left, top = col * hitbox_chunk_size, row * hitbox_chunk_size
                     for zoom in self.default_zooms:
-                        if air_pocket.type == "Circle":
-                            pygame.draw.circle(self.air_pockets_hitboxes_surfaces[zoom][row][col], (255, 255, 255), (zoom * (air_pocket.x - left), zoom * (air_pocket.y - top)), air_pocket.r * zoom)
-                        else:
-                            self.air_pockets_hitboxes_surfaces[zoom][row][col].blit(air_pocket.hitbox_im_gs[zoom], (zoom * (air_pocket.left - left), zoom * (air_pocket.top - top)))
-                        if air_pocket.type == "Circle":
-                            pygame.draw.circle(self.chunk_hitboxes[zoom][row][col], (255, 255, 255, 255), (zoom * (air_pocket.x - left), zoom * (air_pocket.y - top)), air_pocket.r * zoom)
-                            self.chunk_hitboxes[zoom][row][col].blit(self.air_pockets_hitboxes_surfaces[zoom][row][col], (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
-                        else:
-                            self.chunk_hitboxes[zoom][row][col].blit(air_pocket.hitbox_im_gs[zoom], (zoom * (air_pocket.left - left), zoom * (air_pocket.top - top)), special_flags=pygame.BLEND_RGBA_SUB)
+                        self.air_pockets_hitboxes_surfaces[zoom][row][col].blit(air_pocket.hitbox_im_gs[zoom], (zoom * (air_pocket.left - left), zoom * (air_pocket.top - top)))
+                        self.chunk_hitboxes[zoom][row][col].blit(air_pocket.hitbox_im_gs[zoom], (zoom * (air_pocket.left - left), zoom * (air_pocket.top - top)), special_flags=pygame.BLEND_RGBA_SUB)
                     affected_chunks.append((row, col))
 
         for row, col in affected_chunks:
@@ -468,8 +470,6 @@ class Terrain:
     # Chunk building (per-layer)
     # ------------------------------------------------------------------
 
-    _RIM_MULT = 1.7
-
     def _build_chunk_hitboxes_for_layer(self, layer_index):
         y_top, y_bottom = _layer_y_bounds(layer_index, self.world_height)
         for zoom in self.default_zooms:
@@ -538,13 +538,12 @@ class Terrain:
                             rock_surf.blit(rocks, (tx, ty))
                     chunk.blit(rock_surf, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
 
-                    rim_margin = visual_chunk_size * self._RIM_MULT
                     for air_pocket in layer_pockets:
                         if (
-                            air_pocket.x + air_pocket.r * self._RIM_MULT < world_left - rim_margin
-                            or air_pocket.x - air_pocket.r * self._RIM_MULT > world_right + rim_margin
-                            or air_pocket.y + air_pocket.r * self._RIM_MULT < world_top - rim_margin
-                            or air_pocket.y - air_pocket.r * self._RIM_MULT > world_bot + rim_margin
+                            air_pocket.x + air_pocket.true_r < world_left
+                            or air_pocket.x - air_pocket.true_r > world_right
+                            or air_pocket.y + air_pocket.true_r < world_top
+                            or air_pocket.y - air_pocket.true_r > world_bot
                         ):
                             continue
                         rim_surf = air_pocket.rim_im_gs[zoom]
@@ -754,7 +753,7 @@ class Terrain:
         # ──────────────────────────────────────────────────────────────────
 
         if (not player_made) and random.randint(1, 10) == 1:  # noqa: SIM108
-            new_air_pocket = AirPocket(x, y, radius, default_zooms=self.default_zooms, pocket_type="C1")
+            new_air_pocket = AirPocket(x, y, radius, default_zooms=self.default_zooms, pocket_type="Circle")
         else:
             new_air_pocket = AirPocket(x, y, radius, default_zooms=self.default_zooms)
 
@@ -764,6 +763,7 @@ class Terrain:
         self._air_grid[layer_index].setdefault((cx, cy), []).append(new_air_pocket)
 
         self.add_air_pocket_to_surfaces(new_air_pocket)
+
         return True
 
     # ------------------------------------------------------------------
@@ -780,12 +780,8 @@ class Terrain:
     def _carve_visual_chunk(self, air_pocket, row, col, zoom):
         left, top = col * visual_chunk_size, row * visual_chunk_size
         chunk = self.chunk_visuals[zoom][row][col]
-        if air_pocket.type == "Circle":
-            pygame.draw.circle(chunk, (0, 0, 0, 0), (int(zoom * (air_pocket.x - left)), int(zoom * (air_pocket.y - top))), int(air_pocket.r * zoom))
-        else:
-            eraser = pygame.Surface(air_pocket.IMGs[zoom].get_size(), pygame.SRCALPHA)
-            eraser.fill((0, 0, 0, 0))
-            chunk.blit(eraser, (zoom * (air_pocket.left - left), zoom * (air_pocket.top - top)))
+        eraser = air_pocket.IMGs[zoom]
+        chunk.blit(eraser, (zoom * (air_pocket.left - left), zoom * (air_pocket.top - top)),special_flags=pygame.BLEND_RGBA_SUB)
 
     # ------------------------------------------------------------------
     # Collision
@@ -1056,32 +1052,38 @@ class AirPocket:
     def __init__(self, x, y, radius, default_zooms=(0.1, 2), pocket_type="Circle"):
         radius = _snap_radius(radius)
 
+        rim_pocket_ratio = 1.25
+
         self.x = x
         self.y = y
         self.r = radius
-        self.type = pocket_type
-        self.top = self.y - self.r
-        self.left = self.x - self.r
+        self.true_r = self.r * rim_pocket_ratio
+        self.type = pocket_type if pocket_type=="Circle" else random.choice(air_im_gs)
+        self.top = self.y - self.true_r
+        self.left = self.x - self.true_r
 
         imgs = air_im_gs[pocket_type]
         img_index = random.randint(0, len(imgs) - 1)
 
+        rim_imgs = air_rim_im_gs[pocket_type]
+        rim_img_index = random.randint(0, len(rim_imgs) - 1)
+
         self.full_res_img = imgs[img_index]
+        self.full_res_rim_img = rim_imgs[rim_img_index]
 
         self.IMGs = {}
         self.hitbox_im_gs = {}
         self.rim_im_gs = {}
 
         for zoom in default_zooms:
-            self.IMGs[zoom] = _get_cached_scale(self.full_res_img, pocket_type, img_index, radius, zoom)
+            self.IMGs[zoom] = _get_cached_scale(self.full_res_img, pocket_type, img_index, self.true_r, zoom)
 
-        if self.type != "Circle":
-            self.full_res_hitbox_img = air_hitbox_im_gs[pocket_type]
-            for zoom in default_zooms:
-                self.hitbox_im_gs[zoom] = _get_cached_scale(self.full_res_hitbox_img, pocket_type + "_hitbox", 0, radius, zoom)
+        self.full_res_hitbox_img = air_hitbox_im_gs[pocket_type]
+        for zoom in default_zooms:
+            self.hitbox_im_gs[zoom] = _get_cached_scale(self.full_res_hitbox_img, pocket_type + "_hitbox", 0, self.true_r, zoom)
 
         for zoom in default_zooms:
-            self.rim_im_gs[zoom] = _get_cached_rim_scale(self.full_res_img, pocket_type, img_index, radius, zoom)
+            self.rim_im_gs[zoom] = _get_cached_rim_scale(self.full_res_rim_img, pocket_type, rim_img_index, self.true_r, zoom)
 
     def close(self, x, y, radius):
         # return abs(self.x - x) < radius + self.r and abs(self.y - y) < radius + self.r
