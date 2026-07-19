@@ -217,12 +217,12 @@ class Game:
 
             for lase in self.game_world.player.laser:
                 if lase.damage_frame:
-                    self.shake = self.game_world.player.laser_attributes.base_xpl / 12
+                    self.shake = self.game_world.player.laser_attributes.base_xpl / 8
                 else:
-                    self.shake += self.game_world.player.laser_attributes.base_xpl / 500
+                    self.shake += self.game_world.player.laser_attributes.base_xpl / 450
 
             self.shake *= 0.9
-            if self.shake < 0.025:
+            if self.shake < 0.02:
                 self.shake = 0
 
             if self.game_world.player.queued_damage > 0:

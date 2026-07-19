@@ -7,6 +7,7 @@ import laserProperties
 import terrain
 from global_assets import get_asset
 from util import channel_bound, charges_to_color, rotate_and_get_offset
+from UI import HealthBar
 
 SPRITE_WIDTH = 40
 SPRITE_HEIGHT = 40
@@ -400,6 +401,7 @@ class Player:
                     _terrain.add_air_pocket_clump(x, y, explosion_size, layer_index=_terrain._layer_for_y(y), player_made=True, spreading=1 / 5)
                     if lase.collision[1] == "ground":
                         _terrain.particles.spawn_mining_particles(10, (0, 0, 0), explosion_size * 1.5, x, y)
+                        HealthBar.targeted = None
 
                     _terrain.new_knockback_circles.append(
                         [laserProperties.get_laser_kb(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.kb_range, self.laser_attributes.area_kb_falloff]
@@ -409,6 +411,9 @@ class Player:
                     )
                     _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range, x, y)
                     _terrain.particles.spawn_pulse_particle(self.color,self.laser_attributes.kb_range,x,y)
+                
+                else:
+                    HealthBar.targeted = None
 
                 self.laser_first_hit = False
                 self.laser_ramps += 1
