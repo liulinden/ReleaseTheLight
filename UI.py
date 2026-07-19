@@ -22,8 +22,8 @@ charge_tuples = {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1)}
 
 def draw_rounded_line(surface, color, start, end, thickness):
     pygame.draw.line(surface, color, start, end, thickness)
-    pygame.draw.circle(surface, color, start, thickness / 2)
-    pygame.draw.circle(surface, color, end, thickness / 2)
+    pygame.draw.circle(surface, color, start, thickness // 2)
+    pygame.draw.circle(surface, color, end, thickness // 2)
 
 
 def draw_single_side_rounded_line(surface, color, start, end, thickness):
@@ -52,16 +52,18 @@ order_charges = {"white": (["white", "blue", "red"], []), "blue": (["blue", "whi
 
 
 class HealthBar:
-    def __init__(self, max_health, thickness=5):
+    def __init__(self, max_health, thickness=9):
         self.last_triggered = 0
         self.max_health = max_health
-        self.thickness = thickness
-        self.scale = 5 / math.sqrt(max_health)
+        self.thickness = thickness // 2 * 2 + 1  # thickness must be odd
+        self.scale = 15 / max_health ** 0.8
         self.width = self.max_health * self.scale + self.thickness
-        self.surface = pygame.Surface((self.width, self.thickness))
+        self.surface = pygame.Surface((self.width, self.thickness), pygame.SRCALPHA)
+        self.direct = False
 
-    def trigger(self):
+    def trigger(self, direct=False):
         self.last_triggered = pygame.time.get_ticks()
+        self.direct = direct
 
     def draw(self, surface, color, coords, health, time=None):
         if time is None:
@@ -70,8 +72,12 @@ class HealthBar:
         if opacity > 0:
             x, y = coords
 
-            draw_rounded_line(self.surface, (0, 0, 0), (self.thickness / 2, self.thickness / 2), (self.width - self.thickness / 2, self.thickness / 2), self.thickness)
-            draw_rounded_line(self.surface, color, (self.thickness / 2, self.thickness / 2), (self.thickness / 2 + self.scale * health, self.thickness / 2), self.thickness)
+            if self.direct:
+                draw_rounded_line(self.surface, color, (self.thickness // 2, self.thickness // 2), (self.width - self.thickness // 2, self.thickness // 2), self.thickness)
+                draw_rounded_line(self.surface, (0, 0, 0), (self.thickness // 2, self.thickness // 2), (self.width - self.thickness // 2, self.thickness // 2), self.thickness-4)
+            else:
+                draw_rounded_line(self.surface, (0, 0, 0), (self.thickness // 2, self.thickness // 2), (self.width - self.thickness // 2, self.thickness // 2), self.thickness-2)
+            draw_rounded_line(self.surface, color, (self.thickness // 2, self.thickness // 2), (self.thickness // 2 + self.scale * health, self.thickness // 2), self.thickness-4)
 
             left = x - self.scale * self.max_health / 2 - self.thickness / 2
             top = y - self.thickness / 2

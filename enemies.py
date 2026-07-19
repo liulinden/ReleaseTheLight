@@ -205,11 +205,11 @@ class Enemy:
         cam_x, cam_y, zoom = frame
         surface.blit(self.resized_im_gs[zoom][self.facing]["AttackHitbox"], ((self.rect.centerx - self.size / 2 - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y))
 
-    def deal_damage(self, damage):
+    def deal_damage(self, damage, direct=False):
         self.glow = 255
         self.health -= damage
         if damage > 0:
-            self.health_bar.trigger()
+            self.health_bar.trigger(direct)
         if self.health < 0:
             self.health = 0
             return True
@@ -248,7 +248,7 @@ class Enemy:
                     lase = player.laser[0]
                     if lase.laser_target is self:
                         c_terrain.particles.spawn_mining_particles(10, self.color, self.size / 5, x, y)
-                        if self.deal_damage(pow):
+                        if self.deal_damage(pow, True):
                             return True
                     else:
                         if d < r + self.r:

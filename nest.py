@@ -184,7 +184,7 @@ class Nest:
                     damage = pow if direct_hit else pow * falloff
                     self.deal_damage(damage, c_terrain, player)
                     new_particles.append([x, y, self.size / (5 if direct_hit else 10)])
-                    self.health_bar.trigger()
+                    self.health_bar.trigger(direct_hit)
         return new_particles
 
     def deal_damage(self, damage, c_terrain, player):

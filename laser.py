@@ -33,6 +33,7 @@ class Laser:
     def get_laser_points(self, n_points):
         n_points = max(3, 1 + round(self.length / 40))
         spacing = self.length / (n_points - 1)
+        
         points = []
         points.append(0)
         for i in range(n_points - 2):
