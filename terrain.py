@@ -15,7 +15,7 @@ NUM_LAYERS = 10
 
 max_airpocket_radius = 120
 rim_pocket_ratio = 1.5
-chunk_size = 400
+chunk_size = 500
 rocks_world_span = 8 * chunk_size
 
 # Placeholder charge required to unlock each gateway (index = gateway index)
