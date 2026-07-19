@@ -309,7 +309,7 @@ class Player:
     def drain_damage(self, damage):
         self.queued_drain_damage += damage
 
-    def tick(self, frame_length, c_terrain: terrain.Terrain, mouse_pos, keys_down, events):
+    def tick(self, frame_length, _terrain: terrain.Terrain, mouse_pos, keys_down, events):
         if self.lose_charge(self.queued_damage) or self.lose_charge(self.queued_drain_damage):
             return True
         self.queued_damage = 0
@@ -350,11 +350,11 @@ class Player:
                     self.x_speed = dx / d / 1.2
                     self.y_speed = dy / d / 2
                     self.ability_timer = self.ability_cooldown
-                    c_terrain.particles.spawn_pulse_particle(self.color, 40, self.x, self.y)
+                    _terrain.particles.spawn_pulse_particle(self.color, 40, self.x, self.y)
                 case "blue":
                     self.y_speed -= 0.3
-                    c_terrain.new_knockback_circles.append([self.laser_attributes.base_kb * 5, self.x, self.y, self.laser_attributes.kb_range * 3, 1])
-                    c_terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.kb_range * 3, self.x, self.y, 800)
+                    _terrain.new_knockback_circles.append([self.laser_attributes.base_kb * 5, self.x, self.y, self.laser_attributes.kb_range * 3, 1])
+                    _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.kb_range * 3, self.x, self.y, 800)
                     self.ability_timer = self.ability_cooldown
                 case "red":
                     self.y_speed -= 0.3
@@ -362,8 +362,8 @@ class Player:
                     # cTerrain.addAirPocketClump(self.x, self.y, explosionSize, layerIndex=cTerrain._layerForY(self.y), playerMade=True, spreading=1/5)
                     # should detect ground and spawn particles if detected
 
-                    c_terrain.new_player_damage_circles.append([self.laser_attributes.base_dmg, self.x, self.y, self.laser_attributes.dmg_range * 2, 1])
-                    c_terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range * 2, self.x, self.y, 800)
+                    _terrain.new_player_damage_circles.append([self.laser_attributes.base_dmg, self.x, self.y, self.laser_attributes.dmg_range * 2, 1])
+                    _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range * 2, self.x, self.y, 800)
                     self.ability_timer = self.ability_cooldown
 
         if keys_down["mouse"] and len(self.laser) == 0 and self.laser_timer <= self.laser_attributes.cooldown / 4:
@@ -384,7 +384,7 @@ class Player:
 
         for lase in self.laser:
             locked = lase.update_laser(
-                c_terrain,
+                _terrain,
                 self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
                 self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + self.laser_attributes.distance * math.sin(-self.arm_angle),
                 -self.arm_angle,
@@ -397,18 +397,18 @@ class Player:
                     point = lase.collision[0]
                     x, y = point
                     explosion_size = laserProperties.get_laser_expl(self.laser_attributes, self.laser_first_hit, self.laser_ramps)
-                    c_terrain.add_air_pocket_clump(x, y, explosion_size, layer_index=c_terrain._layer_for_y(y), player_made=True, spreading=1 / 5)
+                    _terrain.add_air_pocket_clump(x, y, explosion_size, layer_index=_terrain._layer_for_y(y), player_made=True, spreading=1 / 5)
                     if lase.collision[1] == "ground":
-                        c_terrain.particles.spawn_mining_particles(10, (0, 0, 0), explosion_size * 1.5, x, y)
+                        _terrain.particles.spawn_mining_particles(10, (0, 0, 0), explosion_size * 1.5, x, y)
 
-                    c_terrain.new_knockback_circles.append(
+                    _terrain.new_knockback_circles.append(
                         [laserProperties.get_laser_kb(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.kb_range, self.laser_attributes.area_kb_falloff]
                     )
-                    c_terrain.new_player_damage_circles.append(
+                    _terrain.new_player_damage_circles.append(
                         [laserProperties.get_laser_dmg(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.dmg_range, self.laser_attributes.area_dmg_falloff]
                     )
-                    c_terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range, x, y)
-                    c_terrain.particles.spawn_pulse_particle(self.color,self.laser_attributes.kb_range,x,y)
+                    _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range, x, y)
+                    _terrain.particles.spawn_pulse_particle(self.color,self.laser_attributes.kb_range,x,y)
 
                 self.laser_first_hit = False
                 self.laser_ramps += 1
@@ -426,7 +426,7 @@ class Player:
             if self.impacts[i].tick(frame_length, self.laser):
                 del self.impacts[i]
 
-        for knockback_circle in c_terrain.knockback_circles:
+        for knockback_circle in _terrain.knockback_circles:
             dx = self.x - knockback_circle[1]
             dy = self.y - knockback_circle[2]
             distance = math.sqrt(dx**2 + dy**2)
@@ -435,8 +435,8 @@ class Player:
             self.x_speed += frame_length * dx / distance * knockback / 60
             self.y_speed += frame_length * dy / distance * knockback / 60
 
-        for li in c_terrain.active_layers:
-            for nest in c_terrain.nests[li]:
+        for li in _terrain.active_layers:
+            for nest in _terrain.nests[li]:
                 if nest.stage == nest.max_stage and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
                     charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging, nest.max_charge)
                     nest.lose_charge(charge_gain)
@@ -445,8 +445,8 @@ class Player:
 
         if self.x < 50:
             self.x_speed += (50 - self.x) / 10000 * frame_length
-        elif self.x > c_terrain.world_width - 50:
-            self.x_speed -= (self.x - c_terrain.world_width + 50) / 10000 * frame_length
+        elif self.x > _terrain.world_width - 50:
+            self.x_speed -= (self.x - _terrain.world_width + 50) / 10000 * frame_length
 
         if keys_down[pygame.K_w] and self.on_ground:
             self.y_speed = -0.4
@@ -467,15 +467,15 @@ class Player:
         else:
             self.x_speed *= 0.993**frame_length
 
-        self.move_vertical(frame_length, c_terrain)
-        self.move_horizontal(frame_length, c_terrain)
+        self.move_vertical(frame_length, _terrain)
+        self.move_horizontal(frame_length, _terrain)
 
         self.update_color()
         self.update_costume(frame_length, mouse_pos)
 
         for lase in self.laser:
             lase.update_laser(
-                c_terrain,
+                _terrain,
                 self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
                 self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + self.laser_attributes.distance * math.sin(-self.arm_angle),
                 -self.arm_angle,
@@ -483,18 +483,18 @@ class Player:
             )
         return False
 
-    def move_horizontal(self, frame_length, c_terrain):
+    def move_horizontal(self, frame_length, _terrain: terrain.Terrain):
 
         # TODO - add slope platforming
 
         self.x += frame_length * self.x_speed
         self.update_rect()
-        if self.colliding_with_terrain(c_terrain):
+        if self.colliding_with_terrain(_terrain):
             slope_tolerance = math.ceil(3 * abs(frame_length * self.x_speed))
             for i in range(slope_tolerance):
                 self.y -= 1
                 self.update_rect()
-                if not self.colliding_with_terrain(c_terrain):
+                if not self.colliding_with_terrain(_terrain):
                     if self.x_speed > 0:
                         self.x_speed -= self.x_speed * i / slope_tolerance
                     else:
@@ -506,21 +506,21 @@ class Player:
             for i in range(backs):
                 self.x += frame_length * self.x_speed / backs
                 self.update_rect()
-                if self.colliding_with_terrain(c_terrain):
+                if self.colliding_with_terrain(_terrain):
                     self.x -= frame_length * self.x_speed / backs
                     self.update_rect()
                     break
             self.x_speed = 0
 
-    def move_vertical(self, frame_length, c_terrain: terrain.Terrain):
+    def move_vertical(self, frame_length, _terrain: terrain.Terrain):
         self.on_ground = False
         self.y += frame_length * self.y_speed
         self.update_rect()
-        if self.colliding_with_terrain(c_terrain):
+        if self.colliding_with_terrain(_terrain):
             if self.y_speed > 0:
                 self.on_ground = True
-                if not c_terrain.nests_collide_rect(self.rect):
-                    c_terrain.particles.spawn_mining_particles(
+                if not _terrain.nests_collide_rect(self.rect):
+                    _terrain.particles.spawn_mining_particles(
                         int(abs((abs(max(0.005 * frame_length, abs(self.x_speed)) - 0.005 * frame_length) + 3 * (self.y_speed - 0.0015 * frame_length)) * 12)), (0, 0, 0), 20, self.x, self.y + self.height / 2, time=400
                     )
             if self.y_speed < 0:
@@ -528,13 +528,13 @@ class Player:
                 for i in range(slope_tolerance):
                     self.x -= 1
                     self.update_rect()
-                    if not self.colliding_with_terrain(c_terrain):
+                    if not self.colliding_with_terrain(_terrain):
                         return
                 self.x += slope_tolerance
                 for i in range(slope_tolerance):
                     self.x += 1
                     self.update_rect()
-                    if not self.colliding_with_terrain(c_terrain):
+                    if not self.colliding_with_terrain(_terrain):
                         return
                 self.x -= slope_tolerance
             self.y -= frame_length * self.y_speed
@@ -542,7 +542,7 @@ class Player:
             for i in range(backs):
                 self.y += frame_length * self.y_speed / backs
                 self.update_rect()
-                if self.colliding_with_terrain(c_terrain):
+                if self.colliding_with_terrain(_terrain):
                     self.y -= frame_length * self.y_speed / backs
                     self.update_rect()
                     break
@@ -588,5 +588,5 @@ class Player:
             for impact in self.impacts:
                 impact.draw(surface, frame, boosted_color, zoom)
 
-    def colliding_with_terrain(self, c_terrain):
-        return c_terrain.collide_rect(self.rect)
+    def colliding_with_terrain(self, _terrain):
+        return _terrain.collide_rect(self.rect)

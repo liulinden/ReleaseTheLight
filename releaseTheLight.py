@@ -9,6 +9,7 @@ import loading_screen
 import UI
 import world
 from global_assets import load_assets
+from constants import CHUNK_SIZE
 
 
 class Game:
@@ -25,10 +26,10 @@ class Game:
         else:
             self.DEFAULT_ZOOMS = [1, 1.4]
         # self.HITBOX_ZOOM=0.2 -- add later
-        self.WORLD_WIDTH = 4000
-        self.WORLD_HEIGHT = 50000
+        self.WORLD_WIDTH = 10 * CHUNK_SIZE
+        self.WORLD_HEIGHT = 100 * CHUNK_SIZE
         if not full_world:
-            self.WORLD_HEIGHT = 20000
+            self.WORLD_HEIGHT = 50 * CHUNK_SIZE
         # high temporarily
 
         self.offset_x = 0

@@ -15,7 +15,7 @@ import terrain
 import UI
 from global_assets import get_asset
 from util import rotate_and_get_offset
-
+from constants import CHUNK_SIZE
 
 class World:
     def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=(0.1, 2), developing_mode=False):

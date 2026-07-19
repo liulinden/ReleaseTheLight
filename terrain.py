@@ -10,13 +10,13 @@ import particles
 from gateway import GATEWAY_Y_POSITIONS, Gateway
 from global_assets import get_asset
 from loading_screen import LoadingScreen
+from constants import CHUNK_SIZE
 
 NUM_LAYERS = 10
 
 max_airpocket_radius = 120
 rim_pocket_ratio = 1.5
-chunk_size = 500
-rocks_world_span = 8 * chunk_size
+rocks_world_span = 8 * CHUNK_SIZE
 
 # Placeholder charge required to unlock each gateway (index = gateway index)
 GATEWAY_CHARGE = [100, 200, 300, 500, 700, 900, 1000, 1200, 1500]
@@ -162,12 +162,12 @@ class Terrain:
         # gateways
         self.gateways = []
         for gi in range(NUM_LAYERS - 1):
-            num_tiles = math.ceil(world_width / chunk_size)
+            num_tiles = math.ceil(world_width / CHUNK_SIZE)
             n_exits = random.randint(math.ceil(num_tiles / 4), math.ceil(num_tiles / 2))
             n_entries = random.randint(1, math.ceil((num_tiles - n_exits) / 2))
             entry_cols = choose_unique_randoms(n_entries, 1, num_tiles - 2)
             exit_cols = choose_unique_randoms(n_exits, 1, num_tiles - 2, entry_cols)
-            gw = Gateway(gi, world_width, chunk_size, default_zooms, entry_columns=entry_cols, exit_columns=exit_cols, max_charge_per_entry=GATEWAY_CHARGE[gi])
+            gw = Gateway(gi, world_width, CHUNK_SIZE, default_zooms, entry_columns=entry_cols, exit_columns=exit_cols, max_charge_per_entry=GATEWAY_CHARGE[gi])
             gw.on_unlock = self._on_gateway_unlock
             self.gateways.append(gw)
 
@@ -177,10 +177,10 @@ class Terrain:
 
         for zoom in default_zooms:
             self.chunk_visuals[zoom] = []
-            for row in range(math.ceil(world_height / chunk_size) + 1):
+            for row in range(math.ceil(world_height / CHUNK_SIZE) + 1):
                 row_list = []
-                for col in range(math.ceil(world_width / chunk_size)):
-                    surf = pygame.Surface((chunk_size * zoom, chunk_size * zoom), pygame.SRCALPHA)
+                for col in range(math.ceil(world_width / CHUNK_SIZE)):
+                    surf = pygame.Surface((CHUNK_SIZE * zoom, CHUNK_SIZE * zoom), pygame.SRCALPHA)
                     # surf.fill((0,0,0,255)) probable not needed
                     row_list.append(surf)
                 self.chunk_visuals[zoom].append(row_list)
@@ -192,10 +192,10 @@ class Terrain:
 
         for zoom in default_zooms:
             self.chunk_hitboxes[zoom] = []
-            for row in range(math.ceil(world_height / chunk_size) + 1):
+            for row in range(math.ceil(world_height / CHUNK_SIZE) + 1):
                 row_list = []
-                for col in range(math.ceil(world_width / chunk_size)):
-                    row_list.append(pygame.Surface((chunk_size * zoom, chunk_size * zoom), pygame.SRCALPHA))
+                for col in range(math.ceil(world_width / CHUNK_SIZE)):
+                    row_list.append(pygame.Surface((CHUNK_SIZE * zoom, CHUNK_SIZE * zoom), pygame.SRCALPHA))
                 self.chunk_hitboxes[zoom].append(row_list)
 
         self._terrain_layer = None
@@ -276,14 +276,14 @@ class Terrain:
             hitbox_surf = structure.get_hitbox_surface(zoom)
             if hitbox_surf is None:
                 continue
-            col_start = max(0, math.floor(structure.left / chunk_size) - 1)
-            col_end = min(len(self.chunk_hitboxes[zoom][0]) - 1, math.ceil((structure.left + structure.width) / chunk_size))
-            row_start = max(0, math.floor(structure.top / chunk_size) - 1)
-            row_end = min(len(self.chunk_hitboxes[zoom]) - 1, math.ceil((structure.top + structure.height) / chunk_size))
+            col_start = max(0, math.floor(structure.left / CHUNK_SIZE) - 1)
+            col_end = min(len(self.chunk_hitboxes[zoom][0]) - 1, math.ceil((structure.left + structure.width) / CHUNK_SIZE))
+            row_start = max(0, math.floor(structure.top / CHUNK_SIZE) - 1)
+            row_end = min(len(self.chunk_hitboxes[zoom]) - 1, math.ceil((structure.top + structure.height) / CHUNK_SIZE))
             for row in range(row_start, row_end + 1):
                 for col in range(col_start, col_end + 1):
-                    chunk_left = col * chunk_size
-                    chunk_top = row * chunk_size
+                    chunk_left = col * CHUNK_SIZE
+                    chunk_top = row * CHUNK_SIZE
                     if erase and erase_hitbox_surf:
                         self.chunk_hitboxes[zoom][row][col].blit(erase_hitbox_surf, (zoom * (structure.left - chunk_left), zoom * (structure.top - chunk_top)), special_flags=pygame.BLEND_RGBA_SUB)
                     self.chunk_hitboxes[zoom][row][col].blit(hitbox_surf, (zoom * (structure.left - chunk_left), zoom * (structure.top - chunk_top)), special_flags=pygame.BLEND_RGBA_MAX)
@@ -308,15 +308,15 @@ class Terrain:
     # ------------------------------------------------------------------
 
     def add_air_pocket_to_surfaces(self, air_pocket):
-        base_row = math.floor(air_pocket.y / chunk_size)
-        base_col = math.floor(air_pocket.x / chunk_size)
+        base_row = math.floor(air_pocket.y / CHUNK_SIZE)
+        base_col = math.floor(air_pocket.x / CHUNK_SIZE)
         affected_chunks = []
         for d_row in range(-1, 2):
             for d_col in range(-1, 2):
                 row = base_row + d_row
                 col = base_col + d_col
-                if row >= 0 and col >= 0 and row <= self.world_height / chunk_size and col < self.world_width / chunk_size:
-                    left, top = col * chunk_size, row * chunk_size
+                if row >= 0 and col >= 0 and row <= self.world_height / CHUNK_SIZE and col < self.world_width / CHUNK_SIZE:
+                    left, top = col * CHUNK_SIZE, row * CHUNK_SIZE
                     for zoom in self.default_zooms:
                         self.chunk_hitboxes[zoom][row][col].blit(air_pocket.hitbox_im_gs[zoom], (zoom * (air_pocket.left - left), zoom * (air_pocket.top - top)), special_flags=pygame.BLEND_RGBA_SUB)
                         self._carve_visual_chunk(air_pocket, row, col, zoom)
@@ -331,25 +331,25 @@ class Terrain:
             nest_left = new_nest.left
             nest_top = new_nest.top
             nest_size = new_nest.size
-            col_start = max(0, math.floor(nest_left / chunk_size) - 1)
-            col_end = min(math.ceil(self.world_width / chunk_size) - 1, math.ceil((nest_left + nest_size) / chunk_size))
-            row_start = max(0, math.floor(nest_top / chunk_size) - 1)
-            row_end = min(math.ceil(self.world_height / chunk_size), math.ceil((nest_top + nest_size) / chunk_size))
+            col_start = max(0, math.floor(nest_left / CHUNK_SIZE) - 1)
+            col_end = min(math.ceil(self.world_width / CHUNK_SIZE) - 1, math.ceil((nest_left + nest_size) / CHUNK_SIZE))
+            row_start = max(0, math.floor(nest_top / CHUNK_SIZE) - 1)
+            row_end = min(math.ceil(self.world_height / CHUNK_SIZE), math.ceil((nest_top + nest_size) / CHUNK_SIZE))
             for row in range(row_start, row_end + 1):
                 for col in range(col_start, col_end + 1):
                     if row < len(self.chunk_hitboxes[zoom]) and col < len(self.chunk_hitboxes[zoom][row]):
-                        chunk_left = col * chunk_size
-                        chunk_top = row * chunk_size
+                        chunk_left = col * CHUNK_SIZE
+                        chunk_top = row * CHUNK_SIZE
                         offset = (zoom * (nest_left - chunk_left), zoom * (nest_top - chunk_top))
                         if self.chunk_hitboxes[zoom] and row < len(self.chunk_hitboxes[zoom]) and col < len(self.chunk_hitboxes[zoom][row]):
                             self.chunk_hitboxes[zoom][row][col].blit(img, offset, special_flags=pygame.BLEND_RGBA_MAX)
 
     def _reblit_solid_structures_on_chunk(self, row, col):
         """Re-blit all solid structures (nests + gateway tiles) onto a chunk after mining."""
-        chunk_left = col * chunk_size
-        chunk_top = row * chunk_size
-        chunk_right = chunk_left + chunk_size
-        chunk_bottom = chunk_top + chunk_size
+        chunk_left = col * CHUNK_SIZE
+        chunk_top = row * CHUNK_SIZE
+        chunk_right = chunk_left + CHUNK_SIZE
+        chunk_bottom = chunk_top + CHUNK_SIZE
         for n in self._active_nests():
             if n.left < chunk_right and n.left + n.size > chunk_left and n.top < chunk_bottom and n.top + n.size > chunk_top:
                 for zoom in self.default_zooms:
@@ -372,14 +372,14 @@ class Terrain:
                     erase_surf = structure.get_erase_surface(zoom)
                     if erase_surf is None:
                         continue
-                    col_start = max(0, math.floor(structure.left / chunk_size) - 1)
-                    col_end = min(len(self.chunk_visuals[zoom][0]) - 1, math.ceil((structure.left + structure.width) / chunk_size))
-                    row_start = max(0, math.floor(structure.top / chunk_size) - 1)
-                    row_end = min(len(self.chunk_visuals[zoom]) - 1, math.ceil((structure.top + structure.height) / chunk_size))
+                    col_start = max(0, math.floor(structure.left / CHUNK_SIZE) - 1)
+                    col_end = min(len(self.chunk_visuals[zoom][0]) - 1, math.ceil((structure.left + structure.width) / CHUNK_SIZE))
+                    row_start = max(0, math.floor(structure.top / CHUNK_SIZE) - 1)
+                    row_end = min(len(self.chunk_visuals[zoom]) - 1, math.ceil((structure.top + structure.height) / CHUNK_SIZE))
                     for row in range(row_start, row_end + 1):
                         for col in range(col_start, col_end + 1):
-                            chunk_left = col * chunk_size
-                            chunk_top = row * chunk_size
+                            chunk_left = col * CHUNK_SIZE
+                            chunk_top = row * CHUNK_SIZE
                             self.chunk_visuals[zoom][row][col].blit(erase_surf, (zoom * (structure.left - chunk_left), zoom * (structure.top - chunk_top)), special_flags=pygame.BLEND_RGBA_SUB)
 
     # ------------------------------------------------------------------
@@ -424,14 +424,14 @@ class Terrain:
 
     def _blit_nest_on_chunk_hitboxes(self, n, zoom):
         img = n.resized_hitboxes[zoom]
-        col_start = max(0, math.floor(n.left / chunk_size) - 1)
-        col_end = min(len(self.chunk_hitboxes[zoom][0]) - 1, math.ceil((n.left + n.size) / chunk_size))
-        row_start = max(0, math.floor(n.top / chunk_size) - 1)
-        row_end = min(len(self.chunk_hitboxes[zoom]) - 1, math.ceil((n.top + n.size) / chunk_size))
+        col_start = max(0, math.floor(n.left / CHUNK_SIZE) - 1)
+        col_end = min(len(self.chunk_hitboxes[zoom][0]) - 1, math.ceil((n.left + n.size) / CHUNK_SIZE))
+        row_start = max(0, math.floor(n.top / CHUNK_SIZE) - 1)
+        row_end = min(len(self.chunk_hitboxes[zoom]) - 1, math.ceil((n.top + n.size) / CHUNK_SIZE))
         for row in range(row_start, row_end + 1):
             for col in range(col_start, col_end + 1):
-                chunk_left = col * chunk_size
-                chunk_top = row * chunk_size
+                chunk_left = col * CHUNK_SIZE
+                chunk_top = row * CHUNK_SIZE
                 self.chunk_hitboxes[zoom][row][col].blit(img, (zoom * (n.left - chunk_left), zoom * (n.top - chunk_top)), special_flags=pygame.BLEND_RGBA_MAX)
 
     def _prepare_chunks(self, layer_index, loading_screen: LoadingScreen = None):
@@ -439,9 +439,9 @@ class Terrain:
         for i, zoom in enumerate(self.default_zooms):
             rocks = self._rocks_scaled[zoom]
             rocks_span_px = int(rocks_world_span * zoom)
-            chunk_px = int(chunk_size * zoom)
-            row_start = math.floor(y_top / chunk_size)
-            row_end = min(math.ceil(y_bottom / chunk_size), len(self.chunk_visuals[zoom]) - 1)
+            chunk_px = int(CHUNK_SIZE * zoom)
+            row_start = math.floor(y_top / CHUNK_SIZE)
+            row_end = min(math.ceil(y_bottom / CHUNK_SIZE), len(self.chunk_visuals[zoom]) - 1)
             total_rows = row_end - row_start
 
             loading_bar_section = loading_screen.subsection(i / len(self.default_zooms), (i + 1) / len(self.default_zooms)) if loading_screen is not None else None
@@ -456,10 +456,10 @@ class Terrain:
 
                 #texture chunks
                 for col, chunk in enumerate(self.chunk_visuals[zoom][row]):
-                    world_left = col * chunk_size
-                    world_top = row * chunk_size
-                    world_right = world_left + chunk_size
-                    world_bot = world_top + chunk_size
+                    world_left = col * CHUNK_SIZE
+                    world_top = row * CHUNK_SIZE
+                    world_right = world_left + CHUNK_SIZE
+                    world_bot = world_top + CHUNK_SIZE
 
                     tl = self._depth_color(world_left, world_top)
                     tr = self._depth_color(world_right, world_top)
@@ -503,8 +503,8 @@ class Terrain:
 
             # Generate caves and nests
             if layer_index == 0:
-                x = -chunk_size
-                while x < self.world_width + chunk_size:
+                x = -CHUNK_SIZE
+                while x < self.world_width + CHUNK_SIZE:
                     r = random.randint(10, 30)
                     self.add_air_pocket_clump(x, 0, r, layer_index=layer_index, override=True)
                     x += r / 2
@@ -566,7 +566,7 @@ class Terrain:
             
             #blit gateways
             for gw in self.gateways:
-                if gw.y - chunk_size / 2 < y_bottom and gw.y + chunk_size / 2 > y_top:
+                if gw.y - CHUNK_SIZE / 2 < y_bottom and gw.y + CHUNK_SIZE / 2 > y_top:
                     self._bake_gateway_into_chunks(gw)
 
             self.carve_structures_visual_air(y_top)
@@ -716,7 +716,7 @@ class Terrain:
         surface.blit(self._vignette_surf, (offset_x, offset_y), special_flags=pygame.BLEND_RGB_MULT)
 
     def _carve_visual_chunk(self, air_pocket, row, col, zoom):
-        left, top = col * chunk_size, row * chunk_size
+        left, top = col * CHUNK_SIZE, row * CHUNK_SIZE
         l = zoom * (air_pocket.left - left)
         t = zoom * (air_pocket.top - top)
         chunk = self.chunk_visuals[zoom][row][col]
@@ -751,11 +751,11 @@ class Terrain:
             wy = start_y + dy * dist
             if wx < 0 or wx >= self.world_width or wy < 0 or wy >= self.world_height:
                 return wx, wy, dist
-            col = int(wx // chunk_size)
-            row = int(wy // chunk_size)
+            col = int(wx // CHUNK_SIZE)
+            row = int(wy // CHUNK_SIZE)
             if row >= chunk_rows or col >= chunk_cols:
                 return wx, wy, dist
-            pixel = chunks[row][col].get_at((int(wx % chunk_size), int(wy % chunk_size)))
+            pixel = chunks[row][col].get_at((int(wx % CHUNK_SIZE), int(wy % CHUNK_SIZE)))
             if pixel[0] < 128:
                 return wx, wy, dist
             dist += step
@@ -773,12 +773,12 @@ class Terrain:
         if wx < 0 or wx >= self.world_width or wy >= self.world_height:
             return True
         chunks = self.chunk_hitboxes[1]
-        col = int(wx // chunk_size)
-        row = int(wy // chunk_size)
+        col = int(wx // CHUNK_SIZE)
+        row = int(wy // CHUNK_SIZE)
         if row >= len(chunks) or col >= len(chunks[0]):
             return True
-        px = max(0, min(int(chunk_size - 1), int(wx % chunk_size)))
-        py = max(0, min(int(chunk_size - 1), int(wy % chunk_size)))
+        px = max(0, min(int(CHUNK_SIZE - 1), int(wx % CHUNK_SIZE)))
+        py = max(0, min(int(CHUNK_SIZE - 1), int(wy % CHUNK_SIZE)))
         return chunks[row][col].get_at((px, py))[0] > 128
 
     def _sample_chunk_visuals(self, wx, wy):
@@ -787,15 +787,20 @@ class Terrain:
         if wx < 0 or wx >= self.world_width or wy >= self.world_height:
             return True
         chunks = self.chunk_visuals[1]
-        col = int(wx // chunk_size)
-        row = int(wy // chunk_size)
+        col = int(wx // CHUNK_SIZE)
+        row = int(wy // CHUNK_SIZE)
         if row >= len(chunks) or col >= len(chunks[0]):
             return True
-        px = max(0, min(int(chunk_size - 1), int(wx % chunk_size)))
-        py = max(0, min(int(chunk_size - 1), int(wy % chunk_size)))
+        px = max(0, min(int(CHUNK_SIZE - 1), int(wx % CHUNK_SIZE)))
+        py = max(0, min(int(CHUNK_SIZE - 1), int(wy % CHUNK_SIZE)))
         return chunks[row][col].get_at((px, py))[3] > 128
 
-    def _sample_rect(self, rect):
+    def get_normal(self, x, y): # coordinate should be adjacent to a collision point
+        v_x = self._sample_chunk(x-2, y) - self._sample_chunk(x+2, y)
+        v_y = self._sample_chunk(x, y-2) - self._sample_chunk(x, y+2)
+        return (v_x, v_y)
+
+    def collide_rect(self, rect):
         l = float(rect.left)
         r = float(rect.right - 1)
         t = float(rect.top)
@@ -804,16 +809,17 @@ class Terrain:
         step = 1
         for i in range(math.floor(b - t)):
             y = t + step * i
-            if self._sample_chunk(l, y) or self._sample_chunk(r, y):
-                return True
+            if self._sample_chunk(l, y):
+                return (l, y)
+            if self._sample_chunk(r, y):
+                return (r, y)
         for i in range(math.floor(r - l)):
             x = l + step * i
-            if self._sample_chunk(x, b) or self._sample_chunk(x, t):
-                return True
+            if self._sample_chunk(x, b):
+                return (x, b)
+            if self._sample_chunk(x, t):
+                return (x, t)
         return False
-
-    def collide_rect(self, rect):
-        return self._sample_rect(rect)
 
     def laser_collide_point(self, x, y):
         # the two below are somewhat redundant
@@ -828,21 +834,6 @@ class Terrain:
                 if enemy.mode != "Spawn" and enemy.rect.collidepoint(x, y):
                     return True
         return False
-
-    def ground_collide_rect(self, rect):
-        return self._sample_rect(rect)
-
-    def enemies_collide_rect(self, rect):
-        rect_mask = pygame.Mask((rect.width, rect.height), fill=True)
-        colliding_layer = pygame.Surface((rect.width, rect.height), flags=pygame.SRCALPHA)
-        self.draw_enemies((rect.width, rect.height), colliding_layer, [rect.left, rect.top, 1], hitboxes=True)
-        return pygame.mask.from_surface(colliding_layer).overlap(rect_mask, (0, 0)) is not None
-
-    def enemies_attack_collide_rect(self, rect):
-        rect_mask = pygame.Mask((rect.width, rect.height), fill=True)
-        colliding_layer = pygame.Surface((rect.width, rect.height), flags=pygame.SRCALPHA)
-        self.draw_enemies((rect.width, rect.height), colliding_layer, [rect.left, rect.top, 1], hitboxes=True)
-        return pygame.mask.from_surface(colliding_layer).overlap(rect_mask, (0, 0)) is not None
 
     def nests_collide_rect(self, rect):
         rect_mask = pygame.Mask((rect.width, rect.height), fill=True)
@@ -935,10 +926,10 @@ class Terrain:
         if hitboxes:
             surface.blit(self.get_terrain_layer(window_size, frame, hitboxes=True, real_window_size=real_window_size, offset_x=offset_x, offset_y=offset_y), (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
         else:
-            top_chunk = math.floor(max(0, min(self.world_height, top)) / chunk_size)
-            left_chunk = math.floor(max(0, min(self.world_width - chunk_size, left)) / chunk_size)
-            bottom_chunk = math.ceil(max(0, min(self.world_height, top + w_height / zoom - chunk_size)) / chunk_size)
-            right_chunk = math.ceil(max(0, min(self.world_width - chunk_size, left + w_width / zoom - chunk_size)) / chunk_size)
+            top_chunk = math.floor(max(0, min(self.world_height, top)) / CHUNK_SIZE)
+            left_chunk = math.floor(max(0, min(self.world_width - CHUNK_SIZE, left)) / CHUNK_SIZE)
+            bottom_chunk = math.ceil(max(0, min(self.world_height, top + w_height / zoom - CHUNK_SIZE)) / CHUNK_SIZE)
+            right_chunk = math.ceil(max(0, min(self.world_width - CHUNK_SIZE, left + w_width / zoom - CHUNK_SIZE)) / CHUNK_SIZE)
 
             if self._vignette_stencil is None or self._vignette_stencil_size != real_window_size:
                 self._vignette_stencil = pygame.Surface(real_window_size, pygame.SRCALPHA)
@@ -949,7 +940,7 @@ class Terrain:
             for row in range(top_chunk, bottom_chunk + 1):
                 for col in range(left_chunk, right_chunk + 1):
                     if row < len(chunks) and col < len(chunks[row]):
-                        self._vignette_stencil.blit(chunks[row][col], ((col * chunk_size - left) * zoom + offset_x, (row * chunk_size - top) * zoom + offset_y))
+                        self._vignette_stencil.blit(chunks[row][col], ((col * CHUNK_SIZE - left) * zoom + offset_x, (row * CHUNK_SIZE - top) * zoom + offset_y))
 
             self.draw_vignette(self._vignette_stencil, window_size, offset_x=offset_x, offset_y=offset_y)
             surface.blit(self._vignette_stencil, (0, 0))
@@ -962,24 +953,24 @@ class Terrain:
         layer = self._get_terrain_layer_surface(real_window_size)
         if zoom in self.default_zooms:
             if hitboxes:
-                top_chunk = math.floor(max(0, min(self.world_height, top)) / chunk_size)
-                left_chunk = math.floor(max(0, min(self.world_width - chunk_size, left)) / chunk_size)
-                bottom_chunk = math.ceil(max(0, min(self.world_height, top + w_height / zoom - chunk_size)) / chunk_size)
-                right_chunk = math.ceil(max(0, min(self.world_width - chunk_size, left + w_width / zoom - chunk_size)) / chunk_size)
+                top_chunk = math.floor(max(0, min(self.world_height, top)) / CHUNK_SIZE)
+                left_chunk = math.floor(max(0, min(self.world_width - CHUNK_SIZE, left)) / CHUNK_SIZE)
+                bottom_chunk = math.ceil(max(0, min(self.world_height, top + w_height / zoom - CHUNK_SIZE)) / CHUNK_SIZE)
+                right_chunk = math.ceil(max(0, min(self.world_width - CHUNK_SIZE, left + w_width / zoom - CHUNK_SIZE)) / CHUNK_SIZE)
                 layer.fill((0, 0, 0, 0))
                 surfaces = self.chunk_hitboxes[zoom]
                 for row in range(top_chunk, bottom_chunk + 1):
                     for column in range(left_chunk, right_chunk + 1):
-                        layer.blit(surfaces[row][column], ((column * chunk_size - left) * zoom + offset_x, (row * chunk_size - top) * zoom + offset_y))
+                        layer.blit(surfaces[row][column], ((column * CHUNK_SIZE - left) * zoom + offset_x, (row * CHUNK_SIZE - top) * zoom + offset_y))
             else:
-                top_chunk = math.floor(max(0, min(self.world_height, top)) / chunk_size)
-                left_chunk = math.floor(max(0, min(self.world_width - chunk_size, left)) / chunk_size)
-                bottom_chunk = math.ceil(max(0, min(self.world_height, top + w_height / zoom - chunk_size)) / chunk_size)
-                right_chunk = math.ceil(max(0, min(self.world_width - chunk_size, left + w_width / zoom - chunk_size)) / chunk_size)
+                top_chunk = math.floor(max(0, min(self.world_height, top)) / CHUNK_SIZE)
+                left_chunk = math.floor(max(0, min(self.world_width - CHUNK_SIZE, left)) / CHUNK_SIZE)
+                bottom_chunk = math.ceil(max(0, min(self.world_height, top + w_height / zoom - CHUNK_SIZE)) / CHUNK_SIZE)
+                right_chunk = math.ceil(max(0, min(self.world_width - CHUNK_SIZE, left + w_width / zoom - CHUNK_SIZE)) / CHUNK_SIZE)
                 surfaces = self.air_pockets_surfaces[zoom]
                 for row in range(top_chunk, bottom_chunk + 1):
                     for column in range(left_chunk, right_chunk + 1):
-                        layer.blit(surfaces[row][column], ((column * chunk_size - left) * zoom + offset_x, (row * chunk_size - top) * zoom + offset_y), special_flags=pygame.BLEND_RGBA_SUB)
+                        layer.blit(surfaces[row][column], ((column * CHUNK_SIZE - left) * zoom + offset_x, (row * CHUNK_SIZE - top) * zoom + offset_y), special_flags=pygame.BLEND_RGBA_SUB)
         return layer
 
 
