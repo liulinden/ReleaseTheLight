@@ -9,7 +9,7 @@ import loading_screen
 import UI
 import world
 from global_assets import load_assets
-from constants import CHUNK_SIZE
+from config import CHUNK_SIZE
 
 
 class Game:

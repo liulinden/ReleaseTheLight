@@ -10,7 +10,7 @@ import particles
 from gateway import GATEWAY_Y_POSITIONS, Gateway
 from global_assets import get_asset
 from loading_screen import LoadingScreen
-from constants import CHUNK_SIZE
+from config import CHUNK_SIZE
 
 NUM_LAYERS = 10
 

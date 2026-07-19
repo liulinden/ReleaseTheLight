@@ -5,7 +5,7 @@ import pygame
 from global_assets import get_asset
 from structure import Structure
 from UI import HealthBar
-from constants import CHUNK_SIZE
+from config import CHUNK_SIZE
 
 # ---------------------------------------------------------------------------
 # Gateway Y positions — one per boundary between layers.
