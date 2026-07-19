@@ -16,7 +16,7 @@ class Particles:
             self.scratch_layer = pygame.Surface(dimensions, pygame.SRCALPHA)
             self.scratch_layer_size = dimensions
 
-    def spawn_mining_particles(self, n, color, size, x, y, time=300):
+    def spawn_mining_particles(self, n, color, size, x, y, time=500):
         for i in range(n):
             angle = -random.random() * 2 * math.pi
             scale = (random.random() + 1) / 10
@@ -44,7 +44,7 @@ class Particles:
 
 
 class MiningParticle:
-    def __init__(self, color, size, x, y, x_speed=0, y_speed=0, time=1000):
+    def __init__(self, color, size, x, y, x_speed=0, y_speed=0, time=500):
         self.color = color
         self.x = x
         self.y = y
@@ -54,7 +54,7 @@ class MiningParticle:
         self.size = random.randint(1, 3) * size / 20
 
     def tick(self, frame_length):
-        self.y_speed += 0.0015 * frame_length
+        self.y_speed += 0.0012 * frame_length
         self.x += self.x_speed * frame_length
         self.y += self.y_speed * frame_length
         self.timer -= frame_length

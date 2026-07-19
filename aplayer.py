@@ -521,7 +521,7 @@ class Player:
                 self.on_ground = True
                 if not c_terrain.nests_collide_rect(self.rect):
                     c_terrain.particles.spawn_mining_particles(
-                        int(abs((abs(max(0.005 * frame_length, abs(self.x_speed)) - 0.005 * frame_length) + 3 * (self.y_speed - 0.0015 * frame_length)) * 12)), (0, 0, 0), 20, self.x, self.y + self.height / 2, time=200
+                        int(abs((abs(max(0.005 * frame_length, abs(self.x_speed)) - 0.005 * frame_length) + 3 * (self.y_speed - 0.0015 * frame_length)) * 12)), (0, 0, 0), 20, self.x, self.y + self.height / 2, time=400
                     )
             if self.y_speed < 0:
                 slope_tolerance = math.ceil(abs(0.5 * frame_length * self.y_speed))

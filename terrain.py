@@ -14,6 +14,7 @@ from loading_screen import LoadingScreen
 NUM_LAYERS = 10
 
 max_airpocket_radius = 120
+rim_pocket_ratio = 1.5
 chunk_size = 400
 rocks_world_span = 8 * chunk_size
 
@@ -414,12 +415,12 @@ class Terrain:
         return palette[-1][1]
 
     def _make_gradient_surf(self, tl, tr, bl, br, width, height):
-        surf = pygame.Surface((2, 2))
+        surf = self._get_scratch_surface(2, 2)
         surf.set_at((0, 0), tl)
         surf.set_at((1, 0), tr)
         surf.set_at((0, 1), bl)
         surf.set_at((1, 1), br)
-        return pygame.transform.smoothscale(surf, (width, height))
+        return pygame.transform.smoothscale(surf, (width, height), self._get_scratch_surface(width, height))
 
     def _blit_nest_on_chunk_hitboxes(self, n, zoom):
         img = n.resized_hitboxes[zoom]
@@ -723,11 +724,13 @@ class Terrain:
         eraser = air_pocket.IMGs[zoom]
         chunk.blit(eraser, (l,t), special_flags=pygame.BLEND_RGBA_SUB)
 
+        r,g,b = self._depth_color(air_pocket.x,air_pocket.y)
         rim=air_pocket.rim_im_gs[zoom]
+        
         mask=self._get_scratch_surface(rim.get_width(),rim.get_height())
-        mask.fill((255,255,255,0))
+        mask.fill((r,g,b,0))
         mask.blit(chunk, (-l,-t), special_flags=pygame.BLEND_RGBA_MAX)
-        mask.blit(rim, (0,0), special_flags=pygame.BLEND_RGBA_MIN)
+        mask.blit(rim, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
         chunk.blit(mask,(l,t))
 
 
@@ -854,17 +857,11 @@ class Terrain:
     def draw_depth_background(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w, h = surface.get_size()
-        right = left + w / zoom
-        bottom = top + h / zoom
-        tl = self._depth_color(left, top)
-        tr = self._depth_color(right, top)
-        bl = self._depth_color(left, bottom)
-        br = self._depth_color(right, bottom)
-
+        cx = left + w / zoom / 2
+        cy = top + h / zoom / 2
         def darken(c):
             return (int(c[0] * 0.05), int(c[1] * 0.05), int(c[2] * 0.05))
-
-        surface.blit(self._make_gradient_surf(darken(tl), darken(tr), darken(bl), darken(br), w, h), (offset_x, offset_y))
+        surface.fill(darken(self._depth_color(cx,cy)))
 
     def draw_collision_debug(self, surface, rect, frame, color=(255, 0, 0), offset_x=0, offset_y=0):
         left, top, zoom = frame
@@ -994,8 +991,6 @@ class Terrain:
 class AirPocket:
     def __init__(self, x, y, radius, default_zooms=(0.1, 2), pocket_type="Circle", player_made=False):
         radius = _snap_radius(radius)
-
-        rim_pocket_ratio = 1.25
 
         self.x = x
         self.y = y
