@@ -27,9 +27,9 @@ class Game:
             self.DEFAULT_ZOOMS = [1, 1.4]
         # self.HITBOX_ZOOM=0.2 -- add later
         self.WORLD_WIDTH = 10 * CHUNK_SIZE
-        self.WORLD_HEIGHT = 100 * CHUNK_SIZE
-        if not full_world:
-            self.WORLD_HEIGHT = 50 * CHUNK_SIZE
+        self.WORLD_HEIGHT = 200 * CHUNK_SIZE
+        #if not full_world:
+        #    self.WORLD_HEIGHT = 50 * CHUNK_SIZE
         # high temporarily
 
         self.offset_x = 0
@@ -84,7 +84,7 @@ class Game:
 
         self.loading_screen.put(0.0, "Starting game setup")
 
-        asset_loading, world_loading, _ = self.loading_screen.subsections(0, 0.3, 0.9999)
+        asset_loading, world_loading, _ = self.loading_screen.subsections(0, 0.4, 0.9999)
 
         load_assets(asset_loading)
 

@@ -4,7 +4,7 @@ import random
 
 import pygame
 
-import aplayer
+import player
 import enemies
 import gateway
 import laser
@@ -24,9 +24,9 @@ class World:
         self.default_zooms = default_zooms
         self.developing_mode = developing_mode
 
-        init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.25, 0.5)
+        init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.05, 0.12)
 
-        inits = [lighting.init, enemies.init, nest.init, terrain.init, aplayer.init, laser.init, gateway.init, UI.init]
+        inits = [lighting.init, enemies.init, nest.init, terrain.init, player.init, laser.init, gateway.init, UI.init]
 
         for i, init in enumerate(inits):
             init_loading_screen.put((i + 1) / len(inits), f"{init.__module__}.{init.__name__}()")
@@ -37,7 +37,7 @@ class World:
         objects_loading_screen.put(0.5, "Creating terrain object")
         self.terrain = terrain.Terrain(world_width, world_height, default_zooms=default_zooms)
         objects_loading_screen.put(0.6, "Creating player object")
-        self.player = aplayer.Player(default_zooms, world_width / 2, -200 if developing_mode else -1200)
+        self.player = player.Player(default_zooms, world_width / 2, -200 if developing_mode else -1200)
         objects_loading_screen.put(0.7, "Creating lighting object")
         self.light = lighting.Lighting(default_zooms=default_zooms)
         objects_loading_screen.put(0.8, "Creating background surface")
@@ -151,8 +151,8 @@ class World:
 
     def draw_background(self, layer, window_size, frame):
         left, top, zoom = frame
-        x = (-left * zoom) % self.bg_width / 2 - self.bg_width / 2
-        y = (-top * zoom) % self.bg_height / 2 - self.bg_height / 2
+        x = (-left/10 * zoom) % self.bg_width / 2 - self.bg_width / 2
+        y = (-top/10 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background, (x, y))
 
     def draw_foreground(self, layer, window_size, frame):

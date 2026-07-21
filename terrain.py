@@ -488,18 +488,21 @@ class Terrain:
 
 
         if loading_screen is not None:
-            loading_screen_main, loading_screen_visuals = loading_screen.subsections(0, 0.5)
+            loading_screen_prep, loading_screen_gen = loading_screen.subsections(0, 0.4)
         else:
-            loading_screen_main = loading_screen_visuals = None
+            loading_screen_prep = loading_screen_gen = None
 
         with self._layer_locks[layer_index]:
-            if loading_screen_main is not None:
-                loading_screen_main.put(0, "Generating master caves")
+            if loading_screen_prep is not None:
+                loading_screen_prep.put(0, "Preparing layer for generation")
 
             y_top, y_bottom = _layer_y_bounds(layer_index, self.world_height)
 
             #prepare chunks
-            self._prepare_chunks(layer_index, loading_screen=loading_screen_visuals)
+            self._prepare_chunks(layer_index, loading_screen=loading_screen_prep)
+
+            if loading_screen_gen is not None:
+                loading_screen_gen.put(0, "Generating master cave")
 
             # Generate caves and nests
             if layer_index == 0:
@@ -519,8 +522,8 @@ class Terrain:
 
             num_steps = int((y_bottom - y_top) / 100)
             for i in range(num_steps):
-                if loading_screen_main is not None:
-                    loading_screen_main.put((i + 1) / num_steps, f"Generate layer section {i + 1}/{num_steps}")
+                if loading_screen_gen is not None:
+                    loading_screen_gen.put((i + 1) / num_steps, f"Generate layer section {i + 1}/{num_steps}")
                 for j in range(int(self.world_width / 1000)):
                     if random.randint(1, 20) == 1:
                         self.generate_skinny_cave(
