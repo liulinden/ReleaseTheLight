@@ -75,7 +75,7 @@ class PulseParticle:
         self.opacity = 150
 
         if self.timer == 0:
-            self.timer = size*10
+            self.timer = size * 10
 
     def tick(self, frame_length):
         self.timer -= frame_length

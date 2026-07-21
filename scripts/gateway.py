@@ -2,16 +2,16 @@ import math
 
 import pygame
 
+from config import CHUNK_SIZE
 from scripts.global_assets import get_asset
 from scripts.structure import Structure
 from scripts.UI import HealthBar
-from config import CHUNK_SIZE
 
 # ---------------------------------------------------------------------------
 # Gateway Y positions — one per boundary between layers.
 # 5 layers → 4 gateways. Adjust values to tune layer spacing.
 # ---------------------------------------------------------------------------
-GATEWAY_Y_POSITIONS = [CHUNK_SIZE*15, CHUNK_SIZE*30, CHUNK_SIZE*45, CHUNK_SIZE*60, CHUNK_SIZE*80, CHUNK_SIZE*100, CHUNK_SIZE*120, CHUNK_SIZE*140, CHUNK_SIZE*160]
+GATEWAY_Y_POSITIONS = [CHUNK_SIZE * 15, CHUNK_SIZE * 30, CHUNK_SIZE * 45, CHUNK_SIZE * 60, CHUNK_SIZE * 80, CHUNK_SIZE * 100, CHUNK_SIZE * 120, CHUNK_SIZE * 140, CHUNK_SIZE * 160]
 
 # ---------------------------------------------------------------------------
 # Image storage — populated by init() after pygame.display.set_mode()

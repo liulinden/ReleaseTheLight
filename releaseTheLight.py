@@ -8,8 +8,8 @@ import pygame
 import scripts.loading_screen as loading_screen
 import scripts.UI as UI
 import scripts.world as world
-from scripts.global_assets import load_assets
 from config import CHUNK_SIZE
+from scripts.global_assets import load_assets
 
 
 class Game:
@@ -28,7 +28,7 @@ class Game:
         # self.HITBOX_ZOOM=0.2 -- add later
         self.WORLD_WIDTH = 15 * CHUNK_SIZE
         self.WORLD_HEIGHT = 200 * CHUNK_SIZE
-        #if not full_world:
+        # if not full_world:
         #    self.WORLD_HEIGHT = 50 * CHUNK_SIZE
         # high temporarily
 

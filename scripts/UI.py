@@ -52,14 +52,13 @@ order_charges = {"white": (["white", "blue", "red"], []), "blue": (["blue", "whi
 
 
 class HealthBar:
-
     targeted = None
 
     def __init__(self, max_health, thickness=9):
         self.last_triggered = 0
         self.max_health = max_health
         self.thickness = thickness // 2 * 2 + 1  # thickness must be odd
-        self.scale = 15 / max_health ** 0.8
+        self.scale = 15 / max_health**0.8
         self.width = self.max_health * self.scale + self.thickness
         self.surface = pygame.Surface((self.width, self.thickness), pygame.SRCALPHA)
 
@@ -73,14 +72,14 @@ class HealthBar:
             time = pygame.time.get_ticks()
         opacity = max(0, 255 - (time - self.last_triggered - 500) / 2)
         if opacity > 0:
-            self.surface.fill((0,0,0,0))
+            self.surface.fill((0, 0, 0, 0))
             x, y = coords
             if HealthBar.targeted is self:
                 draw_rounded_line(self.surface, color, (self.thickness // 2, self.thickness // 2), (self.width - self.thickness // 2, self.thickness // 2), self.thickness)
-                draw_rounded_line(self.surface, (0, 0, 0), (self.thickness // 2, self.thickness // 2), (self.width - self.thickness // 2, self.thickness // 2), self.thickness-4)
+                draw_rounded_line(self.surface, (0, 0, 0), (self.thickness // 2, self.thickness // 2), (self.width - self.thickness // 2, self.thickness // 2), self.thickness - 4)
             else:
                 draw_rounded_line(self.surface, (0, 0, 0), (self.thickness // 2, self.thickness // 2), (self.width - self.thickness // 2, self.thickness // 2), self.thickness)
-            draw_rounded_line(self.surface, color, (self.thickness // 2, self.thickness // 2), (self.thickness // 2 + self.scale * health, self.thickness // 2), self.thickness-4)
+            draw_rounded_line(self.surface, color, (self.thickness // 2, self.thickness // 2), (self.thickness // 2 + self.scale * health, self.thickness // 2), self.thickness - 4)
 
             left = x - self.scale * self.max_health / 2 - self.thickness / 2
             top = y - self.thickness / 2

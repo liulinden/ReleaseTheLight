@@ -4,18 +4,18 @@ import random
 
 import pygame
 
-import scripts.player as player
 import scripts.enemies._enemy as enemies
 import scripts.gateway as gateway
 import scripts.laser as laser
 import scripts.lighting as lighting
 import scripts.loading_screen as loading_screen
 import scripts.nest as nest
+import scripts.player as player
 import scripts.terrain as terrain
 import scripts.UI as UI
 from scripts.global_assets import get_asset
 from scripts.util import rotate_and_get_offset
-from config import CHUNK_SIZE
+
 
 class World:
     def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=(0.1, 2), developing_mode=False):
@@ -151,8 +151,8 @@ class World:
 
     def draw_background(self, layer, window_size, frame):
         left, top, zoom = frame
-        x = (-left/10 * zoom) % self.bg_width / 2 - self.bg_width / 2
-        y = (-top/10 * zoom) % self.bg_height / 2 - self.bg_height / 2
+        x = (-left / 10 * zoom) % self.bg_width / 2 - self.bg_width / 2
+        y = (-top / 10 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background, (x, y))
 
     def draw_foreground(self, layer, window_size, frame):

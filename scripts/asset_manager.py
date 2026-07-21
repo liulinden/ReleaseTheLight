@@ -105,14 +105,12 @@ class AssetManager:
             return False
 
         items = blob["data"].items()
-        n = 0
         total = len(items)
-        for name, (raw, size, fmt) in items:
+        for n, (name, (raw, size, fmt)) in enumerate(items):
             if loading_screen:
-                loading_screen.put(n/total, "Loading asset cache image" + str(n)+"/"+str(total))
+                loading_screen.put(n / total, f"Loading asset cache image {n}/{total}")
             surf = pygame.image.frombytes(raw, size, fmt)
             self.images[name] = surf.convert_alpha()
-            n+=1
         return True
 
     def _save_to_cache(self, paths):

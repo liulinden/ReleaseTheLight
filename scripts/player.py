@@ -6,8 +6,8 @@ import scripts.laser as laser
 import scripts.laserProperties as laserProperties
 import scripts.terrain as terrain
 from scripts.global_assets import get_asset
-from scripts.util import channel_bound, charges_to_color, rotate_and_get_offset
 from scripts.UI import HealthBar
+from scripts.util import channel_bound, charges_to_color, rotate_and_get_offset
 
 SPRITE_WIDTH = 40
 SPRITE_HEIGHT = 40
@@ -410,8 +410,8 @@ class Player:
                         [laserProperties.get_laser_dmg(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.dmg_range, self.laser_attributes.area_dmg_falloff]
                     )
                     _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range, x, y)
-                    _terrain.particles.spawn_pulse_particle(self.color,self.laser_attributes.kb_range,x,y)
-                
+                    _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.kb_range, x, y)
+
                 else:
                     HealthBar.targeted = None
 

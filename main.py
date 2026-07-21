@@ -3,8 +3,8 @@ import multiprocessing
 import pygame
 
 import config as config
-from scripts.loading_screen import LoadingScreen, UserQuitDuringLoadingError
 from releaseTheLight import Game
+from scripts.loading_screen import LoadingScreen, UserQuitDuringLoadingError
 
 
 def main():

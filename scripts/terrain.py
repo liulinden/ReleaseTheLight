@@ -7,10 +7,10 @@ import pygame
 
 import scripts.nest as nest
 import scripts.particles as particles
+from config import CHUNK_SIZE
 from scripts.gateway import GATEWAY_Y_POSITIONS, Gateway
 from scripts.global_assets import get_asset
 from scripts.loading_screen import LoadingScreen
-from config import CHUNK_SIZE
 
 NUM_LAYERS = 10
 
@@ -61,7 +61,7 @@ def init():
     air_explode_im_gs["Circle"] = circle_explode_im_gs
     air_hitbox_im_gs["Circle"] = get_asset("AirPocketHitbox")
 
-    #for custom_pocket in ["C1"]:
+    # for custom_pocket in ["C1"]:
     #    air_im_gs[custom_pocket] = [get_asset("AirPocket" + custom_pocket)]
     #    air_hitbox_im_gs[custom_pocket] = get_asset("AirPocket" + custom_pocket + "Hitbox")
     #    air_rim_im_gs[custom_pocket] = get_asset("AirPocket" + custom_pocket + "_rim")
@@ -450,11 +450,11 @@ class Terrain:
                 if loading_bar_section is not None:
                     loading_bar_section.put((row - row_start + 1) / total_rows, f"Build chunk visuals row {row - row_start + 1}/{total_rows} ({zoom=})")
 
-                #fill chunk hitboxes
+                # fill chunk hitboxes
                 for col, chunk in enumerate(self.chunk_hitboxes[zoom][row]):
                     chunk.fill((255, 255, 255, 255))
 
-                #texture chunks
+                # texture chunks
                 for col, chunk in enumerate(self.chunk_visuals[zoom][row]):
                     world_left = col * CHUNK_SIZE
                     world_top = row * CHUNK_SIZE
@@ -486,7 +486,6 @@ class Terrain:
 
         print(f"{time.strftime('%H:%M:%S')} - layer {layer_index} generating...")
 
-
         if loading_screen is not None:
             loading_screen_prep, loading_screen_gen = loading_screen.subsections(0, 0.4)
         else:
@@ -498,7 +497,7 @@ class Terrain:
 
             y_top, y_bottom = _layer_y_bounds(layer_index, self.world_height)
 
-            #prepare chunks
+            # prepare chunks
             self._prepare_chunks(layer_index, loading_screen=loading_screen_prep)
 
             if loading_screen_gen is not None:
@@ -562,18 +561,17 @@ class Terrain:
                         if random.randint(1, 12) == 1:
                             self.generate_nest(j * 1000 + random.randint(0, 1000), random.randint(int(y_top + 500), int(y_bottom - 500)), "red", layer_index=layer_index)
 
-            #blit nests
+            # blit nests
             for zoom in self.default_zooms:
                 for n in self.nests[layer_index]:
                     self._blit_nest_on_chunk_hitboxes(n, zoom)
-            
-            #blit gateways
+
+            # blit gateways
             for gw in self.gateways:
                 if gw.y - CHUNK_SIZE / 2 < y_bottom and gw.y + CHUNK_SIZE / 2 > y_top:
                     self._bake_gateway_into_chunks(gw)
 
             self.carve_structures_visual_air(y_top)
-
 
             self._generated_layers.add(layer_index)
 
@@ -725,17 +723,16 @@ class Terrain:
         chunk = self.chunk_visuals[zoom][row][col]
 
         eraser = air_pocket.IMGs[zoom]
-        chunk.blit(eraser, (l,t), special_flags=pygame.BLEND_RGBA_SUB)
+        chunk.blit(eraser, (l, t), special_flags=pygame.BLEND_RGBA_SUB)
 
-        r,g,b = self._depth_color(air_pocket.x,air_pocket.y)
-        rim=air_pocket.rim_im_gs[zoom]
-        
-        mask=self._get_scratch_surface(rim.get_width(),rim.get_height())
-        mask.fill((r,g,b,0))
-        mask.blit(chunk, (-l,-t), special_flags=pygame.BLEND_RGBA_MAX)
-        mask.blit(rim, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
-        chunk.blit(mask,(l,t))
+        r, g, b = self._depth_color(air_pocket.x, air_pocket.y)
+        rim = air_pocket.rim_im_gs[zoom]
 
+        mask = self._get_scratch_surface(rim.get_width(), rim.get_height())
+        mask.fill((r, g, b, 0))
+        mask.blit(chunk, (-l, -t), special_flags=pygame.BLEND_RGBA_MAX)
+        mask.blit(rim, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        chunk.blit(mask, (l, t))
 
     # ------------------------------------------------------------------
     # Collision
@@ -766,9 +763,9 @@ class Terrain:
 
     def _get_scratch_surface(self, w, h):
         w, h = int(math.ceil(w)), int(math.ceil(h))
-        if not (w,h) in self._scratch_surfaces:
-            self._scratch_surfaces[(w,h)]=pygame.Surface((w,h), pygame.SRCALPHA)
-        return self._scratch_surfaces[(w,h)]
+        if (w, h) not in self._scratch_surfaces:
+            self._scratch_surfaces[(w, h)] = pygame.Surface((w, h), pygame.SRCALPHA)
+        return self._scratch_surfaces[(w, h)]
 
     def _sample_chunk(self, wx, wy):
         if wy < 0:
@@ -798,9 +795,9 @@ class Terrain:
         py = max(0, min(int(CHUNK_SIZE - 1), int(wy % CHUNK_SIZE)))
         return chunks[row][col].get_at((px, py))[3] > 128
 
-    def get_normal(self, x, y): # coordinate should be adjacent to a collision point
-        v_x = self._sample_chunk(x-2, y) - self._sample_chunk(x+2, y)
-        v_y = self._sample_chunk(x, y-2) - self._sample_chunk(x, y+2)
+    def get_normal(self, x, y):  # coordinate should be adjacent to a collision point
+        v_x = self._sample_chunk(x - 2, y) - self._sample_chunk(x + 2, y)
+        v_y = self._sample_chunk(x, y - 2) - self._sample_chunk(x, y + 2)
         return (v_x, v_y)
 
     def collide_rect(self, rect):
@@ -853,9 +850,11 @@ class Terrain:
         w, h = surface.get_size()
         cx = left + w / zoom / 2
         cy = top + h / zoom / 2
+
         def darken(c):
             return (int(c[0] * 0.05), int(c[1] * 0.05), int(c[2] * 0.05))
-        surface.fill(darken(self._depth_color(cx,cy)))
+
+        surface.fill(darken(self._depth_color(cx, cy)))
 
     def draw_collision_debug(self, surface, rect, frame, color=(255, 0, 0), offset_x=0, offset_y=0):
         left, top, zoom = frame
@@ -990,7 +989,7 @@ class AirPocket:
         self.y = y
         self.r = radius
         self.true_r = self.r * rim_pocket_ratio
-        self.type = pocket_type if pocket_type=="Circle" else random.choice(air_im_gs)
+        self.type = pocket_type if pocket_type == "Circle" else random.choice(air_im_gs)
         self.top = self.y - self.true_r
         self.left = self.x - self.true_r
 
