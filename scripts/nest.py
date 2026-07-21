@@ -3,10 +3,10 @@ import random
 
 import pygame
 
-import enemies
-import UI
-from global_assets import get_asset
-from util import charges_to_color
+import scripts.enemies as enemies
+import scripts.UI as UI
+from scripts.global_assets import get_asset
+from scripts.util import charges_to_color
 
 
 def load_nest_img_set(id, stages):

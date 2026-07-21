@@ -2,8 +2,8 @@ import math
 
 import pygame
 
-from global_assets import get_asset
-from util import charges_to_color
+from scripts.global_assets import get_asset
+from scripts.util import charges_to_color
 
 charge_icon = None
 light_gradient = None

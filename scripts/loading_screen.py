@@ -4,8 +4,8 @@ from multiprocessing import synchronize
 
 import pygame
 
-import config
-from asset_manager import AssetManager
+import config as config
+from scripts.asset_manager import AssetManager
 
 FPS = 24  # double animation time
 

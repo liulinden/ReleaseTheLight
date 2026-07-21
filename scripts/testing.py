@@ -1,4 +1,4 @@
-import terrain
+import scripts.terrain as terrain
 
 for i in range(10):
     print(terrain.choose_unique_randoms(10, 1, 10))

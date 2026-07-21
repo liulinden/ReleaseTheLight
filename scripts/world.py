@@ -4,17 +4,17 @@ import random
 
 import pygame
 
-import player
-import enemies
-import gateway
-import laser
-import lighting
-import loading_screen
-import nest
-import terrain
-import UI
-from global_assets import get_asset
-from util import rotate_and_get_offset
+import scripts.player as player
+import scripts.enemies as enemies
+import scripts.gateway as gateway
+import scripts.laser as laser
+import scripts.lighting as lighting
+import scripts.loading_screen as loading_screen
+import scripts.nest as nest
+import scripts.terrain as terrain
+import scripts.UI as UI
+from scripts.global_assets import get_asset
+from scripts.util import rotate_and_get_offset
 from config import CHUNK_SIZE
 
 class World:

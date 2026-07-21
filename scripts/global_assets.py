@@ -1,6 +1,6 @@
 import pygame
 
-from asset_manager import AssetManager
+from scripts.asset_manager import AssetManager
 
 asset_manager = AssetManager("assets", use_cache=True)
 

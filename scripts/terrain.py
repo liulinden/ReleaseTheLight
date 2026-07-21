@@ -5,11 +5,11 @@ import time
 
 import pygame
 
-import nest
-import particles
-from gateway import GATEWAY_Y_POSITIONS, Gateway
-from global_assets import get_asset
-from loading_screen import LoadingScreen
+import scripts.nest as nest
+import scripts.particles as particles
+from scripts.gateway import GATEWAY_Y_POSITIONS, Gateway
+from scripts.global_assets import get_asset
+from scripts.loading_screen import LoadingScreen
 from config import CHUNK_SIZE
 
 NUM_LAYERS = 10

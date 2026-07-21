@@ -2,12 +2,12 @@ import math
 
 import pygame
 
-import laser
-import laserProperties
-import terrain
-from global_assets import get_asset
-from util import channel_bound, charges_to_color, rotate_and_get_offset
-from UI import HealthBar
+import scripts.laser as laser
+import scripts.laserProperties as laserProperties
+import scripts.terrain as terrain
+from scripts.global_assets import get_asset
+from scripts.util import channel_bound, charges_to_color, rotate_and_get_offset
+from scripts.UI import HealthBar
 
 SPRITE_WIDTH = 40
 SPRITE_HEIGHT = 40

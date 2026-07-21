@@ -2,9 +2,9 @@ import math
 
 import pygame
 
-from global_assets import get_asset
-from structure import Structure
-from UI import HealthBar
+from scripts.global_assets import get_asset
+from scripts.structure import Structure
+from scripts.UI import HealthBar
 from config import CHUNK_SIZE
 
 # ---------------------------------------------------------------------------

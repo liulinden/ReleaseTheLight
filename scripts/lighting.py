@@ -2,7 +2,7 @@ import random
 
 import pygame
 
-from global_assets import get_asset
+from scripts.global_assets import get_asset
 
 # FIX 2: images loaded in init() after display exists
 mist_particle_im_gs = []

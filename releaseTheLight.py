@@ -5,10 +5,10 @@ import threading
 
 import pygame
 
-import loading_screen
-import UI
-import world
-from global_assets import load_assets
+import scripts.loading_screen as loading_screen
+import scripts.UI as UI
+import scripts.world as world
+from scripts.global_assets import load_assets
 from config import CHUNK_SIZE
 
 

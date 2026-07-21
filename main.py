@@ -2,8 +2,8 @@ import multiprocessing
 
 import pygame
 
-import config
-from loading_screen import LoadingScreen, UserQuitDuringLoadingError
+import config as config
+from scripts.loading_screen import LoadingScreen, UserQuitDuringLoadingError
 from releaseTheLight import Game
 
 
