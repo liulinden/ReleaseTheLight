@@ -5,7 +5,7 @@ import random
 import pygame
 
 import scripts.player as player
-import scripts.enemies as enemies
+import scripts.enemies._enemy as enemies
 import scripts.gateway as gateway
 import scripts.laser as laser
 import scripts.lighting as lighting

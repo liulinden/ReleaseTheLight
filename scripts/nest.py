@@ -3,7 +3,7 @@ import random
 
 import pygame
 
-import scripts.enemies as enemies
+import scripts.enemies._enemy_handling as _enemy_handling
 import scripts.UI as UI
 from scripts.global_assets import get_asset
 from scripts.util import charges_to_color
@@ -165,7 +165,7 @@ class Nest:
 
     def add_enemy(self, c_terrain, player):
         if len(self.enemies) < self.basic_enemy_cap:
-            new_enemy = enemies.get_enemy(c_terrain, player, self.nest_type, self.color, self.max_health, self.x, self.y, self.size)
+            new_enemy = _enemy_handling.get_enemy(c_terrain, player, self.nest_type, self.color, self.max_health, self.x, self.y, self.size)
             if new_enemy:
                 self.glow = 200
                 self.enemies.append(new_enemy)
@@ -196,7 +196,7 @@ class Nest:
                 enemy.spawn_particles(c_terrain)
             self.enemies = []
         elif len(self.enemies) < self.total_enemy_cap and random.randint(1, 4) == 1:
-            new_enemy = enemies.get_enemy(c_terrain, player, self.nest_type, self.color, self.max_health, self.x, self.y, self.size)
+            new_enemy = _enemy_handling.get_enemy(c_terrain, player, self.nest_type, self.color, self.max_health, self.x, self.y, self.size)
             if new_enemy:
                 self.enemies.append(new_enemy)
         self.update_stage()

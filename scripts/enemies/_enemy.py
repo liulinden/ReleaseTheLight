@@ -1,25 +1,15 @@
-import math
-import random
-
-import pygame
-
+import math, pygame, random
 import scripts.UI as UI
 from scripts.global_assets import get_asset
 
-
-
-# FIX 2: images loaded in init() after display exists
-light_gradient = None
-enemy_animations = {}
-
 enemy_attack_frames = {"1": [4, 5]}
 enemy_animation_lengths = {"1": {"Spawn": 6, "Walk": 7, "Attack": 9}}
-enemy_sizes = {"1": {"size_min": 20, "size_max": 70, "width": 3/8, "height": 3/4}}
-
-eligible_enemies = {"white": ["1"], "blue": ["1"], "red": ["1"]}
+costume_dimensions = {"1": (3/8, 3/4)}
 
 animation_fps = 15
 
+light_gradient = None
+enemy_animations = {}
 
 def init():
     global light_gradient, enemy_animations
@@ -46,34 +36,12 @@ def init():
 
         enemy_animations[costume_id] = animation_im_gs
 
-
-def get_enemy(_terrain, player, nest_type, color, nest_health, nest_x, nest_y, nest_size):
-    for i in range(20):
-        x, y = random.randint(int(nest_x - 10 - nest_size / 2), int(nest_x + 10 + nest_size / 2)), random.randint(int(nest_y - 10 - nest_size / 2), int(nest_y + 10 + nest_size / 2))
-        
-        eligible = eligible_enemies[nest_type]
-        variant = eligible[random.randint(0, len(eligible)-1)]
-        
-        size_min, size_max, width_f, height_f = enemy_sizes[variant].values()
-        size = random.randint(size_min, size_max)
-        width = size * width_f
-        height = size * height_f
-
-        new_enemy_rect = pygame.Rect(x - width / 2, y - height / 2, width, height)
-        if not (_terrain.collide_rect(new_enemy_rect) or new_enemy_rect.colliderect(player.rect)):
-            new_enemy = BasicFlying(_terrain.default_zooms, color, size, nest_health, x, y)
-            new_enemy.spawn_particles(_terrain)
-            return new_enemy
-    return False
-
-
-
 class Enemy:
     def __init__(self, default_zooms, costume, color, x, y, size=50, health=500, damage=500, knockback=0.3):
         self.costume_id = costume
         self.size = size
-        self.width = self.size * enemy_sizes[self.costume_id]["width"]
-        self.height = self.size * enemy_sizes[self.costume_id]["height"]
+        self.width = self.size * costume_dimensions[self.costume_id][0]
+        self.height = self.size * costume_dimensions[self.costume_id][1]
         self.max_health = health
         self.damage = damage
         self.knockback = knockback
@@ -396,47 +364,3 @@ class Enemy:
         self.draw_attack_hitbox(surface, [rect.left, rect.y, 1])
         attack_mask = pygame.mask.from_surface(surface)
         return attack_mask.overlap(rect_mask, (0, 0)) is not None
-
-
-class BasicEnemy(Enemy):
-    def __init__(self, default_zooms, color, size, nest_health, x, y):
-        health = nest_health * 0.5
-        damage = nest_health * 1
-
-        super().__init__(default_zooms, "1", color, x, y, size, health, damage, 0.3)
-
-class BasicFlying(Enemy):
-    def __init__(self, default_zooms, color, size, nest_health, x, y):
-        health = nest_health * 0.5
-        damage = nest_health * 1
-
-        super().__init__(default_zooms, "1", color, x, y, size, health, damage, 0.3)
-
-    def tick_enemy_behavior(self, frame_length, player):
-        if self.mode == "Walk":
-            if abs(player.x - self.x) > self.size / 2 or abs(player.y - self.y) > self.size / 2:
-                rand = random.randint(0, 3)
-                if (player.x < self.x and rand != 3) or rand == 0:
-                    self.x_speed -= 0.0003 * frame_length * self.speed
-                else:
-                    self.x_speed += 0.0003 * frame_length * self.speed
-                rand = random.randint(0, 3)
-                if (player.y < self.y and rand != 3) or rand == 0:
-                    self.y_speed -= 0.0003 * frame_length * self.speed
-                else:
-                    self.y_speed += 0.0003 * frame_length * self.speed
-                self.x_speed *= 0.995**frame_length
-                self.y_speed *= 0.995**frame_length
-            else:
-                self.mode = "Attack"
-                self.animation_timer = 0
-    
-    def tick(self, frame_length, _terrain, player):
-        if self.mode != "Spawn":
-            if self.tick_damage_and_knockback(frame_length, _terrain, player): return True
-            self.tick_enemy_behavior(frame_length, player)
-            self.attempt_movement(frame_length, _terrain)
-            self.handle_attack(player)
-            if self.check_despawn(player): return True
-        self.update_costume(frame_length, player)
-        return False

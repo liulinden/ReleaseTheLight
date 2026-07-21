@@ -26,7 +26,7 @@ class Game:
         else:
             self.DEFAULT_ZOOMS = [1, 1.4]
         # self.HITBOX_ZOOM=0.2 -- add later
-        self.WORLD_WIDTH = 10 * CHUNK_SIZE
+        self.WORLD_WIDTH = 15 * CHUNK_SIZE
         self.WORLD_HEIGHT = 200 * CHUNK_SIZE
         #if not full_world:
         #    self.WORLD_HEIGHT = 50 * CHUNK_SIZE
