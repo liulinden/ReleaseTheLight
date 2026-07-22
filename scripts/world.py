@@ -212,8 +212,9 @@ class World:
         for gw in self.terrain.gateways:
             gw.draw(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
-        self.terrain.draw_health_bars(window_size, layer, frame, pygame.time.get_ticks(), offset_x=offset_x, offset_y=offset_y)
-        self.terrain.draw_interaction_displays(window_size, layer, frame, offset_x=offset_x, offset_y=offset_y)
+        time =pygame.time.get_ticks()
+        self.terrain.draw_health_bars(window_size, layer, frame, time, offset_x=offset_x, offset_y=offset_y)
+        self.terrain.draw_interaction_displays(window_size, layer, frame, time, offset_x=offset_x, offset_y=offset_y)
 
         self.draw_foreground(scratch_layer, window_size, frame)
         self.light.draw_thick_gradient(scratch_layer, frame, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)

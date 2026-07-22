@@ -93,7 +93,7 @@ class Game:
         self.charge_display = UI.ChargeDisplay(self.WORLD_HEIGHT)
 
         self.clock = pygame.time.Clock()
-        self.keys_down = {pygame.K_w: False, pygame.K_a: False, pygame.K_d: False, "mouse": False}
+        self.keys_down = {pygame.K_w: False, pygame.K_a: False, pygame.K_d: False, pygame.K_e: False, "mouse": False}
         self.events = {"mouseDown": False, "mouseUp": False, pygame.K_SPACE: False, pygame.K_RIGHT: False, pygame.K_LEFT: False}
 
         self.zoom = self.DEFAULT_ZOOMS[len(self.DEFAULT_ZOOMS) - 1]

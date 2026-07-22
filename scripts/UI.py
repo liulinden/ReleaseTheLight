@@ -15,7 +15,7 @@ def init():
 
     charge_icon = pygame.transform.scale(get_asset("ChargeIcon"), (80, 80))
     light_gradient = get_asset("LightGradient")
-    InteractionDisplay.font = pygame.font.SysFont("maiandragd", 20)
+    InteractionDisplay.font = pygame.font.SysFont("maiandragd", 16)
 
 
 charge_tuples = {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1)}
@@ -103,18 +103,21 @@ class InteractionDisplay:
 
     def tick(self, frame_length, primary):
         if primary:
-            self.opacity = min(self.opacity+frame_length/10,255)
+            self.opacity = min(self.opacity+frame_length/5,255)
         else:
-            self.opacity = max(self.opacity-frame_length/10,0)
+            self.opacity = max(self.opacity-frame_length/3,0)
         self.surface.set_alpha(self.opacity)
 
-    def draw(self, surface, frame, align="Centered", offset_x=0, offset_y=0):
+    def draw(self, surface, frame, align="Centered", time=None, offset_x=0, offset_y=0):
         if self.opacity > 0:
             left, top, zoom = frame
             if self.screen_bounded:
                 x, y = self.x + offset_x, self.y + offset_y
             else:
-                x, y = (self.x-left) * zoom + offset_x, (self.y-top) * zoom + offset_y        
+                x, y = (self.x-left) * zoom + offset_x, (self.y-top) * zoom + offset_y
+                if time is None:
+                    time=pygame.time.get_ticks()
+                y+=math.sin(time/500) * self.h / 5
 
             if align == "Centered":
                 surface.blit(self.surface,(x-self.w/2,y-self.h/2))
