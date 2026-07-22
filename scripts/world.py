@@ -142,10 +142,10 @@ class World:
                             del n.enemies[i]
                 else:
                     display = n.interaction_display
-                    display.tick(frame_length, display is last_interaction_display)
+                    display.tick(frame_length, display is last_interaction_display, keys_down)
 
-                if random.randint(1, math.ceil(fps / 6)) == 1 and n.close(x, y, w_r) and n.stage == n.max_stage:
-                    self.light.add_mist_particle(n.x, n.y, color=n.color)
+                    if (random.randint(1, math.ceil(fps / (8 if n.interaction_display.active else 2))) == 1):
+                        self.light.add_mist_particle(n.x, n.y, color=n.color)
 
         self.light.tick_effects(frame_length)
         self.terrain.particles.tick_particles(frame_length)

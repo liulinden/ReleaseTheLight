@@ -1,6 +1,4 @@
-import math
-
-import pygame
+import math, pygame
 
 from scripts.global_assets import get_asset
 from scripts.util import charges_to_color, polar_to_rect
@@ -15,7 +13,7 @@ def init():
 
     charge_icon = pygame.transform.scale(get_asset("ChargeIcon"), (80, 80))
     light_gradient = get_asset("LightGradient")
-    InteractionDisplay.font = pygame.font.SysFont("maiandragd", 16)
+    InteractionDisplay.font = pygame.font.SysFont("maiandragd", InteractionDisplay.font_size)
 
 
 charge_tuples = {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1)}
@@ -85,28 +83,69 @@ class HealthBar:
 
 class InteractionDisplay:
     font = None
-    def __init__(self, text, coords, keys=[], screen_bounded=False):
+    font_size = 16
+    outline_thickness = 1
+    keys_to_characters = {
+        pygame.K_e:'E'
+    }
+    cached_displays = {}
+
+    def __init__(self, coords, display, screen_bounded=False): # text is tuple of str and pygame key objects - e.g. ("Hold", pygame.K_e, "to drain")
         self.x, self.y = coords
         self.screen_bounded = screen_bounded
-        outline_thickness = 1
-        font = InteractionDisplay.font.render(text, True, (150,150,150))
-        font_black = InteractionDisplay.font.render(text, True, (0,0,0))
+        outline_thickness = InteractionDisplay.outline_thickness
 
-        self.w = font.get_width()+2*outline_thickness
-        self.h = font.get_height()+2*outline_thickness
-        self.surface = pygame.Surface((self.w,self.h), pygame.SRCALPHA)
-        for offset_x, offset_y in ((0,outline_thickness),(outline_thickness,0),(0,-outline_thickness),(-outline_thickness,0)):
-            self.surface.blit(font_black,(outline_thickness+offset_x,outline_thickness+offset_y))
-        self.surface.blit(font,(outline_thickness,outline_thickness))
+        if display in InteractionDisplay.cached_displays:
+            self.w, self.h, self.text, self.surface, circles = InteractionDisplay.cached_displays[display]
+            self.circles = {key: value.copy() for key, value in circles.items()}
+        else:
+            self.w = 0
+            segments = []
+            self.circles = {}
+            for segment in display:
+                if segment in self.keys_to_characters:
+                    character = self.keys_to_characters[segment]
+                    font = InteractionDisplay.font.render("  " + character + "  ", True, (255,255,255))
+                    font_black = InteractionDisplay.font.render("  " + character + "  ", True, (0,0,0))
+                    width = font.get_width()+2*outline_thickness
+                    self.circles[segment] = [self.w + width / 2, 0]
+                else:
+                    font = InteractionDisplay.font.render(segment, True, (255,255,255))
+                    font_black = InteractionDisplay.font.render(segment, True, (0,0,0))
+                    width = font.get_width()+2*outline_thickness
+                segments.append((font, font_black, self.w))
+                self.w += width
+
+            self.h = segments[0][0].get_height()+2*outline_thickness
+            self.surface = pygame.Surface((self.w,self.h), pygame.SRCALPHA)
+            self.text = pygame.Surface((self.w,self.h), pygame.SRCALPHA)
+            for segment in segments:
+                for offset_x, offset_y in ((0,outline_thickness),(outline_thickness,0),(0,-outline_thickness),(-outline_thickness,0)):
+                    self.text.blit(segment[1],(outline_thickness+offset_x+segment[2],outline_thickness+offset_y))
+                self.text.blit(segment[0],(outline_thickness+segment[2],outline_thickness))
+            for circle in self.circles:
+                x, y, r = self.circles[circle][0], self.h/2, self.h/2-outline_thickness
+                pygame.draw.circle(self.text, (0, 0, 0), (x, y), r + 2*outline_thickness, 4*outline_thickness)
+                pygame.draw.circle(self.text, (255, 255, 255), (x, y), r + outline_thickness, 2*outline_thickness)
+
+            InteractionDisplay.cached_displays[display] = self.w, self.h, self.text, self.surface, {key: value.copy() for key, value in self.circles.items()}
 
         self.opacity = 0
+        self.active = False
 
-    def tick(self, frame_length, primary):
+    def tick(self, frame_length, primary, keys_down):
         if primary:
-            self.opacity = min(self.opacity+frame_length/5,255)
+            self.active = True
+            for circle in self.circles:
+                if keys_down[circle]:
+                    self.circles[circle][1] = 255 #min(self.circles[circle][1]+frame_length,255)
+                else:
+                    self.circles[circle][1] = max(self.circles[circle][1]-frame_length,0)
+                    self.active = False
+            self.opacity = min(self.opacity+frame_length/5, 255 if self.active else 120)
         else:
             self.opacity = max(self.opacity-frame_length/3,0)
-        self.surface.set_alpha(self.opacity)
+            self.active = False
 
     def draw(self, surface, frame, align="Centered", time=None, offset_x=0, offset_y=0):
         if self.opacity > 0:
@@ -118,6 +157,15 @@ class InteractionDisplay:
                 if time is None:
                     time=pygame.time.get_ticks()
                 y+=math.sin(time/500) * self.h / 5
+
+            self.surface.fill((0,0,0,0))
+            self.surface.set_alpha(self.opacity)
+
+            for circle in self.circles:
+                c_x, c_y, r, o = self.circles[circle][0], self.h/2, self.h/2-InteractionDisplay.outline_thickness, self.circles[circle][1]
+                if self.circles[circle][1] > 0:
+                    pygame.draw.circle(self.surface, (255, 255, 255, o), (c_x, c_y), r)
+            self.surface.blit(self.text,(0,0))
 
             if align == "Centered":
                 surface.blit(self.surface,(x-self.w/2,y-self.h/2))
