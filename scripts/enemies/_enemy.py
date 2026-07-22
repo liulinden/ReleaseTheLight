@@ -241,7 +241,7 @@ class Enemy:
                         return True
 
     def tick_gravity(self, frame_length):
-        self.y_speed = min(0.4, self.y_speed + 0.0015 * frame_length * self.gravity_multiplier)
+        self.y_speed = min(2, self.y_speed + 0.0015 * frame_length * self.gravity_multiplier)
 
     def tick_enemy_behavior(self, frame_length, player):
         if self.mode == "Walk":
