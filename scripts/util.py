@@ -3,27 +3,31 @@ import math
 import pygame
 
 
-def dist(x,y):
-    return math.dist((0,0),(x,y))
+def dist(x, y):
+    return math.dist((0, 0), (x, y))
+
 
 def polar_to_rect(r, angle, center=(0, 0)):
     return r * math.cos(angle) + center[0], r * math.sin(angle) + center[1]
 
+
 def get_bounced_vector(vector, normal):
-    ax,ay = vector
-    bx,by = normal
-    factor = dist(bx,by)
-    if factor==0: return 0,0
+    ax, ay = vector
+    bx, by = normal
+    factor = dist(bx, by)
+    if factor == 0:
+        return 0, 0
     bx /= factor
     by /= factor
 
     s = bx**2 - by**2
     p = 2 * bx * by
 
-    bounced_x = - ax * s - p * ay
+    bounced_x = -ax * s - p * ay
     bounced_y = ay * s - p * ax
 
     return bounced_x, bounced_y
+
 
 def rotate_and_get_offset(surface, cx, cy, angle, degrees=False):
     # Rotate the surface

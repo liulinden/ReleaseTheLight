@@ -1,13 +1,14 @@
 import random
 from scripts.enemies._enemy import Enemy
 
+
 class BasicFlying(Enemy):
-    size_range = (20,50)
+    size_range = (20, 50)
     costume = "1"
     health_factor = 0.5
 
     def __init__(self, default_zooms, color, size, nest_health, x, y):
-        super().__init__(default_zooms, BasicFlying.costume, color, x, y, size, nest_health*BasicFlying.health_factor)
+        super().__init__(default_zooms, BasicFlying.costume, color, x, y, size, nest_health * BasicFlying.health_factor)
         self.knockback = 0.1
         self.speed = 1.5
         self.knockback_resistance = 0.8

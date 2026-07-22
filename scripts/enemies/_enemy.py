@@ -4,12 +4,13 @@ from scripts.global_assets import get_asset
 
 enemy_attack_frames = {"1": [4, 5]}
 enemy_animation_lengths = {"1": {"Spawn": 6, "Walk": 7, "Attack": 9}}
-costume_dimensions = {"1": (3/8, 3/4)}
+costume_dimensions = {"1": (3 / 8, 3 / 4)}
 
 animation_fps = 15
 
 light_gradient = None
 enemy_animations = {}
+
 
 def init():
     global light_gradient, enemy_animations
@@ -35,6 +36,7 @@ def init():
         animation_im_gs["AttackHitbox"] = get_asset("Enemy" + costume_id + "AttackHitbox")
 
         enemy_animations[costume_id] = animation_im_gs
+
 
 class Enemy:
     def __init__(self, default_zooms, costume, color, x, y, size=50, health=500):
@@ -240,7 +242,7 @@ class Enemy:
 
     def tick_gravity(self, frame_length):
         self.y_speed = min(0.4, self.y_speed + 0.0015 * frame_length * self.gravity_multiplier)
-    
+
     def tick_enemy_behavior(self, frame_length, player):
         if self.mode == "Walk":
             if player.y < self.y - 10 and self.on_ground and random.randint(1, 500) < frame_length:
@@ -269,7 +271,7 @@ class Enemy:
     def attempt_movement(self, frame_length, _terrain):
         self.move_vertical(frame_length, _terrain)
         self.move_horizontal(frame_length, _terrain)
-    
+
     def check_despawn(self, player):
         return math.dist((self.x, self.y), (player.x, player.y)) > 500
 
@@ -280,18 +282,20 @@ class Enemy:
                 if self.facing == "Right":
                     player.x_speed = self.knockback
                 else:
-                    player.x_speed = - self.knockback
-                player.y_speed = - self.knockback
+                    player.x_speed = -self.knockback
+                player.y_speed = -self.knockback
                 player.deal_damage(self.damage)
 
     def tick(self, frame_length, _terrain, player):
         if self.mode != "Spawn":
             self.tick_gravity(frame_length)
-            if self.tick_damage_and_knockback(frame_length, _terrain, player): return True
+            if self.tick_damage_and_knockback(frame_length, _terrain, player):
+                return True
             self.tick_enemy_behavior(frame_length, player)
             self.attempt_movement(frame_length, _terrain)
             self.handle_attack(player)
-            if self.check_despawn(player): return True
+            if self.check_despawn(player):
+                return True
         self.update_costume(frame_length, player)
         return False
 

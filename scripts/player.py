@@ -8,7 +8,6 @@ import scripts.terrain as terrain
 from scripts.global_assets import get_asset
 from scripts.util import channel_bound, charges_to_color, rotate_and_get_offset, dist
 from scripts.UI import HealthBar
-from scripts.util import channel_bound, charges_to_color, rotate_and_get_offset
 
 SPRITE_WIDTH = 40
 SPRITE_HEIGHT = 40
