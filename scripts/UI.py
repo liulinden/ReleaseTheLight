@@ -15,7 +15,7 @@ def init():
 
     charge_icon = pygame.transform.scale(get_asset("ChargeIcon"), (80, 80))
     light_gradient = get_asset("LightGradient")
-    InteractionDisplay.font = pygame.font.SysFont("maiandragd", 15)
+    InteractionDisplay.font = pygame.font.SysFont("maiandragd", 20)
 
 
 charge_tuples = {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1)}
