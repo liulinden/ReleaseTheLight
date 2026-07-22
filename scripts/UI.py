@@ -3,7 +3,7 @@ import math
 import pygame
 
 from scripts.global_assets import get_asset
-from scripts.util import charges_to_color
+from scripts.util import charges_to_color, polar_to_rect
 
 charge_icon = None
 light_gradient = None
@@ -34,10 +34,6 @@ def draw_single_side_rounded_line(surface, color, start, end, thickness):
 
 def draw_line_from_center(surface, color, center, angle, r1, r2, thickness):
     pygame.draw.line(surface, color, polar_to_rect(r1, -angle, center), polar_to_rect(r2, -angle, center), thickness)
-
-
-def polar_to_rect(r, angle, center=(0, 0)):
-    return r * math.cos(angle) + center[0], r * math.sin(angle) + center[1]
 
 
 def get_triangle_points(center, angle):

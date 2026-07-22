@@ -1,8 +1,10 @@
 from scripts.enemies._enemy import Enemy
 
 class BasicEnemy(Enemy):
-    def __init__(self, default_zooms, color, size, nest_health, x, y):
-        health = nest_health * 0.5
-        damage = nest_health * 1
+    size_range = (40,70)
+    costume = "1"
+    health_factor = 0.5
 
-        super().__init__(default_zooms, "1", color, x, y, size, health, damage, 0.3)
+    def __init__(self, default_zooms, color, size, nest_health, x, y):
+        super().__init__(default_zooms, BasicEnemy.costume, color, x, y, size, nest_health * BasicEnemy.health_factor)
+        

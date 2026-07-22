@@ -37,15 +37,17 @@ def init():
         enemy_animations[costume_id] = animation_im_gs
 
 class Enemy:
-    def __init__(self, default_zooms, costume, color, x, y, size=50, health=500, damage=500, knockback=0.3):
+    def __init__(self, default_zooms, costume, color, x, y, size=50, health=500):
         self.costume_id = costume
         self.size = size
         self.width = self.size * costume_dimensions[self.costume_id][0]
         self.height = self.size * costume_dimensions[self.costume_id][1]
         self.max_health = health
-        self.damage = damage
-        self.knockback = knockback
-        self.speed = 1.5
+        self.damage = health
+        self.knockback = 0.2
+        self.speed = 2
+        self.knockback_resistance = 1
+        self.gravity_multiplier = 1
         self.attack_frames = enemy_attack_frames[self.costume_id]
         self.animation_lengths = enemy_animation_lengths[self.costume_id]
 
@@ -204,14 +206,14 @@ class Enemy:
             if player.laser:
                 lase = player.laser[0]
                 if lase.laser_target is self:
-                    self.x_speed += frame_length * dx / d / self.size * pow
-                    self.y_speed += frame_length * dy / d / self.size * pow
+                    self.x_speed += frame_length * dx / d / self.size * pow / self.knockback_resistance
+                    self.y_speed += frame_length * dy / d / self.size * pow / self.knockback_resistance
                 elif d < r + self.r:
-                    self.x_speed += frame_length * dx / d / self.size * pow * falloff
-                    self.y_speed += frame_length * dy / d / self.size * pow * falloff
+                    self.x_speed += frame_length * dx / d / self.size * pow * falloff / self.knockback_resistance
+                    self.y_speed += frame_length * dy / d / self.size * pow * falloff / self.knockback_resistance
             else:
-                self.x_speed += frame_length * dx / d / self.size * pow * falloff
-                self.y_speed += frame_length * dy / d / self.size * pow * falloff
+                self.x_speed += frame_length * dx / d / self.size * pow * falloff / self.knockback_resistance
+                self.y_speed += frame_length * dy / d / self.size * pow * falloff / self.knockback_resistance
 
         for damage_circle in _terrain.player_damage_circles:
             pow, x, y, r, falloff = damage_circle
@@ -237,7 +239,7 @@ class Enemy:
                         return True
 
     def tick_gravity(self, frame_length):
-        self.y_speed = min(0.4, self.y_speed + 0.0015 * frame_length)
+        self.y_speed = min(0.4, self.y_speed + 0.0015 * frame_length * self.gravity_multiplier)
     
     def tick_enemy_behavior(self, frame_length, player):
         if self.mode == "Walk":

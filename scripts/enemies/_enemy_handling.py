@@ -1,17 +1,22 @@
 import random, pygame
 
-from scripts.enemies import basic_enemy, basic_flying
-from scripts.enemies._enemy import Enemy, costume_dimensions
+from scripts.enemies import basic_enemy, basic_flying, bouncer
+from scripts.enemies._enemy import costume_dimensions
 
 light_gradient = None
 enemy_animations = {}
 
-enemy_sizes = {basic_enemy.BasicEnemy: (40, 70), basic_flying.BasicFlying: (20,50)}
-enemy_costumes = {basic_enemy.BasicEnemy: "1", basic_flying.BasicFlying: "1"}
+enemies = [basic_enemy.BasicEnemy,basic_flying.BasicFlying, bouncer.Bouncer]
+enemy_sizes = {}
+enemy_costumes = {}
+
+for enemy in enemies:
+    enemy_sizes[enemy] = enemy.size_range
+    enemy_costumes[enemy] = enemy.costume
 
 eligible_enemies = {
     "white": [basic_enemy.BasicEnemy], 
-    "blue": [basic_enemy.BasicEnemy, basic_flying.BasicFlying], 
+    "blue": [basic_enemy.BasicEnemy, basic_flying.BasicFlying, bouncer.Bouncer], 
     "red": [basic_enemy.BasicEnemy]}
 
 def get_enemy(_terrain, player, nest_type, color, nest_health, nest_x, nest_y, nest_size):

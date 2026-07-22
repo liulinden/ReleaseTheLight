@@ -6,7 +6,7 @@ import scripts.laser as laser
 import scripts.laserProperties as laserProperties
 import scripts.terrain as terrain
 from scripts.global_assets import get_asset
-from scripts.util import channel_bound, charges_to_color, rotate_and_get_offset
+from scripts.util import channel_bound, charges_to_color, rotate_and_get_offset, dist
 from scripts.UI import HealthBar
 
 SPRITE_WIDTH = 40
@@ -347,7 +347,7 @@ class Player:
                 case "white":
                     mx, my = mouse_pos
                     dx, dy = mx - self.x, my - self.y
-                    d = math.sqrt(dx**2 + dy**2)
+                    d = dist(dx, dy)
                     self.x_speed = dx / d / 1.2
                     self.y_speed = dy / d / 2
                     self.ability_timer = self.ability_cooldown
@@ -434,7 +434,7 @@ class Player:
         for knockback_circle in _terrain.knockback_circles:
             dx = self.x - knockback_circle[1]
             dy = self.y - knockback_circle[2]
-            distance = math.sqrt(dx**2 + dy**2)
+            distance = dist(dx, dy)
             knockback = knockback_circle[0]
 
             self.x_speed += frame_length * dx / distance * knockback / 60

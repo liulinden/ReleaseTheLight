@@ -2,11 +2,16 @@ import random
 from scripts.enemies._enemy import Enemy
 
 class BasicFlying(Enemy):
-    def __init__(self, default_zooms, color, size, nest_health, x, y):
-        health = nest_health * 0.5
-        damage = nest_health * 1
+    size_range = (20,50)
+    costume = "1"
+    health_factor = 0.5
 
-        super().__init__(default_zooms, "1", color, x, y, size, health, damage, 0.3)
+    def __init__(self, default_zooms, color, size, nest_health, x, y):
+        super().__init__(default_zooms, BasicFlying.costume, color, x, y, size, nest_health*BasicFlying.health_factor)
+        self.knockback = 0.1
+        self.speed = 1.5
+        self.knockback_resistance = 0.8
+        self.gravity_multiplier = 0
 
     def tick_enemy_behavior(self, frame_length, player):
         if self.mode == "Walk":
@@ -26,13 +31,3 @@ class BasicFlying(Enemy):
             else:
                 self.mode = "Attack"
                 self.animation_timer = 0
-    
-    def tick(self, frame_length, _terrain, player):
-        if self.mode != "Spawn":
-            if self.tick_damage_and_knockback(frame_length, _terrain, player): return True
-            self.tick_enemy_behavior(frame_length, player)
-            self.attempt_movement(frame_length, _terrain)
-            self.handle_attack(player)
-            if self.check_despawn(player): return True
-        self.update_costume(frame_length, player)
-        return False
