@@ -141,6 +141,8 @@ class Terrain:
         self.player_damage_circles = []
         self.new_player_damage_circles = []
 
+        self.interaction_displays = []
+
         # nests and airPockets keyed by layer index
         self.nests = {i: [] for i in range(NUM_LAYERS)}
         self.air_pockets = {i: [] for i in range(NUM_LAYERS)}
@@ -705,6 +707,14 @@ class Terrain:
 
         return True
 
+    def add_interaction_display(self, display):
+        if display not in self.interaction_displays:
+            self.interaction_displays.append(display)
+    
+    def remove_interaction_display(self, display):
+        if display in self.interaction_displays:
+            self.interaction_displays.remove(display)
+
     # ------------------------------------------------------------------
     # Vignette / carve
     # ------------------------------------------------------------------
@@ -904,6 +914,15 @@ class Terrain:
         for gw in self.gateways:
             for entry in gw.entry_tiles:
                 entry.draw_health_bar(surface, frame, time, offset_x=offset_x, offset_y=offset_y)
+
+    def draw_interaction_displays(self, window_size, surface, frame, offset_x=0, offset_y=0):
+        left, top, zoom = frame
+        w_width, w_height = window_size
+        r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
+        x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
+        for n in self._active_nests():
+            if n.stage==n.max_stage and n.close(x, y, r):
+                n.interaction_display.draw(surface, frame, offset_x=offset_x, offset_y=offset_y)
 
     def draw_enemies(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame

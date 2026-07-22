@@ -120,6 +120,9 @@ class World:
                         break
 
         # active nests only
+        last_interaction_display = None
+        n_displays = len(self.terrain.interaction_displays)
+        if n_displays > 0: last_interaction_display = self.terrain.interaction_displays[n_displays-1]
         for li in self.terrain.active_layers:
             for n in self.terrain.nests[li]:
                 n.update_visuals(frame_length)
@@ -137,6 +140,9 @@ class World:
                         enemy = n.enemies[i]
                         if enemy.tick(frame_length, self.terrain, self.player):
                             del n.enemies[i]
+                else:
+                    display = n.interaction_display
+                    display.tick(frame_length, display is last_interaction_display)
 
                 if random.randint(1, math.ceil(fps / 6)) == 1 and n.close(x, y, w_r) and n.stage == n.max_stage:
                     self.light.add_mist_particle(n.x, n.y, color=n.color)
@@ -207,6 +213,7 @@ class World:
             gw.draw(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.terrain.draw_health_bars(window_size, layer, frame, pygame.time.get_ticks(), offset_x=offset_x, offset_y=offset_y)
+        self.terrain.draw_interaction_displays(window_size, layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.draw_foreground(scratch_layer, window_size, frame)
         self.light.draw_thick_gradient(scratch_layer, frame, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)

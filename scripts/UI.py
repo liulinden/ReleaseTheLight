@@ -15,6 +15,7 @@ def init():
 
     charge_icon = pygame.transform.scale(get_asset("ChargeIcon"), (80, 80))
     light_gradient = get_asset("LightGradient")
+    InteractionDisplay.font = pygame.font.SysFont("maiandragd", 15)
 
 
 charge_tuples = {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1)}
@@ -42,7 +43,6 @@ def get_triangle_points(center, angle):
 
 def get_outer_triangle_points(center, angle):
     return (polar_to_rect(77, angle - math.pi * 0.5, center), polar_to_rect(67, angle - math.pi * 0.52, center), polar_to_rect(67, angle - math.pi * 0.48, center))
-
 
 order_charges = {"white": (["white", "blue", "red"], []), "blue": (["blue", "white"], ["red"]), "red": (["red", "white"], ["blue"])}
 
@@ -83,6 +83,43 @@ class HealthBar:
 
             surface.blit(self.surface, (left, top))
 
+class InteractionDisplay:
+    font = None
+    def __init__(self, text, coords, keys=[], screen_bounded=False):
+        self.x, self.y = coords
+        self.screen_bounded = screen_bounded
+        outline_thickness = 1
+        font = InteractionDisplay.font.render(text, True, (150,150,150))
+        font_black = InteractionDisplay.font.render(text, True, (0,0,0))
+
+        self.w = font.get_width()+2*outline_thickness
+        self.h = font.get_height()+2*outline_thickness
+        self.surface = pygame.Surface((self.w,self.h), pygame.SRCALPHA)
+        for offset_x, offset_y in ((0,outline_thickness),(outline_thickness,0),(0,-outline_thickness),(-outline_thickness,0)):
+            self.surface.blit(font_black,(outline_thickness+offset_x,outline_thickness+offset_y))
+        self.surface.blit(font,(outline_thickness,outline_thickness))
+
+        self.opacity = 0
+
+    def tick(self, frame_length, primary):
+        if primary:
+            self.opacity = min(self.opacity+frame_length/10,255)
+        else:
+            self.opacity = max(self.opacity-frame_length/10,0)
+        self.surface.set_alpha(self.opacity)
+
+    def draw(self, surface, frame, align="Centered", offset_x=0, offset_y=0):
+        if self.opacity > 0:
+            left, top, zoom = frame
+            if self.screen_bounded:
+                x, y = self.x + offset_x, self.y + offset_y
+            else:
+                x, y = (self.x-left) * zoom + offset_x, (self.y-top) * zoom + offset_y        
+
+            if align == "Centered":
+                surface.blit(self.surface,(x-self.w/2,y-self.h/2))
+            elif align == "Top-centered":
+                surface.blit(self.surface,(x-self.w/2,y))
 
 class ChargeDisplay:
     def __init__(self, world_height):

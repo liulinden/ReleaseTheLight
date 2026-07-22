@@ -94,6 +94,8 @@ class Nest:
         self.health = self.max_health
         self.health_bar = UI.HealthBar(self.max_health)
 
+        self.interaction_display = UI.InteractionDisplay("(E) to drain", (self.x, self.top+self.size*0.75))
+
         self.max_charge = self.max_health / 3 + 100
         self.visual_charge = self.max_charge
         self.charge = self.max_charge * 0.5

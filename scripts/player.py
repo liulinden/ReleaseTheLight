@@ -443,8 +443,11 @@ class Player:
         for li in _terrain.active_layers:
             for nest in _terrain.nests[li]:
                 if nest.stage == nest.max_stage and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
+                    _terrain.add_interaction_display(nest.interaction_display)
                     charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging, nest.max_charge)
                     nest.lose_charge(charge_gain)
+                else:
+                    _terrain.remove_interaction_display(nest.interaction_display)
 
         self.update_laser_stats()
 
