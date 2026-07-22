@@ -529,7 +529,7 @@ class Player:
                         int(abs((abs(max(0.005 * frame_length, abs(self.x_speed)) - 0.005 * frame_length) + 3 * (self.y_speed - 0.0015 * frame_length)) * 12)), (0, 0, 0), 20, self.x, self.y + self.height / 2
                     )
                 if self.y_speed >= 0.7:
-                    self.deal_damage((self.y_speed-0.5)*50)
+                    self.deal_damage((self.y_speed-0.5)**2*100)
                     _terrain.particles.spawn_mining_particles(5, self.color, 20 * self.y_speed, self.x, self.y + self.height / 2)
             if self.y_speed < 0:
                 slope_tolerance = math.ceil(abs(0.5 * frame_length * self.y_speed))
