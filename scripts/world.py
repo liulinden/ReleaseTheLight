@@ -122,7 +122,8 @@ class World:
         # active nests only
         last_interaction_display = None
         n_displays = len(self.terrain.interaction_displays)
-        if n_displays > 0: last_interaction_display = self.terrain.interaction_displays[n_displays-1]
+        if n_displays > 0:
+            last_interaction_display = self.terrain.interaction_displays[n_displays - 1]
         for li in self.terrain.active_layers:
             for n in self.terrain.nests[li]:
                 n.update_visuals(frame_length)
@@ -144,13 +145,12 @@ class World:
                     display = n.interaction_display
                     display.tick(frame_length, display is last_interaction_display, keys_down)
 
-                    if (random.randint(1, math.ceil(fps / (8 if n.interaction_display.active else 2))) == 1):
+                    if random.randint(1, math.ceil(fps / (8 if n.interaction_display.active else 2))) == 1:
                         self.light.add_mist_particle(n.x, n.y, color=n.color)
 
             for cell in self.terrain.cells[li]:
                 if cell.close(window_size, frame):
                     cell.tick(frame_length, self.terrain, self.player)
-                    
 
         self.light.tick_effects(frame_length)
         self.terrain.particles.tick_particles(frame_length)
@@ -219,7 +219,7 @@ class World:
         for gw in self.terrain.gateways:
             gw.draw(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
-        time =pygame.time.get_ticks()
+        time = pygame.time.get_ticks()
         self.terrain.draw_health_bars(window_size, layer, frame, time, offset_x=offset_x, offset_y=offset_y)
         self.terrain.draw_interaction_displays(window_size, layer, frame, time, offset_x=offset_x, offset_y=offset_y)
 

@@ -1,6 +1,8 @@
-import math, pygame
-import scripts.terrain
-from scripts.util import get_bounced_vector, dist
+import math
+
+import pygame
+
+from scripts.util import dist, get_bounced_vector
 
 
 class Cell:
@@ -110,7 +112,8 @@ class Cell:
         remaining = frame_length
         while remaining > 0:
             speed = dist(vx, vy)
-            if speed == 0: return
+            if speed == 0:
+                return
             tick_length = min(remaining, 1 / speed)
 
             dx, dy = vx * tick_length, vy * tick_length
@@ -130,72 +133,23 @@ class Cell:
                     if mag == 0:
                         print("something's fishy")
                         return
-                    nx, ny = normal[0]/mag, normal[1]/mag
+                    nx, ny = normal[0] / mag, normal[1] / mag
 
-                    scalar = nx*vx + ny*vy
+                    scalar = nx * vx + ny * vy
                     vx -= scalar * nx
                     vy -= scalar * ny
-                    vx *= friction ** tick_length
-                    vy *= friction ** tick_length
-                    if - scalar > absorption:
+                    vx *= friction**tick_length
+                    vy *= friction**tick_length
+                    if -scalar > absorption:
                         vx -= scalar * nx * elasticity
                         vy -= scalar * ny * elasticity
                     continue
-            vx *= drag ** tick_length
-            vy *= drag ** tick_length
+            vx *= drag**tick_length
+            vy *= drag**tick_length
 
             remaining -= tick_length
         self.x_speed, self.y_speed = vx, vy
         return
-
-
-        for _ in range(4):
-            speed = dist(vx, vy)
-            if remaining <= 0 or speed == 0:
-                break
-
-            total_dist = remaining * speed
-            steps = max(1, int(math.ceil(total_dist)))
-            step_frac = remaining / steps
-
-            hit = False
-            for i in range(steps):
-                self.x += step_frac * vx
-                self.y += step_frac * vy
-                self.update_rect()
-
-                collision = self.colliding_with_terrain(_terrain)
-                if collision:
-                    self.x -= step_frac * vx
-                    self.y -= step_frac * vy
-                    self.update_rect()
-
-                    collision_x, collision_y = collision
-                    normal = _terrain.get_normal(collision_x, collision_y)
-                    mag = dist(*normal)
-                    if mag == 0:
-                        remaining = 0
-                        hit = True
-                        break
-                    nx, ny = normal[0] / mag, normal[1] / mag
-
-                    vx, vy = self._resolve_collision(
-                        (vx, vy), (nx, ny), elasticity, friction, frame_length)
-
-                    # only wiggle if we're actually going to keep moving —
-                    # a resting object with cancelled velocity has nothing
-                    # left to get stuck on next pass, so skip it
-                    #if dist(vx, vy) > min_continue_speed:
-                    self._find_clearance(_terrain, vx, vy)
-
-                    remaining -= step_frac * max(i, 1)
-                    hit = True
-                    break
-
-            if not hit:
-                remaining = 0
-
-        self.x_speed, self.y_speed = vx, vy
 
     def tick(self, frame_length, _terrain, player):
         self.tick_gravity(frame_length)

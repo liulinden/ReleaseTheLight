@@ -1,4 +1,5 @@
 import random
+
 from scripts.enemies._enemy import Enemy
 
 

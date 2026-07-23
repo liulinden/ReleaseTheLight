@@ -1,4 +1,6 @@
-import random, pygame
+import random
+
+import pygame
 
 from scripts.enemies import basic_enemy, basic_flying, bouncer
 from scripts.enemies._enemy import costume_dimensions
