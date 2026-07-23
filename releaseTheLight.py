@@ -22,9 +22,9 @@ class Game:
         # constants
         self.fps = fps
         if dev_mode:
-            self.DEFAULT_ZOOMS = [0.1, 1, 1.4]
+            self.DEFAULT_ZOOMS = [0.1, 1, 1.8]
         else:
-            self.DEFAULT_ZOOMS = [1, 1.4]
+            self.DEFAULT_ZOOMS = [1, 1.8]
         # self.HITBOX_ZOOM=0.2 -- add later
         self.WORLD_WIDTH = 10 * CHUNK_SIZE
         self.WORLD_HEIGHT = 200 * CHUNK_SIZE
