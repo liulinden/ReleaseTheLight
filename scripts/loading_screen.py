@@ -40,6 +40,7 @@ class LoadingScreen:
     def put(self, progress: float, msg: str = "") -> None:
         if self.dummy_mode:
             print(f"Loading {self._interpolate_progress(progress):.1%}: {msg}")
+            return
         if self.is_quit():
             raise UserQuitDuringLoadingError("Loading screen has been quit.")
         self.queue.put((self._interpolate_progress(progress), msg))
