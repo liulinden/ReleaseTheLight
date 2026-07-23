@@ -9,7 +9,7 @@ from scripts.loading_screen import LoadingScreen, UserQuitDuringLoadingError
 
 def main():
 
-    # loading_screen = LoadingScreen(developer_mode=development_mode, is_dummy=True)
+    # loading_screen = LoadingScreen(dev_mode=config.DEV_MODE, is_dummy=True)
     loading_screen = LoadingScreen(dev_mode=config.DEV_MODE)
     loading_process = multiprocessing.Process(target=loading_screen.run, daemon=True)
     loading_process.start()

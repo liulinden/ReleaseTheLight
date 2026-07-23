@@ -17,13 +17,17 @@ class UserQuitDuringLoadingError(Exception):
 class LoadingScreen:
     assets = AssetManager("loading_assets", use_cache=True)
 
-    def __init__(self, *, _queue: multiprocessing.Queue = None, _has_quit_event: synchronize.Event = None, start_progress=0.0, end_progress=1.0, dev_mode=False) -> None:
+    def __init__(self, *, _queue: multiprocessing.Queue = None, _has_quit_event: synchronize.Event = None, start_progress=0.0, end_progress=1.0, dev_mode=False, dummy_mode=False) -> None:
 
         self.start_progress = start_progress
         self.end_progress = end_progress
         self.dev_mode = dev_mode
+        self.dummy_mode = dummy_mode
 
-        if _queue is None or _has_quit_event is None:
+        if self.dummy_mode:
+            self.queue = None
+            self.has_quit_event = None
+        elif _queue is None or _has_quit_event is None:
             self.queue = multiprocessing.Queue()
             self.has_quit_event = multiprocessing.Event()
         else:
@@ -34,22 +38,29 @@ class LoadingScreen:
         return self.start_progress + (self.end_progress - self.start_progress) * progress
 
     def put(self, progress: float, msg: str = "") -> None:
+        if self.dummy_mode:
+            print(f"Loading {self._interpolate_progress(progress):.1%}: {msg}")
         if self.is_quit():
             raise UserQuitDuringLoadingError("Loading screen has been quit.")
         self.queue.put((self._interpolate_progress(progress), msg))
 
     def is_quit(self) -> bool:
+        if self.dummy_mode:
+            return False
         return self.has_quit_event.is_set()
 
     def subsection(self, start_at, end_at) -> "LoadingScreen":
         start_at = self._interpolate_progress(start_at)
         end_at = self._interpolate_progress(end_at)
-        return LoadingScreen(_queue=self.queue, _has_quit_event=self.has_quit_event, start_progress=start_at, end_progress=end_at, dev_mode=self.dev_mode)
+        return LoadingScreen(_queue=self.queue, _has_quit_event=self.has_quit_event, start_progress=start_at, end_progress=end_at, dev_mode=self.dev_mode, dummy_mode=self.dummy_mode)
 
     def subsections(self, *subsections: float) -> list["LoadingScreen"]:
         return [self.subsection(start_at, end_at) for start_at, end_at in zip(subsections, subsections[1:] + (1.0,), strict=True)]
 
     def run(self):
+        if self.dummy_mode:
+            print("Loading screen is in dummy mode. Skipping run.")
+            return
 
         pygame.init()
 
