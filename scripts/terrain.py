@@ -8,10 +8,10 @@ import pygame
 import scripts.nest as nest
 import scripts.particles as particles
 from config import CHUNK_SIZE
+from scripts.cells import Cell
 from scripts.gateway import GATEWAY_Y_POSITIONS, Gateway
 from scripts.global_assets import get_asset
 from scripts.loading_screen import LoadingScreen
-from scripts.cells import Cell
 
 NUM_LAYERS = 10
 
@@ -717,7 +717,7 @@ class Terrain:
     def add_interaction_display(self, display):
         if display not in self.interaction_displays:
             self.interaction_displays.append(display)
-    
+
     def remove_interaction_display(self, display):
         if display in self.interaction_displays:
             self.interaction_displays.remove(display)
@@ -928,7 +928,7 @@ class Terrain:
         r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
         x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
         for n in self._active_nests():
-            if n.stage==n.max_stage and n.close(x, y, r):
+            if n.stage == n.max_stage and n.close(x, y, r):
                 n.interaction_display.draw(surface, frame, time=time, offset_x=offset_x, offset_y=offset_y)
 
     def draw_cells(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
@@ -947,7 +947,7 @@ class Terrain:
                 enemy = n.enemies[i]
                 dx = x - enemy.x
                 dy = y - enemy.y
-                if abs(dx) < self.world_width / zoom / 2 + enemy.r and abs(dy) < w_height / zoom / 2 + enemy.r: #normally this is always true since enemies despawn when out of range?
+                if abs(dx) < self.world_width / zoom / 2 + enemy.r and abs(dy) < w_height / zoom / 2 + enemy.r:  # normally this is always true since enemies despawn when out of range?
                     enemy.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
     def draw_terrain(self, window_size, surface, frame, hitboxes=False, real_window_size=None, offset_x=0, offset_y=0):

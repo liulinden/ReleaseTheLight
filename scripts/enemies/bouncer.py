@@ -1,6 +1,8 @@
-import math, random
+import math
+import random
+
 from scripts.enemies._enemy import Enemy
-from scripts.util import get_bounced_vector, dist
+from scripts.util import dist, get_bounced_vector
 
 
 class Bouncer(Enemy):

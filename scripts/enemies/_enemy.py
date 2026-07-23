@@ -1,4 +1,8 @@
-import math, pygame, random
+import math
+import random
+
+import pygame
+
 import scripts.UI as UI
 from scripts.global_assets import get_asset
 
