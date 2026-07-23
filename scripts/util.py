@@ -11,7 +11,7 @@ def polar_to_rect(r, angle, center=(0, 0)):
     return r * math.cos(angle) + center[0], r * math.sin(angle) + center[1]
 
 
-def get_bounced_vector(vector, normal):
+def get_bounced_vector(vector, normal, elasticity = 1):
     ax, ay = vector
     bx, by = normal
     factor = dist(bx, by)
@@ -25,8 +25,11 @@ def get_bounced_vector(vector, normal):
 
     bounced_x = -ax * s - p * ay
     bounced_y = ay * s - p * ax
+    # bounced x and y are now already equal to bounced vector assuming elasticity = 1
 
-    return bounced_x, bounced_y
+    factor = (elasticity + 1)/2
+
+    return bounced_x * factor + ax * (1-factor), bounced_y * factor + ay * (1-factor)
 
 
 def rotate_and_get_offset(surface, cx, cy, angle, degrees=False):

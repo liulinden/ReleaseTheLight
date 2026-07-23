@@ -213,7 +213,7 @@ class Enemy:
                 elif d < r + self.r:
                     self.x_speed += frame_length * dx / d / self.size * pow * falloff / self.knockback_resistance
                     self.y_speed += frame_length * dy / d / self.size * pow * falloff / self.knockback_resistance
-            else:
+            elif d < r + self.r:
                 self.x_speed += frame_length * dx / d / self.size * pow * falloff / self.knockback_resistance
                 self.y_speed += frame_length * dy / d / self.size * pow * falloff / self.knockback_resistance
 

@@ -147,6 +147,11 @@ class World:
                     if (random.randint(1, math.ceil(fps / (8 if n.interaction_display.active else 2))) == 1):
                         self.light.add_mist_particle(n.x, n.y, color=n.color)
 
+            for cell in self.terrain.cells[li]:
+                if cell.close(window_size, frame):
+                    cell.tick(frame_length, self.terrain, self.player)
+                    
+
         self.light.tick_effects(frame_length)
         self.terrain.particles.tick_particles(frame_length)
 
@@ -202,6 +207,8 @@ class World:
 
         self.terrain.draw_enemies(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
+        self.terrain.draw_cells(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
+
         self.terrain.particles.draw_particles(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.terrain.draw_nests(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
@@ -216,13 +223,14 @@ class World:
         self.terrain.draw_health_bars(window_size, layer, frame, time, offset_x=offset_x, offset_y=offset_y)
         self.terrain.draw_interaction_displays(window_size, layer, frame, time, offset_x=offset_x, offset_y=offset_y)
 
-        self.draw_foreground(scratch_layer, window_size, frame)
-        self.light.draw_thick_gradient(scratch_layer, frame, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
-        if self.player.laser:
-            if self.player.laser[0].collision:
-                cx, cy = self.player.laser[0].collision[0]
-                self.light.draw_thick_gradient(scratch_layer, frame, cx, cy, offset_x=offset_x, offset_y=offset_y)
-        layer.blit(self.scratch_layer, (0, 0), special_flags=pygame.BLEND_MULT)
+        if not kind_visibility:
+            self.draw_foreground(scratch_layer, window_size, frame)
+            self.light.draw_thick_gradient(scratch_layer, frame, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
+            if self.player.laser:
+                if self.player.laser[0].collision:
+                    cx, cy = self.player.laser[0].collision[0]
+                    self.light.draw_thick_gradient(scratch_layer, frame, cx, cy, offset_x=offset_x, offset_y=offset_y)
+            layer.blit(self.scratch_layer, (0, 0), special_flags=pygame.BLEND_MULT)
 
         if crosshair:
             pygame.draw.line(layer, (100, 100, 100, 0.3), (real_window_size[0] * 0.45, real_window_size[1] // 2), (real_window_size[0] * 0.55, real_window_size[1] // 2), 2)

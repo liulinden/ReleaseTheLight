@@ -11,6 +11,7 @@ from config import CHUNK_SIZE
 from scripts.gateway import GATEWAY_Y_POSITIONS, Gateway
 from scripts.global_assets import get_asset
 from scripts.loading_screen import LoadingScreen
+from scripts.cells import Cell
 
 NUM_LAYERS = 10
 
@@ -146,6 +147,7 @@ class Terrain:
         # nests and airPockets keyed by layer index
         self.nests = {i: [] for i in range(NUM_LAYERS)}
         self.air_pockets = {i: [] for i in range(NUM_LAYERS)}
+        self.cells = {i: [] for i in range(NUM_LAYERS)}
 
         self._air_grid: dict[int, dict[tuple, list]] = {i: {} for i in range(NUM_LAYERS)}
 
@@ -707,6 +709,11 @@ class Terrain:
 
         return True
 
+    def add_cell(self, coords, velocities):
+        new_cell = Cell(coords, velocities)
+        layer_y, layer_index = world_yto_layer_y(new_cell.y)
+        self.cells[layer_index].append(new_cell)
+
     def add_interaction_display(self, display):
         if display not in self.interaction_displays:
             self.interaction_displays.append(display)
@@ -806,8 +813,8 @@ class Terrain:
         return chunks[row][col].get_at((px, py))[3] > 128
 
     def get_normal(self, x, y):  # coordinate should be adjacent to a collision point
-        v_x = self._sample_chunk(x - 2, y) - self._sample_chunk(x + 2, y)
-        v_y = self._sample_chunk(x, y - 2) - self._sample_chunk(x, y + 2)
+        v_x = (self._sample_chunk(x - 2, y) or self._sample_chunk(x - 1, y)) - (self._sample_chunk(x + 2, y) or self._sample_chunk(x + 1, y))
+        v_y = (self._sample_chunk(x, y - 2) or self._sample_chunk(x, y - 1)) - (self._sample_chunk(x, y + 2) or self._sample_chunk(x, y + 1))
         return (v_x, v_y)
 
     def collide_rect(self, rect):
@@ -924,17 +931,23 @@ class Terrain:
             if n.stage==n.max_stage and n.close(x, y, r):
                 n.interaction_display.draw(surface, frame, time=time, offset_x=offset_x, offset_y=offset_y)
 
+    def draw_cells(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
+        for layer in self.cells:
+            if layer in self.active_layers:
+                for cell in self.cells[layer]:
+                    if cell.close(window_size, frame):
+                        cell.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
+
     def draw_enemies(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w_width, w_height = window_size
-        r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
         x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
         for n in self._active_nests():
             for i in range(len(n.enemies) - 1, -1, -1):
                 enemy = n.enemies[i]
                 dx = x - enemy.x
                 dy = y - enemy.y
-                if dx * dx + dy * dy < (r + enemy.r) ** 2:
+                if abs(dx) < self.world_width / zoom / 2 + enemy.r and abs(dy) < w_height / zoom / 2 + enemy.r: #normally this is always true since enemies despawn when out of range?
                     enemy.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
     def draw_terrain(self, window_size, surface, frame, hitboxes=False, real_window_size=None, offset_x=0, offset_y=0):

@@ -367,15 +367,21 @@ class Player:
                     _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range * 2, self.x, self.y, 800)
                     self.ability_timer = self.ability_cooldown
 
-        if keys_down["mouse"] and len(self.laser) == 0 and self.laser_timer <= self.laser_attributes.cooldown / 4:
+        if keys_down["leftMouse"] and len(self.laser) == 0 and self.laser_timer <= self.laser_attributes.cooldown / 4:
             new_laser = laser.Laser()
             self.laser = [new_laser]
             self.laser_ramps = 0
             self.laser_first_hit = True
 
-        if events["mouseUp"] and len(self.laser) > 0:
+        if events["leftMouseUp"] and len(self.laser) > 0:
             self.laser_timer = self.laser[0].timer
             self.laser = []
+
+        if events["rightMouseUp"]:
+            mx, my = mouse_pos
+            dx, dy = mx - self.x, my - self.y
+            d = dist(dx, dy)
+            _terrain.add_cell((self.x, self.y), (dx / d / 3, dy / d / 3))
 
         self.ability_timer -= frame_length
         self.ability_timer = max(0, self.ability_timer)
