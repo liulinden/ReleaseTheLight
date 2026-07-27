@@ -150,7 +150,9 @@ class World:
 
             for cell in self.terrain.cells[li]:
                 if cell.close(window_size, frame):
+                    display = cell.interaction_display
                     cell.tick(frame_length, self.terrain, self.player)
+                    display.tick(frame_length, display is last_interaction_display, keys_down, (cell.x, cell.y))
 
         self.light.tick_effects(frame_length)
         self.terrain.particles.tick_particles(frame_length)

@@ -674,6 +674,7 @@ class Terrain:
         if recursions > 3 or x + radius > self.world_width or x - radius < 0 or y < y_top or y > y_bottom:
             return False
 
+
         # ── Fast overlap check via spatial grid ────────────────────────────
         cx, cy = _grid_cell(x, y)
         if not player_made and not override:
@@ -723,7 +724,7 @@ class Terrain:
             self.interaction_displays.remove(display)
 
     # ------------------------------------------------------------------
-    # Vignette / carve
+    # Vignette / carvef
     # ------------------------------------------------------------------
 
     def draw_vignette(self, surface, window_size, offset_x=0, offset_y=0):
@@ -930,6 +931,11 @@ class Terrain:
         for n in self._active_nests():
             if n.stage == n.max_stage and n.close(x, y, r):
                 n.interaction_display.draw(surface, frame, time=time, offset_x=offset_x, offset_y=offset_y)
+        for layer in self.cells:
+            if layer in self.active_layers:
+                for cell in self.cells[layer]:
+                    if cell.close(window_size, frame):
+                        cell.interaction_display.draw(surface, frame, time=time, offset_x=offset_x, offset_y=offset_y)
 
     def draw_cells(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         for layer in self.cells:

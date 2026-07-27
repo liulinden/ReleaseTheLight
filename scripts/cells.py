@@ -2,6 +2,7 @@ import math
 
 import pygame
 
+from scripts.UI import InteractionDisplay
 from scripts.util import dist, get_bounced_vector
 
 
@@ -13,6 +14,7 @@ class Cell:
         self.h = 20
         self.rect = pygame.Rect(self.x, self.y, 10, 20)
         self.r = dist(self.w, self.h)
+        self.interaction_display = InteractionDisplay((self.x, self.y + self.h), (pygame.K_e, "to pick up"))
 
     def tick_knockback(self, frame_length, _terrain, player):
         for knockback_circle in _terrain.knockback_circles:
@@ -168,6 +170,13 @@ class Cell:
         self.update_rect()
         vis_rect = (self.rect.left - cam_x) * zoom + offset_x, (self.rect.top - cam_y) * zoom + offset_y, self.w * zoom, self.h * zoom
         pygame.draw.rect(surface, (255, 255, 255), vis_rect, 2)
+
+    def within_interaction_radius(self, coords):
+        x, y = coords
+        radius = 50
+        dx = x - self.x
+        dy = y - self.y
+        return dist(dx, dy) < radius
 
     def close(self, window_size, frame):
         left, top, zoom = frame

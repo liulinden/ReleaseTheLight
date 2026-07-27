@@ -92,8 +92,9 @@ class InteractionDisplay:
     keys_to_characters = {pygame.K_e: "E"}
     cached_displays = {}
 
-    def __init__(self, coords, display, screen_bounded=False):  # text is tuple of str and pygame key objects - e.g. ("Hold", pygame.K_e, "to drain")
+    def __init__(self, coords, display, color = (255, 255, 255), screen_bounded=False):  # text is tuple of str and pygame key objects - e.g. ("Hold", pygame.K_e, "to drain")
         self.x, self.y = coords
+        self.color = color
         self.screen_bounded = screen_bounded
         outline_thickness = InteractionDisplay.outline_thickness
 
@@ -135,7 +136,10 @@ class InteractionDisplay:
         self.opacity = 0
         self.active = False
 
-    def tick(self, frame_length, primary, keys_down):
+    def update_coordinates(self, coords):
+        self.x, self.y = coords
+
+    def tick(self, frame_length, primary, keys_down, coords = None):
         if primary:
             self.active = True
             for circle in self.circles:
@@ -148,6 +152,8 @@ class InteractionDisplay:
         else:
             self.opacity = max(self.opacity - frame_length / 3, 0)
             self.active = False
+        if coords:
+            self.update_coordinates(coords)
 
     def draw(self, surface, frame, align="Centered", time=None, offset_x=0, offset_y=0):
         if self.opacity > 0:
@@ -168,6 +174,7 @@ class InteractionDisplay:
                 if self.circles[circle][1] > 0:
                     pygame.draw.circle(self.surface, (255, 255, 255, o), (c_x, c_y), r)
             self.surface.blit(self.text, (0, 0))
+            self.surface.fill(self.color, special_flags=pygame.BLEND_RGB_MULT)
 
             if align == "Centered":
                 surface.blit(self.surface, (x - self.w / 2, y - self.h / 2))

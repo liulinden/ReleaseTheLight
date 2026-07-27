@@ -92,16 +92,16 @@ class Nest:
             self.max_health += 1000
 
         self.health = self.max_health
-        self.health_bar = UI.HealthBar(self.max_health)
-
-        self.interaction_display = UI.InteractionDisplay((self.x, self.top+self.size*0.75), ("Hold", pygame.K_e, "to drain"))
-
         self.max_charge = self.max_health / 3 + 100
         self.visual_charge = self.max_charge
         self.charge = self.max_charge * 0.5
         self.charge_rate = self.max_charge / 10000
         self.charging = {"white": 0, "blue": 0, "red": 0}
         self.charging[self.nest_type] = 1
+
+        self.health_bar = UI.HealthBar(self.max_health)
+        self.interaction_display = UI.InteractionDisplay((self.x, self.top+self.size*0.75), ("Hold", pygame.K_e, "to drain"), charges_to_color(*self.charging.values(), 500, maximize=True))
+
 
     def get_rect(self):
         return pygame.Rect(self.left, self.top, self.size, self.size)
