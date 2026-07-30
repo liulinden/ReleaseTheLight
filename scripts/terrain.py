@@ -702,6 +702,9 @@ class Terrain:
         else:
             new_air_pocket = AirPocket(x, y, radius, default_zooms=self.default_zooms, player_made=player_made)
 
+        if not player_made and random.randint(1, 50) == 1:
+            self.add_cell((x, y), (1,1))
+
         self.air_pockets[layer_index].append(new_air_pocket)
 
         # Register in spatial grid

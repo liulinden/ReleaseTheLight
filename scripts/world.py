@@ -106,10 +106,6 @@ class World:
                 mist_pos = random.random()
                 self.light.add_mist_particle(lase.start_x + mist_pos * lase.length * math.cos(lase.angle), lase.start_y + mist_pos * lase.length * math.sin(lase.angle), color=self.player.color)
 
-        w_width, w_height = window_size
-        w_r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
-        x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
-
         # tick gateways
         for lase in self.player.laser:
             if self.terrain.player_damage_circles and lase.collision:
@@ -146,7 +142,6 @@ class World:
                     cell.tick(frame_length, self.terrain, self.player)
 
         self.terrain.display_manager.tick(frame_length, keys_down)
-
 
         self.light.tick_effects(frame_length)
         self.terrain.particles.tick_particles(frame_length)

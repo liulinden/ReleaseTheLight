@@ -165,6 +165,7 @@ class InteractionDisplay:
         self.active = False
         self.post_active = False # active but remains True for duration of fading
         self.rise = 0
+        self.key_released = False
 
     def update_coordinates(self, coords):
         self.x, self.y = coords
@@ -174,15 +175,21 @@ class InteractionDisplay:
             self.active = True
             for circle in self.circles:
                 if keys_down[circle]:
-                    self.circles[circle][1] = 255  # min(self.circles[circle][1]+frame_length,255)
+                    if self.key_released:
+                        self.circles[circle][1] = 255  # min(self.circles[circle][1]+frame_length,255)
+                        self.opacity = max(160, self.opacity)
+                    else:
+                        self.active = False
                 else:
                     self.circles[circle][1] = max(self.circles[circle][1] - frame_length, 0)
                     self.active = False
-            self.opacity = min(self.opacity + frame_length / 5, 255 if self.active else 120)
+                    self.key_released = True
+            self.opacity = min(self.opacity + frame_length / 5, 255 if self.active else 160)
             self.post_active = self.active
         else:
             self.opacity = max(self.opacity - frame_length / 3, 0)
             self.active = False
+            self.key_released = False
 
         if self.post_active:
             self.rise += (0.8 - self.rise) * frame_length / 100
