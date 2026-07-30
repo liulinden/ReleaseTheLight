@@ -3,6 +3,19 @@ import math
 import pygame
 
 
+def safe_remove(list, item):
+    if item in list:
+        list.remove(item)
+        return True
+    return False
+
+def safe_append(list, item):
+    if item not in list:
+        list.append(item)
+        return True
+    else:
+        return False
+
 def dist(x, y):
     return math.dist((0, 0), (x, y))
 

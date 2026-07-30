@@ -12,6 +12,7 @@ from scripts.cells import Cell
 from scripts.gateway import GATEWAY_Y_POSITIONS, Gateway
 from scripts.global_assets import get_asset
 from scripts.loading_screen import LoadingScreen
+from scripts.UI import InteractionDisplayManager
 
 NUM_LAYERS = 10
 
@@ -142,7 +143,7 @@ class Terrain:
         self.player_damage_circles = []
         self.new_player_damage_circles = []
 
-        self.interaction_displays = []
+        self.display_manager = InteractionDisplayManager()
 
         # nests and airPockets keyed by layer index
         self.nests = {i: [] for i in range(NUM_LAYERS)}
@@ -716,12 +717,10 @@ class Terrain:
         self.cells[layer_index].append(new_cell)
 
     def add_interaction_display(self, display):
-        if display not in self.interaction_displays:
-            self.interaction_displays.append(display)
+        self.display_manager.display_in_range(display)
 
-    def remove_interaction_display(self, display):
-        if display in self.interaction_displays:
-            self.interaction_displays.remove(display)
+    def remove_interaction_display(self, display, complete=False):
+        self.display_manager.display_out_range(display, complete=complete)
 
     # ------------------------------------------------------------------
     # Vignette / carvef
@@ -923,19 +922,8 @@ class Terrain:
             for entry in gw.entry_tiles:
                 entry.draw_health_bar(surface, frame, time, offset_x=offset_x, offset_y=offset_y)
 
-    def draw_interaction_displays(self, window_size, surface, frame, time=None, offset_x=0, offset_y=0):
-        left, top, zoom = frame
-        w_width, w_height = window_size
-        r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
-        x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
-        for n in self._active_nests():
-            if n.stage == n.max_stage and n.close(x, y, r):
-                n.interaction_display.draw(surface, frame, time=time, offset_x=offset_x, offset_y=offset_y)
-        for layer in self.cells:
-            if layer in self.active_layers:
-                for cell in self.cells[layer]:
-                    if cell.close(window_size, frame):
-                        cell.interaction_display.draw(surface, frame, time=time, offset_x=offset_x, offset_y=offset_y)
+    def draw_interaction_displays(self, surface, frame, time=None, offset_x=0, offset_y=0):
+        self.display_manager.draw(surface, frame, time, offset_x, offset_y)
 
     def draw_cells(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         for layer in self.cells:

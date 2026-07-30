@@ -157,6 +157,7 @@ class Cell:
         self.tick_gravity(frame_length)
         self.tick_knockback(frame_length, _terrain, player)
         self.attempt_movement(frame_length, _terrain)
+        self.interaction_display.update_coordinates((self.x, self.y))
 
     def update_rect(self):
         self.rect.x, self.rect.y = self.x - self.w / 2, self.y - self.h / 2

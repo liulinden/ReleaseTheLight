@@ -450,18 +450,18 @@ class Player:
             for nest in _terrain.nests[li]:
                 if nest.stage == nest.max_stage and self.charge_capacity > self.charges[nest.nest_type] and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
                     _terrain.add_interaction_display(nest.interaction_display)
-                    if keys_down[pygame.K_e]:
+                    if nest.interaction_display.active:
                         charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging, nest.max_charge)
                         nest.lose_charge(charge_gain)
                 else:
-                    _terrain.remove_interaction_display(nest.interaction_display)
+                    _terrain.remove_interaction_display(nest.interaction_display, nest.charge == 0 or self.charge_capacity == self.charges[nest.nest_type])
             for i in range(len(_terrain.cells[li]) - 1, -1, -1):
                 cell = _terrain.cells[li][i]
                 if cell.within_interaction_radius((self.x, self.y)):
                     _terrain.add_interaction_display(cell.interaction_display)
-                    if keys_down[pygame.K_e]:  # should be triggered by an event not a key down
-                        _terrain.remove_interaction_display(cell.interaction_display)
-                        _terrain.cells[li].remove(cell)  # forces display to disappear immediately
+                    if cell.interaction_display.active:  # should be triggered by an event not a key down
+                        _terrain.remove_interaction_display(cell.interaction_display, True)
+                        _terrain.cells[li].remove(cell)
                 else:
                     _terrain.remove_interaction_display(cell.interaction_display)
 

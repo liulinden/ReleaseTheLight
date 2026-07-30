@@ -3,7 +3,7 @@ import math
 import pygame
 
 from scripts.global_assets import get_asset
-from scripts.util import charges_to_color, polar_to_rect
+from scripts.util import charges_to_color, polar_to_rect, safe_append, safe_remove
 
 charge_icon = None
 light_gradient = None
@@ -85,6 +85,34 @@ class HealthBar:
             surface.blit(self.surface, (left, top))
 
 
+class InteractionDisplayManager:
+    def __init__(self):
+        self.on_screen_displays = []
+        self.in_range_displays = []
+
+    def tick(self, frame_length, keys_down):
+        active_display = None
+        if self.in_range_displays:
+            active_display = self.in_range_displays[-1]
+        for display in self.on_screen_displays:
+            display.tick(frame_length, display is active_display, keys_down)
+
+    def draw(self, surface, frame, time=None, offset_x=0, offset_y=0):
+        for i in range(len(self.on_screen_displays) - 1, -1, -1):
+            display = self.on_screen_displays[i]
+            if not (display.draw(surface, frame, time=time, offset_x=offset_x, offset_y=offset_y) or display in self.in_range_displays):
+                self.on_screen_displays.remove(display)
+
+    def display_in_range(self, display):
+        safe_append(self.in_range_displays, display)
+        safe_append(self.on_screen_displays, display)
+
+    def display_out_range(self, display, complete=False):
+        safe_remove(self.in_range_displays, display)
+        if not complete:
+            display.post_active = False
+
+
 class InteractionDisplay:
     font = None
     font_size = 16
@@ -92,10 +120,10 @@ class InteractionDisplay:
     keys_to_characters = {pygame.K_e: "E"}
     cached_displays = {}
 
-    def __init__(self, coords, display, color = (255, 255, 255), screen_bounded=False):  # text is tuple of str and pygame key objects - e.g. ("Hold", pygame.K_e, "to drain")
+    def __init__(self, coords, display, color=(255, 255, 255), align="Centered"):  # text is tuple of str and pygame key objects - e.g. ("Hold", pygame.K_e, "to drain")
         self.x, self.y = coords
         self.color = color
-        self.screen_bounded = screen_bounded
+        self.align = align
         outline_thickness = InteractionDisplay.outline_thickness
 
         if display in InteractionDisplay.cached_displays:
@@ -135,11 +163,13 @@ class InteractionDisplay:
 
         self.opacity = 0
         self.active = False
+        self.post_active = False # active but remains True for duration of fading
+        self.rise = 0
 
     def update_coordinates(self, coords):
         self.x, self.y = coords
 
-    def tick(self, frame_length, primary, keys_down, coords = None):
+    def tick(self, frame_length, primary, keys_down):
         if primary:
             self.active = True
             for circle in self.circles:
@@ -149,22 +179,26 @@ class InteractionDisplay:
                     self.circles[circle][1] = max(self.circles[circle][1] - frame_length, 0)
                     self.active = False
             self.opacity = min(self.opacity + frame_length / 5, 255 if self.active else 120)
+            self.post_active = self.active
         else:
             self.opacity = max(self.opacity - frame_length / 3, 0)
             self.active = False
-        if coords:
-            self.update_coordinates(coords)
 
-    def draw(self, surface, frame, align="Centered", time=None, offset_x=0, offset_y=0):
+        if self.post_active:
+            self.rise += (0.8 - self.rise) * frame_length / 100
+        else:
+            self.rise += (0 - self.rise) * frame_length / 300
+
+    def draw(self, surface, frame, time=None, offset_x=0, offset_y=0):
         if self.opacity > 0:
             left, top, zoom = frame
-            if self.screen_bounded:
+            if self.align == "Screen":
                 x, y = self.x + offset_x, self.y + offset_y
             else:
                 x, y = (self.x - left) * zoom + offset_x, (self.y - top) * zoom + offset_y
                 if time is None:
                     time = pygame.time.get_ticks()
-                y += math.sin(time / 500) * self.h / 5
+                y += (math.sin(time / 500) / 8 - self.rise) * self.h
 
             self.surface.fill((0, 0, 0, 0))
             self.surface.set_alpha(self.opacity)
@@ -176,10 +210,12 @@ class InteractionDisplay:
             self.surface.blit(self.text, (0, 0))
             self.surface.fill(self.color, special_flags=pygame.BLEND_RGB_MULT)
 
-            if align == "Centered":
+            if self.align == "Centered":
                 surface.blit(self.surface, (x - self.w / 2, y - self.h / 2))
-            elif align == "Top-centered":
+            elif self.align == "Top-centered":
                 surface.blit(self.surface, (x - self.w / 2, y))
+            return True
+        return False
 
 
 class ChargeDisplay:
