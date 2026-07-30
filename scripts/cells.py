@@ -170,7 +170,7 @@ class Cell:
 
         self.update_rect()
         vis_rect = (self.rect.left - cam_x) * zoom + offset_x, (self.rect.top - cam_y) * zoom + offset_y, self.w * zoom, self.h * zoom
-        pygame.draw.rect(surface, (255, 255, 255), vis_rect, 2)
+        pygame.draw.rect(surface, (0, 0, 0), vis_rect, 2)
 
     def within_interaction_radius(self, coords):
         x, y = coords
@@ -182,7 +182,9 @@ class Cell:
     def close(self, window_size, frame):
         left, top, zoom = frame
         w_width, w_height = window_size
+        x_margin = min(500, w_width / zoom / 2 + self.r)
+        y_margin = min(500, w_height / zoom / 2 + self.r)
         x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
         dx = x - self.x
         dy = y - self.y
-        return abs(dx) < w_width / zoom / 2 + self.r and abs(dy) < w_height / zoom / 2 + self.r
+        return abs(dx) < x_margin and abs(dy) < y_margin
