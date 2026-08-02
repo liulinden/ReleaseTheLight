@@ -3,7 +3,7 @@ import math
 import pygame
 
 from scripts.UI import InteractionDisplay
-from scripts.util import dist, get_bounced_vector
+from scripts.util import dist, get_bounced_vector, normalize_1d, about_equal
 
 
 class Cell:
@@ -15,25 +15,31 @@ class Cell:
         self.rect = pygame.Rect(self.x, self.y, 10, 20)
         self.r = dist(self.w, self.h)
         self.interaction_display = InteractionDisplay((self.x, self.y + self.h), (pygame.K_e, "to pick up"))
+        self.frames_since_moved = 0
 
     def tick_knockback(self, frame_length, _terrain, player):
+        affected = False
         for knockback_circle in _terrain.knockback_circles:
             pow, x, y, r, falloff = knockback_circle
 
             dx = self.x - x
             dy = self.y - y
-            d = math.sqrt(dx**2 + dy**2)
+            d = dist(dx, dy)
             if player.laser:
                 lase = player.laser[0]
                 if lase.laser_target is self:
                     self.x_speed += frame_length * dx / d * pow / 30
                     self.y_speed += frame_length * dy / d * pow / 30
+                    affected = True
                 elif d < r + self.r:
                     self.x_speed += frame_length * dx / d * pow * falloff / 30
                     self.y_speed += frame_length * dy / d * pow * falloff / 30
+                    affected = True
             elif d < r + self.r:
                 self.x_speed += frame_length * dx / d * pow * falloff / 30
                 self.y_speed += frame_length * dy / d * pow * falloff / 30
+                affected = True
+        return affected
 
     def tick_gravity(self, frame_length):
         self.y_speed = min(2, self.y_speed + 0.0015 * frame_length)
@@ -96,6 +102,7 @@ class Cell:
 
         vx, vy = self.x_speed, self.y_speed
         dx, dy = frame_length * vx, frame_length * vy
+        orig_xy = self.x, self.y
 
         self.x += dx
         self.y += dy
@@ -104,8 +111,7 @@ class Cell:
         collision = self.colliding_with_terrain(_terrain)
         if collision:
             if not self._find_clearance(_terrain, vx, vy):
-                self.x -= dx
-                self.y -= dy
+                self.x, self.y = orig_xy
             else:
                 return
         else:
@@ -119,6 +125,7 @@ class Cell:
             tick_length = min(remaining, 1 / speed)
 
             dx, dy = vx * tick_length, vy * tick_length
+            ox, oy = self.x, self.y
 
             self.x += dx
             self.y += dy
@@ -127,10 +134,11 @@ class Cell:
             collision = self.colliding_with_terrain(_terrain)
             if collision:
                 if not self._find_clearance(_terrain, vx, vy):
-                    self.x -= dx
-                    self.y -= dy
+                    self.x, self.y = ox, oy
 
-                    normal = _terrain.get_normal(*collision)
+                    collide_x, collide_y = collision
+                    normal = _terrain.get_normal(collide_x - normalize_1d(dx), collide_y - normalize_1d(dy))
+
                     mag = dist(*normal)
                     if mag == 0:
                         print("something's fishy")
@@ -154,10 +162,16 @@ class Cell:
         return
 
     def tick(self, frame_length, _terrain, player):
-        self.tick_gravity(frame_length)
-        self.tick_knockback(frame_length, _terrain, player)
-        self.attempt_movement(frame_length, _terrain)
-        self.interaction_display.update_coordinates((self.x, self.y))
+        if self.tick_knockback(frame_length, _terrain, player) or self.frames_since_moved <= 2:
+
+            last_x, last_y = self.x, self.y
+            self.tick_gravity(frame_length)
+            self.attempt_movement(frame_length, _terrain)
+
+            if not (about_equal(last_x, self.x) and about_equal(last_y, self.y)):
+                self.interaction_display.update_coordinates((self.x, self.y))
+                self.frames_since_moved = 0
+            self.frames_since_moved += 1
 
     def update_rect(self):
         self.rect.x, self.rect.y = self.x - self.w / 2, self.y - self.h / 2
@@ -183,7 +197,7 @@ class Cell:
         left, top, zoom = frame
         w_width, w_height = window_size
         x_margin = min(500, w_width / zoom / 2 + self.r)
-        y_margin = min(500, w_height / zoom / 2 + self.r)
+        y_margin = min(400, w_height / zoom / 2 + self.r)
         x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
         dx = x - self.x
         dy = y - self.y

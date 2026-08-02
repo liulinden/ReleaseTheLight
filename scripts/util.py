@@ -19,6 +19,17 @@ def safe_append(list, item):
 def dist(x, y):
     return math.dist((0, 0), (x, y))
 
+def normalize_1d(n):
+    if n > 0:
+        return 1
+    elif n < 0:
+        return -1
+    else:
+        return 0
+
+def about_equal(a, b, threshold = 0.01):
+    diff = a - b
+    return (diff < threshold and diff > - threshold)
 
 def polar_to_rect(r, angle, center=(0, 0)):
     return r * math.cos(angle) + center[0], r * math.sin(angle) + center[1]

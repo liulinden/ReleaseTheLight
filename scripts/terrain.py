@@ -675,7 +675,6 @@ class Terrain:
         if recursions > 3 or x + radius > self.world_width or x - radius < 0 or y < y_top or y > y_bottom:
             return False
 
-
         # ── Fast overlap check via spatial grid ────────────────────────────
         cx, cy = _grid_cell(x, y)
         if not player_made and not override:
@@ -703,7 +702,7 @@ class Terrain:
             new_air_pocket = AirPocket(x, y, radius, default_zooms=self.default_zooms, player_made=player_made)
 
         if not player_made and random.randint(1, 50) == 1:
-            self.add_cell((x, y), (1,1))
+            self.add_cell((x, y), (1, 1))
 
         self.air_pockets[layer_index].append(new_air_pocket)
 
@@ -816,8 +815,21 @@ class Terrain:
         return chunks[row][col].get_at((px, py))[3] > 128
 
     def get_normal(self, x, y):  # coordinate should be adjacent to a collision point
-        v_x = (self._sample_chunk(x - 2, y) or self._sample_chunk(x - 1, y)) - (self._sample_chunk(x + 2, y) or self._sample_chunk(x + 1, y))
-        v_y = (self._sample_chunk(x, y - 2) or self._sample_chunk(x, y - 1)) - (self._sample_chunk(x, y + 2) or self._sample_chunk(x, y + 1))
+        v_x = self._sample_chunk(x - 1, y) - self._sample_chunk(x + 1, y)
+        v_y = self._sample_chunk(x, y - 1) - self._sample_chunk(x, y + 1)
+        if v_x == v_y == 0:
+            tl, tr, bl, br = self._sample_chunk(x - 1, y - 1), self._sample_chunk(x - 1, y + 1), self._sample_chunk(x + 1, y - 1), self._sample_chunk(x + 1, y + 1)
+            v_x = (tr or br) - (tl or bl)
+            v_y = (tl or tr) - (bl or br)
+        # v_x = (self._sample_chunk(x - 2, y) or self._sample_chunk(x - 1, y)) - (self._sample_chunk(x + 2, y) or self._sample_chunk(x + 1, y))
+        # v_y = (self._sample_chunk(x, y - 2) or self._sample_chunk(x, y - 1)) - (self._sample_chunk(x, y + 2) or self._sample_chunk(x, y + 1))
+        if v_x == v_y == 0:
+            x, y = int(x), int(y)
+            for i in range(x - 8, x + 9, 1):
+                row = ""
+                for j in range(y - 8, y + 9, 1):
+                    row += "X " if self._sample_chunk(i, j) else "_ "
+                print(row)
         return (v_x, v_y)
 
     def collide_rect(self, rect):
