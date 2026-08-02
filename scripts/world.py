@@ -5,7 +5,6 @@ import random
 import pygame
 
 import scripts.enemies._enemy as enemies
-import scripts.gateway as gateway
 import scripts.laser as laser
 import scripts.lighting as lighting
 import scripts.loading_screen as loading_screen
@@ -26,7 +25,7 @@ class World:
 
         init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.05, 0.12)
 
-        inits = [lighting.init, enemies.init, nest.init, terrain.init, player.init, laser.init, gateway.init, UI.init]
+        inits = [lighting.init, enemies.init, nest.init, terrain.init, player.init, laser.init, UI.init]
 
         for i, init in enumerate(inits):
             init_loading_screen.put((i + 1) / len(inits), f"{init.__module__}.{init.__name__}()")
@@ -55,12 +54,13 @@ class World:
         self.scratch_layer = None
 
         self.generate_world(generate_loading_screen)
+        self.terrain.start_streaming()
 
     def generate_world(self, loading_screen):
-        self.terrain.generate_layer(0, loading_screen)
+        self.terrain.generate_world(loading_screen)
 
-    def generate_next_layer(self):
-        self.terrain.generate_layer(1)
+    #def generate_next_layer(self):
+    #    self.terrain.generate_layer(1)
 
     def _get_world_layer(self, real_window_size):
         if self._world_layer is None or self._world_layer_size != real_window_size:
@@ -75,23 +75,24 @@ class World:
         self.terrain.add_air_pocket(x, y, radius, layer_index=layer_index, player_made=True)
 
     def heal_nests(self):
-        for li in range(terrain.NUM_LAYERS):
-            for n in self.terrain.nests[li]:
+        for chunk in self.terrain.chunks:
+            for n in self.terrain.chunks[chunk].nests:
                 if n.health > 0:
                     n.health = n.max_health
                     n.stage = 0
 
     def remove_enemies(self):
-        for li in range(terrain.NUM_LAYERS):
-            for n in self.terrain.nests[li]:
+        for chunk in self.terrain.chunks:
+            for n in self.terrain.chunks[chunk].nests:
                 n.enemies.clear()
 
     def tick(self, fps, window_size, frame, mouse_pos, keys_down, events):
         left, top, zoom = frame
         frame_length = 1000 / fps
 
-        # update which layers are active this frame
-        self.terrain.update_active_layers(self.player.y)
+        # update world gen
+        self.terrain.update_streaming(self.player.x, self.player.y)
+        # still need to add evictions
 
         self.terrain.new_knockback_circles = []
         self.terrain.new_player_damage_circles = []
@@ -106,40 +107,30 @@ class World:
                 mist_pos = random.random()
                 self.light.add_mist_particle(lase.start_x + mist_pos * lase.length * math.cos(lase.angle), lase.start_y + mist_pos * lase.length * math.sin(lase.angle), color=self.player.color)
 
-        # tick gateways
-        for lase in self.player.laser:
-            if self.terrain.player_damage_circles and lase.collision:
-                lx, ly = lase.collision[0]
-                for gw in self.terrain.gateways:
-                    if gw.tick(self.terrain, self.player, lx, ly):
-                        self.terrain.particles.spawn_mining_particles(10, (255, 255, 255), 10, lx, ly)
-                        break
-
         # active nests only
-        for li in self.terrain.active_layers:
-            for n in self.terrain.nests[li]:
-                n.update_visuals(frame_length)
-                if self.terrain.player_damage_circles:
-                    for particle_coords in n.apply_damage_from_circles(self.terrain, self.player):
-                        self.terrain.particles.spawn_mining_particles(10, n.color, particle_coords[2], particle_coords[0], particle_coords[1])
+        for n in self.terrain._nests_near(left+window_size[0] / zoom / 2, top + window_size[1] / zoom / 2, 500):
+            n.update_visuals(frame_length)
+            if self.terrain.player_damage_circles:
+                for particle_coords in n.apply_damage_from_circles(self.terrain, self.player):
+                    self.terrain.particles.spawn_mining_particles(10, n.color, particle_coords[2], particle_coords[0], particle_coords[1])
 
-                if n.stage != n.max_stage:
-                    ndx = self.player.x - n.x
-                    ndy = self.player.y - n.y
-                    d_sq = ndx * ndx + ndy * ndy
-                    if d_sq < 300 * 300 and random.randint(1, int(200 + 0.1 * int(math.sqrt(d_sq) / 2) ** 2)) < frame_length:
-                        n.add_enemy(self.terrain, self.player)
-                    for i in range(len(n.enemies) - 1, -1, -1):
-                        enemy = n.enemies[i]
-                        if enemy.tick(frame_length, self.terrain, self.player):
-                            del n.enemies[i]
-                else:
-                    if random.randint(1, math.ceil(fps / (8 if n.interaction_display.active else 2))) == 1:
-                        self.light.add_mist_particle(n.x, n.y, color=n.color)
+            if n.stage != n.max_stage:
+                ndx = self.player.x - n.x
+                ndy = self.player.y - n.y
+                d_sq = ndx * ndx + ndy * ndy
+                if d_sq < 300 * 300 and random.randint(1, int(200 + 0.1 * int(math.sqrt(d_sq) / 2) ** 2)) < frame_length:
+                    n.add_enemy(self.terrain, self.player)
+                for i in range(len(n.enemies) - 1, -1, -1):
+                    enemy = n.enemies[i]
+                    if enemy.tick(frame_length, self.terrain, self.player):
+                        del n.enemies[i]
+            else:
+                if random.randint(1, math.ceil(fps / (8 if n.interaction_display.active else 2))) == 1:
+                    self.light.add_mist_particle(n.x, n.y, color=n.color)
 
-            for cell in self.terrain.cells[li]:
-                if cell.close(window_size, frame):
-                    cell.tick(frame_length, self.terrain, self.player)
+        for cell in self.terrain._cells_near(left+window_size[0] / zoom / 2, top + window_size[1] / zoom / 2, 500):
+            if cell.close(window_size, frame):
+                cell.tick(frame_length, self.terrain, self.player)
 
         self.terrain.display_manager.tick(frame_length, keys_down)
 
@@ -188,9 +179,8 @@ class World:
 
         self.draw_background(scratch_layer, window_size, frame)
 
-        # gateway back elements (behind terrain)
-        for gw in self.terrain.gateways:
-            gw.draw_back(scratch_layer, frame, offset_x=offset_x, offset_y=offset_y)
+        # struct back elements (behind terrain)
+
 
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
 
@@ -206,9 +196,7 @@ class World:
 
         self.terrain.draw_terrain(window_size, layer, frame, hitboxes=hitboxes, real_window_size=real_window_size, offset_x=offset_x, offset_y=offset_y)
 
-        # gateway front elements (after terrain)
-        for gw in self.terrain.gateways:
-            gw.draw(layer, frame, offset_x=offset_x, offset_y=offset_y)
+        # structure front
 
         time = pygame.time.get_ticks()
         self.terrain.draw_health_bars(window_size, layer, frame, time, offset_x=offset_x, offset_y=offset_y)

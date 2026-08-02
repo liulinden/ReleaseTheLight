@@ -26,8 +26,8 @@ class Game:
         else:
             self.DEFAULT_ZOOMS = [1, 1.8]
         # self.HITBOX_ZOOM=0.2 -- add later
-        self.WORLD_WIDTH = 10 * CHUNK_SIZE
-        self.WORLD_HEIGHT = 200 * CHUNK_SIZE
+        self.WORLD_WIDTH = 15 * CHUNK_SIZE
+        self.WORLD_HEIGHT = 100 * CHUNK_SIZE
         # if not full_world:
         #    self.WORLD_HEIGHT = 50 * CHUNK_SIZE
         # high temporarily
@@ -65,8 +65,6 @@ class Game:
 
     def update_cam_pos(self, fps, zoom, player_x, player_y, player_x_speed, player_y_speed):
         max_y = self.WORLD_HEIGHT - 100
-        if zoom != 0.1:
-            max_y = self.game_world.terrain.get_first_locked_gateway_y() - self.window_height / zoom / 2
         frame_length = 1000 / fps
         self.cam_offset_x += 2 * player_x_speed * frame_length
         self.cam_offset_y += 2 * player_y_speed * frame_length
@@ -106,7 +104,7 @@ class Game:
 
         self.loading_screen.put(1.0, "Game setup complete.")
 
-        threading.Thread(target=self.game_world.generate_next_layer, daemon=True).start()
+        #threading.Thread(target=self.game_world.generate_next_layer, daemon=True).start()
 
     def run(self):
 

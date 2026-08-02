@@ -404,7 +404,7 @@ class Player:
                     point = lase.collision[0]
                     x, y = point
                     explosion_size = laserProperties.get_laser_expl(self.laser_attributes, self.laser_first_hit, self.laser_ramps)
-                    _terrain.add_air_pocket_clump(x, y, explosion_size, layer_index=_terrain._layer_for_y(y), player_made=True, spreading=1 / 5)
+                    _terrain.add_air_pocket_clump(x, y, explosion_size, player_made=True, spreading=1 / 5)
                     if lase.collision[1] == "ground":
                         _terrain.particles.spawn_mining_particles(10, (0, 0, 0), explosion_size * 1.5, x, y)
                         HealthBar.targeted = None
@@ -446,24 +446,26 @@ class Player:
             self.x_speed += frame_length * dx / distance * knockback / 60
             self.y_speed += frame_length * dy / distance * knockback / 60
 
-        for li in _terrain.active_layers:
-            for nest in _terrain.nests[li]:
-                if nest.stage == nest.max_stage and self.charge_capacity > self.charges[nest.nest_type] and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
-                    _terrain.add_interaction_display(nest.interaction_display)
-                    if nest.interaction_display.active:
-                        charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging, nest.max_charge)
-                        nest.lose_charge(charge_gain)
-                else:
-                    _terrain.remove_interaction_display(nest.interaction_display, nest.charge == 0 or self.charge_capacity == self.charges[nest.nest_type])
-            for i in range(len(_terrain.cells[li]) - 1, -1, -1):
-                cell = _terrain.cells[li][i]
-                if cell.within_interaction_radius((self.x, self.y)):
-                    _terrain.add_interaction_display(cell.interaction_display)
-                    if cell.interaction_display.active:  # should be triggered by an event not a key down
-                        _terrain.remove_interaction_display(cell.interaction_display, True)
-                        _terrain.cells[li].remove(cell)
-                else:
-                    _terrain.remove_interaction_display(cell.interaction_display)
+
+        
+        for nest in _terrain._nests_near(self.x, self.y, 500):
+            if nest.stage == nest.max_stage and self.charge_capacity > self.charges[nest.nest_type] and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
+                _terrain.add_interaction_display(nest.interaction_display)
+                if nest.interaction_display.active:
+                    charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging, nest.max_charge)
+                    nest.lose_charge(charge_gain)
+            else:
+                _terrain.remove_interaction_display(nest.interaction_display, nest.charge == 0 or self.charge_capacity == self.charges[nest.nest_type])
+        cells = _terrain._cells_near(self.x, self.y, 500)
+        for i in range(len(cells) - 1, -1, -1):
+            cell = cells[i]
+            if cell.within_interaction_radius((self.x, self.y)):
+                _terrain.add_interaction_display(cell.interaction_display)
+                if cell.interaction_display.active:  # should be triggered by an event not a key down
+                    _terrain.remove_interaction_display(cell.interaction_display, True)
+                    cells.remove(cell)
+            else:
+                _terrain.remove_interaction_display(cell.interaction_display)
 
         self.update_laser_stats()
 

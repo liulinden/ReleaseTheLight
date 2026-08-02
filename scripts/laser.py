@@ -59,7 +59,7 @@ class Laser:
             if terrain.laser_collide_point(wx, wy):
                 # nest check: AABB pre-screen then precise pixel sample from nest's hitbox image
                 hit_nest = None
-                for n in terrain._active_nests():
+                for n in terrain._nests_near(wx, wy, 5):
                     if n.close(wx, wy, 5):
                         # precise: sample nest's zoom=1 hitbox at local coordinates
                         l = int(wx - n.left) - 1
@@ -86,7 +86,7 @@ class Laser:
                     self.laser_target = hit_nest
                 else:
                     hit_enemy = False
-                    for n in terrain._active_nests():
+                    for n in terrain._nests_near(wx, wy, 500):
                         for enemy in n.enemies:
                             if enemy.mode != "Spawn" and enemy.rect.collidepoint(wx, wy):
                                 self.collision = [(wx, wy), "enemies"]

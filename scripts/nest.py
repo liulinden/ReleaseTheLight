@@ -39,7 +39,7 @@ def init():
 
 
 class Nest:
-    def __init__(self, default_zooms, world_height, layer_index, nest_type, x, y, size):
+    def __init__(self, default_zooms, world_height, nest_type, x, y, size):
         self.x = x
         self.y = y
         self.left = x - size / 2
@@ -82,7 +82,7 @@ class Nest:
         if 1 not in self._draw_filter:
             self._draw_filter[1] = pygame.Surface((size, size), flags=pygame.SRCALPHA)
 
-        self.max_health = self.y * 200 * (random.random() + 0.5) / world_height + 10 * layer_index
+        self.max_health = self.y * 200 * (random.random() + 0.5) / world_height
         if self.nest_type == "white":
             self.max_health *= 1.2
             self.max_health += 10
