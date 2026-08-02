@@ -3,7 +3,7 @@ import math
 import pygame
 
 import scripts.laser as laser
-import scripts.laserProperties as laserProperties
+import scripts.laser_properties as laser_properties
 import scripts.terrain as terrain
 from scripts.global_assets import get_asset
 from scripts.UI import HealthBar
@@ -146,7 +146,7 @@ class Player:
         self.laser_first_hit = False
         self.laser = []
         self.impacts = []  # active LaserImpact instances
-        self.laser_attributes = laserProperties.LaserAttributes(18, 1, 0.2, 10, 400, 1, 20, 0.3, 1, 20, 20, 0.5, 2, 0.5, {"white": (0, False), "blue": (0, False), "red": (0, False)})
+        self.laser_attributes = laser_properties.LaserAttributes(18, 1, 0.2, 10, 400, 1, 20, 0.3, 1, 20, 20, 0.5, 2, 0.5, {"white": (0, False), "blue": (0, False), "red": (0, False)})
 
         self.ability_timer = 0
         self.ability_cooldown = 800
@@ -234,7 +234,7 @@ class Player:
         self.color = charges_to_color(cw, cb, cr, self.max_charge)
 
     def update_laser_stats(self):
-        laserProperties.set_laser_attributes(self.laser_attributes, self.practical_charges, self.filter_type, self.max_charge)
+        laser_properties.set_laser_attributes(self.laser_attributes, self.practical_charges, self.filter_type, self.max_charge)
 
     def set_charges(self, white, blue, red):
         self.charges["white"] = white
@@ -403,17 +403,17 @@ class Player:
                 if lase.collision:
                     point = lase.collision[0]
                     x, y = point
-                    explosion_size = laserProperties.get_laser_expl(self.laser_attributes, self.laser_first_hit, self.laser_ramps)
+                    explosion_size = laser_properties.get_laser_expl(self.laser_attributes, self.laser_first_hit, self.laser_ramps)
                     _terrain.add_air_pocket_clump(x, y, explosion_size, player_made=True, spreading=1 / 5)
                     if lase.collision[1] == "ground":
                         _terrain.particles.spawn_mining_particles(10, (0, 0, 0), explosion_size * 1.5, x, y)
                         HealthBar.targeted = None
 
                     _terrain.new_knockback_circles.append(
-                        [laserProperties.get_laser_kb(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.kb_range, self.laser_attributes.area_kb_falloff]
+                        [laser_properties.get_laser_kb(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.kb_range, self.laser_attributes.area_kb_falloff]
                     )
                     _terrain.new_player_damage_circles.append(
-                        [laserProperties.get_laser_dmg(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.dmg_range, self.laser_attributes.area_dmg_falloff]
+                        [laser_properties.get_laser_dmg(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.dmg_range, self.laser_attributes.area_dmg_falloff]
                     )
                     _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range, x, y)
                     _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.kb_range, x, y)
@@ -446,7 +446,7 @@ class Player:
             self.x_speed += frame_length * dx / distance * knockback / 60
             self.y_speed += frame_length * dy / distance * knockback / 60
 
-        for nest in _terrain._nests_near(self.x, self.y, 500):
+        for nest in _terrain._nests_near(self.x, self.y, 400):
             if nest.stage == nest.max_stage and self.charge_capacity > self.charges[nest.nest_type] and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
                 _terrain.add_interaction_display(nest.interaction_display)
                 if nest.interaction_display.active:
@@ -454,16 +454,17 @@ class Player:
                     nest.lose_charge(charge_gain)
             else:
                 _terrain.remove_interaction_display(nest.interaction_display, nest.charge == 0 or self.charge_capacity == self.charges[nest.nest_type])
-        cells = _terrain._cells_near(self.x, self.y, 500)
-        for i in range(len(cells) - 1, -1, -1):
-            cell = cells[i]
-            if cell.within_interaction_radius((self.x, self.y)):
-                _terrain.add_interaction_display(cell.interaction_display)
-                if cell.interaction_display.active:  # should be triggered by an event not a key down
-                    _terrain.remove_interaction_display(cell.interaction_display, True)
-                    cells.remove(cell)
-            else:
-                _terrain.remove_interaction_display(cell.interaction_display)
+        for chunk in _terrain._chunks_near(self.x, self.y, 400, 0):
+            cells = chunk.cells
+            for i in range(len(cells) - 1, -1, -1):
+                cell = cells[i]
+                if cell.within_interaction_radius((self.x, self.y)):
+                    _terrain.add_interaction_display(cell.interaction_display)
+                    if cell.interaction_display.active:  # should be triggered by an event not a key down
+                        _terrain.remove_interaction_display(cell.interaction_display, True)
+                        cells.remove(cell)
+                else:
+                    _terrain.remove_interaction_display(cell.interaction_display)
 
         self.update_laser_stats()
 

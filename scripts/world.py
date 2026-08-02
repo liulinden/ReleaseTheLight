@@ -89,6 +89,8 @@ class World:
     def tick(self, fps, window_size, frame, mouse_pos, keys_down, events):
         left, top, zoom = frame
         frame_length = 1000 / fps
+        width, height = window_size[0] / zoom, window_size[1] / zoom
+        screen_rect = pygame.Rect(left, top, width, height)
 
         # update world gen
         self.terrain.update_streaming(self.player.x, self.player.y)
@@ -108,7 +110,7 @@ class World:
                 self.light.add_mist_particle(lase.start_x + mist_pos * lase.length * math.cos(lase.angle), lase.start_y + mist_pos * lase.length * math.sin(lase.angle), color=self.player.color)
 
         # active nests only
-        for n in self.terrain._nests_near(left+window_size[0] / zoom / 2, top + window_size[1] / zoom / 2, 500):
+        for n in self.terrain._nests_touching_rect(screen_rect):
             n.update_visuals(frame_length)
             if self.terrain.player_damage_circles:
                 for particle_coords in n.apply_damage_from_circles(self.terrain, self.player):
@@ -128,7 +130,7 @@ class World:
                 if random.randint(1, math.ceil(fps / (8 if n.interaction_display.active else 2))) == 1:
                     self.light.add_mist_particle(n.x, n.y, color=n.color)
 
-        for cell in self.terrain._cells_near(left+window_size[0] / zoom / 2, top + window_size[1] / zoom / 2, 500):
+        for cell in self.terrain._cells_in_rect(screen_rect):
             if cell.close(window_size, frame):
                 cell.tick(frame_length, self.terrain, self.player)
 

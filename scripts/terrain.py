@@ -13,6 +13,7 @@ from scripts.cells import Cell
 from scripts.global_assets import get_asset
 from scripts.loading_screen import LoadingScreen
 from scripts.UI import InteractionDisplayManager
+from scripts.util import dist
 
 # ------------------------------------------------------------------
 # Architecture overview
@@ -294,7 +295,7 @@ class Terrain:
     def _nests_near(self, x, y, radius):
         seen = set()
         result = []
-        for chunk in self._chunks_near(x, y, radius):
+        for chunk in self._chunks_near(x, y, radius, 0):
             for n in chunk.nests:
                 if id(n) not in seen:
                     seen.add(id(n))
@@ -314,7 +315,7 @@ class Terrain:
     def _nests_touching_rect(self, rect):
         seen = set()
         result = []
-        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=1):
+        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=0):
             chunk = self.chunks.get((row, col))
             if chunk is None:
                 continue
@@ -323,6 +324,19 @@ class Terrain:
                     seen.add(id(n))
                     result.append(n)
         return result
+
+    def _cells_in_rect(self, rect):
+            seen = set()
+            result = []
+            for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=0):
+                chunk = self.chunks.get((row, col))
+                if chunk is None:
+                    continue
+                for c in chunk.cells:
+                    if id(c) not in seen:
+                        seen.add(id(c))
+                        result.append(c)
+            return result
 
     # ------------------------------------------------------------------
     # Structure baking (generic; nothing calls this yet since gateways
@@ -968,9 +982,8 @@ class Terrain:
         w_width, w_height = window_size
         r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
         x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
-        for n in self._nests_near(x, y, r):
-            if n.close(x, y, r):
-                n.draw_gradient(surface, frame, offset_x=offset_x, offset_y=offset_y)
+        for n in self._nests_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
+            n.draw_gradient(surface, frame, offset_x=offset_x, offset_y=offset_y)
             for enemy in n.enemies:
                 dx = x - enemy.x
                 dy = y - enemy.y
@@ -980,21 +993,17 @@ class Terrain:
     def draw_nests(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w_width, w_height = window_size
-        r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
-        x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
-        for n in self._nests_near(x, y, r):
-            if n.close(x, y, r):
+        for n in self._nests_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
+            if n.close(left + w_width / zoom / 2, top + w_width / zoom / 2, dist(w_width, w_height) / zoom / 2):
                 n.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
     def draw_health_bars(self, window_size, surface, frame, time=None, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w_width, w_height = window_size
-        r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
-        x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
-        for n in self._nests_near(x, y, r):
+        for n in self._nests_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
             for enemy in n.enemies:
                 enemy.draw_health_bar(surface, frame, time, offset_x=offset_x, offset_y=offset_y)
-            if n.close(x, y, r):
+            if n.close(left + w_width / zoom / 2, top + w_width / zoom / 2, dist(w_width, w_height) / zoom / 2):
                 n.draw_health_bar(surface, frame, time, offset_x=offset_x, offset_y=offset_y)
 
     def draw_interaction_displays(self, surface, frame, time=None, offset_x=0, offset_y=0):
@@ -1003,11 +1012,8 @@ class Terrain:
     def draw_cells(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w_width, w_height = window_size
-        r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
-        x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
-        for cell in self._cells_near(x, y, r):
-            if cell.close(window_size, frame):
-                cell.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
+        for cell in self._cells_in_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
+            cell.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
     def draw_enemies(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
