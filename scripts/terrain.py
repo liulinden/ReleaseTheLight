@@ -275,9 +275,9 @@ class Terrain:
 
     def _chunks_in_rect(self, left, top, width, height, pad=1):
         col_start = math.floor(left / CHUNK_SIZE) - pad
-        col_end = math.ceil((left + width) / CHUNK_SIZE) + pad
+        col_end = math.floor((left + width) / CHUNK_SIZE) + pad
         row_start = max(0, math.floor(top / CHUNK_SIZE) - pad)
-        row_end = math.ceil((top + height) / CHUNK_SIZE) + pad
+        row_end = math.floor((top + height) / CHUNK_SIZE) + pad
         for row in range(row_start, row_end + 1):
             for col in range(col_start, col_end + 1):
                 yield row, col
@@ -1041,8 +1041,8 @@ class Terrain:
 
         top_chunk = math.floor(top / CHUNK_SIZE)
         left_chunk = math.floor(left / CHUNK_SIZE)
-        bottom_chunk = math.ceil((top + w_height / zoom) / CHUNK_SIZE)
-        right_chunk = math.ceil((left + w_width / zoom) / CHUNK_SIZE)
+        bottom_chunk = math.floor((top + w_height / zoom) / CHUNK_SIZE)
+        right_chunk = math.floor((left + w_width / zoom) / CHUNK_SIZE)
 
         if self._vignette_stencil is None or self._vignette_stencil_size != real_window_size:
             self._vignette_stencil = pygame.Surface(real_window_size, pygame.SRCALPHA)
@@ -1079,8 +1079,8 @@ class Terrain:
 
         top_chunk = math.floor(top / CHUNK_SIZE)
         left_chunk = math.floor(left / CHUNK_SIZE)
-        bottom_chunk = math.ceil((top + w_height / zoom) / CHUNK_SIZE)
-        right_chunk = math.ceil((left + w_width / zoom) / CHUNK_SIZE)
+        bottom_chunk = math.floor((top + w_height / zoom) / CHUNK_SIZE)
+        right_chunk = math.floor((left + w_width / zoom) / CHUNK_SIZE)
 
         if hitboxes:
             layer.fill((0, 0, 0, 0))
