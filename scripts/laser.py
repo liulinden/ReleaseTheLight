@@ -140,7 +140,7 @@ class Laser:
                             x, y = (point * math.cos(self.angle) * scale, point * math.sin(self.angle) * scale)
                         else:
                             x, y = (point * math.cos(self.angle) * scale + wave_height * math.sin(self.angle), point * math.sin(self.angle) * scale - wave_height * math.cos(self.angle))
-                        polygon_points.append(((x + self.start_x - left) * zoom + offset_x, (y + self.start_y - top + 3) * zoom + offset_y))
+                        polygon_points.append(((x + self.start_x - left) * zoom + offset_x, (y + self.start_y - top) * zoom + offset_y))
                     else:
                         print(self.length)
                         self.laser_points = self.get_laser_points(6)

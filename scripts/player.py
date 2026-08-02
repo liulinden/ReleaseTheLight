@@ -96,7 +96,7 @@ class LaserImpact:
         self.timer += frame_length
         return self.timer >= self._frame_duration * IMPACT_FRAMES  # True = finished
 
-    def draw(self, surface, frame, color, zoom):
+    def draw(self, surface, frame, color, zoom, offset_x=0, offset_y=0):
         left, top, _ = frame
         frame_index = min(IMPACT_FRAMES - 1, int(self.timer / self._frame_duration))
         img = self.scaled_im_gs[zoom][frame_index]
@@ -113,8 +113,8 @@ class LaserImpact:
         rotated, off_x, off_y = rotate_and_get_offset(tinted, cx, cy, rot_angle)
 
         half_h = size[1] / 2
-        screen_x = (self.x - left) * zoom - cx + off_x - math.cos(self.angle) * half_h
-        screen_y = (self.y - top) * zoom - cy + off_y - math.sin(self.angle) * half_h
+        screen_x = (self.x - left) * zoom - cx + off_x - math.cos(self.angle) * half_h + offset_x
+        screen_y = (self.y - top) * zoom - cy + off_y - math.sin(self.angle) * half_h + offset_y
         surface.blit(rotated, (screen_x, screen_y))
 
 
@@ -614,7 +614,7 @@ class Player:
                 lase.draw(surface, frame, boosted_color, offset_x=offset_x, offset_y=offset_y)
             # draw impact animations — rendered after laser so they appear on top
             for impact in self.impacts:
-                impact.draw(surface, frame, boosted_color, zoom)
+                impact.draw(surface, frame, boosted_color, zoom, offset_x=offset_x, offset_y=offset_y)
 
     def colliding_with_terrain(self, _terrain):
         return _terrain.collide_rect(self.rect)
