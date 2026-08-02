@@ -446,8 +446,6 @@ class Player:
             self.x_speed += frame_length * dx / distance * knockback / 60
             self.y_speed += frame_length * dy / distance * knockback / 60
 
-
-        
         for nest in _terrain._nests_near(self.x, self.y, 500):
             if nest.stage == nest.max_stage and self.charge_capacity > self.charges[nest.nest_type] and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
                 _terrain.add_interaction_display(nest.interaction_display)

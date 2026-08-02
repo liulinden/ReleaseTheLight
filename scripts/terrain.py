@@ -141,10 +141,18 @@ def _get_cached_scale(src_surface, pocket_type, img_index, radius, zoom):
 
 class Chunk:
     __slots__ = (
-        "row", "col", "biome",
-        "air_pockets", "nests", "cells", "structures",
-        "visuals", "hitboxes",
-        "built", "last_touched", "lock",
+        "row",
+        "col",
+        "biome",
+        "air_pockets",
+        "nests",
+        "cells",
+        "structures",
+        "visuals",
+        "hitboxes",
+        "built",
+        "last_touched",
+        "lock",
     )
 
     def __init__(self, row, col, biome="default"):
@@ -155,8 +163,8 @@ class Chunk:
         self.nests = []
         self.cells = []
         self.structures = []  # future: generic solid structures (was gateway tiles)
-        self.visuals = {}     # dict[zoom] -> Surface, populated once built
-        self.hitboxes = {}    # dict[zoom] -> Surface, populated once built
+        self.visuals = {}  # dict[zoom] -> Surface, populated once built
+        self.hitboxes = {}  # dict[zoom] -> Surface, populated once built
         self.built = False
         self.last_touched = 0.0
         # Reentrant: _build_chunk can call helpers that also lock this chunk.
@@ -198,9 +206,7 @@ class AirPocket:
 
     def get_rim_img(self, zoom):
         rim_imgs = air_explode_im_gs[self.type] if self.player_made else air_rim_im_gs[self.type]
-        return _get_cached_scale(
-            rim_imgs[self.rim_img_index], self.type + "rim_playermade:" + str(self.player_made), self.rim_img_index, self.true_r, zoom
-        )
+        return _get_cached_scale(rim_imgs[self.rim_img_index], self.type + "rim_playermade:" + str(self.player_made), self.rim_img_index, self.true_r, zoom)
 
     def close(self, x, y, radius):
         return math.dist((self.x, self.y), (x, y)) < radius + self.r
@@ -341,12 +347,8 @@ class Terrain:
                 hitbox_surf = structure.get_hitbox_surface(zoom)
                 if hitbox_surf is not None:
                     if erase and erase_hitbox_surf:
-                        chunk.hitboxes[zoom].blit(
-                            erase_hitbox_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_SUB
-                        )
-                    chunk.hitboxes[zoom].blit(
-                        hitbox_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_MAX
-                    )
+                        chunk.hitboxes[zoom].blit(erase_hitbox_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_SUB)
+                    chunk.hitboxes[zoom].blit(hitbox_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_MAX)
                 if zoom in chunk.visuals:
                     erase_surf = structure.get_erase_surface(zoom)
                     if erase_surf is not None:
@@ -366,9 +368,7 @@ class Terrain:
                 if zoom in chunk.hitboxes:
                     hitbox_surf = structure.get_hitbox_surface(zoom)
                     if hitbox_surf:
-                        chunk.hitboxes[zoom].blit(
-                            hitbox_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_MAX
-                        )
+                        chunk.hitboxes[zoom].blit(hitbox_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_MAX)
 
     # ------------------------------------------------------------------
     # Surface helpers
@@ -660,17 +660,11 @@ class Terrain:
                 if random.randint(1, 20) == 1:
                     self.generate_skinny_cave(base_x + random.randint(0, 1000), random.randint(0, int(self.world_height / 3)), random.randint(20, 60), random.random() * 2 * math.pi)
                 if random.randint(1, 20) == 1:
-                    self.generate_skinny_cave(
-                        base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 90), random.random() * 2 * math.pi
-                    )
+                    self.generate_skinny_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 90), random.random() * 2 * math.pi)
                 if random.randint(1, 35) == 1:
-                    self.generate_blob_cave(
-                        base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 60), random.random() * 2 * math.pi
-                    )
+                    self.generate_blob_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 60), random.random() * 2 * math.pi)
                 if random.randint(1, 20) == 1:
-                    self.generate_blob_cave(
-                        base_x + random.randint(0, 1000), random.randint(int(self.world_height * 2 / 3), self.world_height), random.randint(60, 120), random.random() * 2 * math.pi
-                    )
+                    self.generate_blob_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height * 2 / 3), self.world_height), random.randint(60, 120), random.random() * 2 * math.pi)
 
                 y_white = random.randint(500, max(501, self.world_height - 500))
                 denom = self._nest_chance("white", self._depth_fraction(y_white))
@@ -759,7 +753,7 @@ class Terrain:
             x = start_x + int(math.cos(dir) * min(r, start_r) * 0.8)
             y = start_y + int(abs(math.sin(dir)) * min(r, start_r) * 0.5)
             start_x, start_y, start_r, start_dir = x, y, r, dir
-            #self.generate_descending_cave(x, y, r, dir)
+            # self.generate_descending_cave(x, y, r, dir)
 
     def generate_bedrock_cave(self, start_x, start_y, start_r, start_dir=0, max_pockets=3):
         if max_pockets > 0 and (start_y - 2 * start_r) > 0 and start_y - start_r < self.world_height and start_r > 0:

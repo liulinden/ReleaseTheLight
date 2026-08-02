@@ -1,7 +1,6 @@
 # imports
 import math
 import random
-import threading
 
 import pygame
 
@@ -104,7 +103,7 @@ class Game:
 
         self.loading_screen.put(1.0, "Game setup complete.")
 
-        #threading.Thread(target=self.game_world.generate_next_layer, daemon=True).start()
+        # threading.Thread(target=self.game_world.generate_next_layer, daemon=True).start()
 
     def run(self):
 
@@ -194,7 +193,6 @@ class Game:
                             self.loading_debug = not self.loading_debug
                         elif event.key == pygame.K_F1:
                             self.crosshair = not self.crosshair
-
 
                 if event.type == pygame.KEYUP:
                     if event.key in self.keys_down:
