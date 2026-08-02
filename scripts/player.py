@@ -381,7 +381,7 @@ class Player:
             mx, my = mouse_pos
             dx, dy = mx - self.x, my - self.y
             d = dist(dx, dy)
-            _terrain.add_cell((self.x, self.y), (dx / d / 3, dy / d / 3))
+            _terrain.add_cell((self.x, self.y), (self.x_speed + dx / d / 3, self.y_speed + dy / d / 3))
 
         self.ability_timer -= frame_length
         self.ability_timer = max(0, self.ability_timer)

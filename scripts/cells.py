@@ -1,9 +1,7 @@
-import math
-
 import pygame
 
 from scripts.UI import InteractionDisplay
-from scripts.util import dist, get_bounced_vector, normalize_1d, about_equal
+from scripts.util import about_equal, dist, get_bounced_vector, normalize_1d
 
 
 class Cell:
@@ -14,7 +12,7 @@ class Cell:
         self.h = 20
         self.rect = pygame.Rect(self.x, self.y, 10, 20)
         self.r = dist(self.w, self.h)
-        self.interaction_display = InteractionDisplay((self.x, self.y + self.h), (pygame.K_e, "to pick up"))
+        self.interaction_display = InteractionDisplay((self.x, self.y + self.h / 2), (pygame.K_e, ""))
         self.frames_since_moved = 0
 
     def tick_knockback(self, frame_length, _terrain, player):
@@ -163,13 +161,12 @@ class Cell:
 
     def tick(self, frame_length, _terrain, player):
         if self.tick_knockback(frame_length, _terrain, player) or self.frames_since_moved <= 2:
-
             last_x, last_y = self.x, self.y
             self.tick_gravity(frame_length)
             self.attempt_movement(frame_length, _terrain)
 
             if not (about_equal(last_x, self.x) and about_equal(last_y, self.y)):
-                self.interaction_display.update_coordinates((self.x, self.y))
+                self.interaction_display.update_coordinates((self.x, self.y + self.h / 2))
                 self.frames_since_moved = 0
             self.frames_since_moved += 1
 
