@@ -171,6 +171,7 @@ class Nest:
             if new_enemy:
                 self.glow = 200
                 self.enemies.append(new_enemy)
+                c_terrain.add_enemy(new_enemy)
 
     def within_effect_radius(self, x, y):
         return math.dist((x, y), (self.x, self.y)) < self.size * 1.5
@@ -196,11 +197,10 @@ class Nest:
             self.health = 0
             for enemy in self.enemies:
                 enemy.spawn_particles(c_terrain)
+                c_terrain.remove(enemy)
             self.enemies = []
-        elif len(self.enemies) < self.total_enemy_cap and random.randint(1, 4) == 1:
-            new_enemy = _enemy_handling.get_enemy(c_terrain, player, self.nest_type, self.color, self.max_health, self.x, self.y, self.size)
-            if new_enemy:
-                self.enemies.append(new_enemy)
+        elif random.randint(1, 4) == 1:
+            self.add_enemy(self, c_terrain, player)
         self.update_stage()
 
     def update_stage(self):

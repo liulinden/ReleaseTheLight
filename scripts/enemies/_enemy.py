@@ -154,7 +154,6 @@ class Enemy:
         cam_x, cam_y, zoom = frame
         img = self.resized_gradients[zoom]
         if self.glow > 0:
-            # FIX 1: reuse pre-allocated gradient filter surface
             filt = self._gradient_filter[zoom]
             filt.fill((self.color[0], self.color[1], self.color[2], self.glow))
             filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)

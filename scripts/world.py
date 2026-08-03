@@ -177,6 +177,8 @@ class World:
 
         self.terrain.draw_nest_gradients(window_size, layer, frame, offset_x=offset_x, offset_y=offset_y)
 
+        self.terrain.draw_enemy_gradients(window_size, layer, frame, offset_x=offset_x, offset_y=offset_y)
+
         self.terrain.particles.draw_pulse_particles(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.draw_background(scratch_layer, window_size, frame)

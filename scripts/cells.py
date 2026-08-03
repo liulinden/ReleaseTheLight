@@ -4,13 +4,20 @@ from scripts.UI import InteractionDisplay
 from scripts.util import about_equal, dist, get_bounced_vector, normalize_1d
 
 
+def validate_cell_coords(_terrain, coords):
+    x, y = coords
+    rect = pygame.Rect(x - Cell.width / 2, y - Cell.height / 2, Cell.width, Cell.height)
+    return not _terrain.collide_rect(rect)
+
 class Cell:
+    width = 10
+    height = 20
     def __init__(self, coords, velocities):
+        self.w = Cell.width
+        self.h = Cell.height
         self.x, self.y = coords
         self.x_speed, self.y_speed = velocities
-        self.w = 10
-        self.h = 20
-        self.rect = pygame.Rect(self.x, self.y, 10, 20)
+        self.rect = pygame.Rect(self.x - self.w / 2, self.y - self.h / 2, self.w, self.h)
         self.r = dist(self.w, self.h)
         self.interaction_display = InteractionDisplay((self.x, self.y + self.h / 2), (pygame.K_e, ""))
         self.frames_since_moved = 0
@@ -97,6 +104,13 @@ class Cell:
         friction = 0.97
         drag = 0.993
         absorption = 0.2
+
+        # temporary
+        self.update_rect()
+        collision = self.colliding_with_terrain(_terrain)
+        if collision:
+            print("started stuck")
+            return
 
         vx, vy = self.x_speed, self.y_speed
         dx, dy = frame_length * vx, frame_length * vy

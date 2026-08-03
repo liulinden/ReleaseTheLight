@@ -9,7 +9,7 @@ import pygame
 import scripts.nest as nest
 import scripts.particles as particles
 from config import CHUNK_SIZE
-from scripts.cells import Cell
+from scripts.cells import Cell, validate_cell_coords
 from scripts.global_assets import get_asset
 from scripts.loading_screen import LoadingScreen
 from scripts.UI import InteractionDisplayManager
@@ -237,6 +237,7 @@ class Terrain:
         self.world_height = world_height
         self.default_zooms = default_zooms
         self.particles = particles.Particles()
+        self.enemies = []
 
         self.chunks: dict[tuple, Chunk] = {}
 
@@ -326,17 +327,17 @@ class Terrain:
         return result
 
     def _cells_in_rect(self, rect):
-            seen = set()
-            result = []
-            for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=0):
-                chunk = self.chunks.get((row, col))
-                if chunk is None:
-                    continue
-                for c in chunk.cells:
-                    if id(c) not in seen:
-                        seen.add(id(c))
-                        result.append(c)
-            return result
+        seen = set()
+        result = []
+        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=0):
+            chunk = self.chunks.get((row, col))
+            if chunk is None:
+                continue
+            for c in chunk.cells:
+                if id(c) not in seen:
+                    seen.add(id(c))
+                    result.append(c)
+        return result
 
     # ------------------------------------------------------------------
     # Structure baking (generic; nothing calls this yet since gateways
@@ -600,7 +601,7 @@ class Terrain:
             if not chunk.built:
                 self._build_chunk(chunk)
 
-    def update_streaming(self, player_x, player_y, build_radius_chunks=6):
+    def update_streaming(self, player_x, player_y, build_radius_chunks=3):
         """Call once per tick (or every few ticks). Enqueues chunks around
         the player for the background worker to build, nearest first."""
         pr = int(math.floor(player_y / CHUNK_SIZE))
@@ -839,11 +840,15 @@ class Terrain:
 
         return True
 
+    def add_enemy(self, enemy):
+        self.enemies.append(enemy)
+
     def add_cell(self, coords, velocities=(1, 1)):
-        new_cell = Cell(coords, velocities)
-        row = math.floor(new_cell.y / CHUNK_SIZE)
-        col = math.floor(new_cell.x / CHUNK_SIZE)
-        self.get_or_create_chunk(row, col).cells.append(new_cell)
+        if validate_cell_coords(self, coords):
+            new_cell = Cell(coords, velocities)
+            row = math.floor(new_cell.y / CHUNK_SIZE)
+            col = math.floor(new_cell.x / CHUNK_SIZE)
+            self.get_or_create_chunk(row, col).cells.append(new_cell)
 
     def add_interaction_display(self, display):
         self.display_manager.display_in_range(display)
@@ -938,11 +943,7 @@ class Terrain:
             return True
         if self._sample_chunk(x, y):
             return True
-        for n in self._nests_near(x, y, CHUNK_SIZE):
-            for enemy in n.enemies:
-                if enemy.mode != "Spawn" and enemy.rect.collidepoint(x, y):
-                    return True
-        return False
+        return any(enemy.mode != "Spawn" and enemy.rect.collidepoint(x, y) for enemy in self.enemies)
 
     def nests_collide_rect(self, rect):
         rect_mask = pygame.Mask((rect.width, rect.height), fill=True)
@@ -980,15 +981,12 @@ class Terrain:
     def draw_nest_gradients(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w_width, w_height = window_size
-        r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
-        x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
         for n in self._nests_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
             n.draw_gradient(surface, frame, offset_x=offset_x, offset_y=offset_y)
-            for enemy in n.enemies:
-                dx = x - enemy.x
-                dy = y - enemy.y
-                if dx * dx + dy * dy < (r + enemy.r) ** 2:
-                    enemy.draw_gradient(surface, frame, offset_x=offset_x, offset_y=offset_y)
+
+    def draw_enemy_gradients(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
+        for enemy in self.enemies:
+            enemy.draw_gradient(surface, frame, offset_x=offset_x, offset_y=offset_y)
 
     def draw_nests(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
@@ -1000,9 +998,9 @@ class Terrain:
     def draw_health_bars(self, window_size, surface, frame, time=None, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w_width, w_height = window_size
+        for enemy in self.enemies:
+            enemy.draw_health_bar(surface, frame, time, offset_x=offset_x, offset_y=offset_y)
         for n in self._nests_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
-            for enemy in n.enemies:
-                enemy.draw_health_bar(surface, frame, time, offset_x=offset_x, offset_y=offset_y)
             if n.close(left + w_width / zoom / 2, top + w_width / zoom / 2, dist(w_width, w_height) / zoom / 2):
                 n.draw_health_bar(surface, frame, time, offset_x=offset_x, offset_y=offset_y)
 
@@ -1018,15 +1016,9 @@ class Terrain:
     def draw_enemies(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w_width, w_height = window_size
-        x, y = left + w_width / zoom / 2, top + w_height / zoom / 2
-        r = math.sqrt(w_width**2 + w_height**2) / 2 / zoom
-        for n in self._nests_near(x, y, r):
-            for i in range(len(n.enemies) - 1, -1, -1):
-                enemy = n.enemies[i]
-                dx = x - enemy.x
-                dy = y - enemy.y
-                if abs(dx) < w_width / zoom / 2 + enemy.r and abs(dy) < w_height / zoom / 2 + enemy.r:
-                    enemy.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
+        for enemy in self.enemies:
+            if enemy.rect.colliderect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
+                enemy.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
     def draw_terrain(self, window_size, surface, frame, hitboxes=False, real_window_size=None, offset_x=0, offset_y=0):
         if real_window_size is None:
