@@ -52,7 +52,7 @@ class Nest:
         self.size = size
         self.enemies = []
         self.basic_enemy_cap = 1
-        self.total_enemy_cap = min(max(3, int(size / 30)), 10)
+        #self.total_enemy_cap = min(max(3, int(size / 30)), 10)
         self.color = (255, 255, 255)
         self.glow = 0
         self.stage = 0
@@ -198,14 +198,20 @@ class Nest:
             for enemy in self.enemies:
                 enemy.spawn_particles(c_terrain)
                 c_terrain.enemies.remove(enemy)
-            self.enemies = []
-        elif random.randint(1, 4) == 1:
-            self.add_enemy(c_terrain, player)
-        self.update_stage()
+            self.enemies = []   
+        #elif random.randint(1, 5) == 1:
+        #    self.add_enemy(c_terrain, player)
+        if self.update_stage():
+            for i in range(3):
+                self.add_enemy(c_terrain, player)
 
     def update_stage(self):
-        self.stage = self.max_stage - math.ceil((self.max_stage - 1) * self.health / self.max_health)
-        self.basic_enemy_cap = math.floor(self.stage * 1.5)
+        new_stage = self.max_stage - math.ceil((self.max_stage - 1) * self.health / self.max_health)
+        if new_stage != self.stage:
+            self.stage = new_stage
+            self.basic_enemy_cap = math.floor(self.stage * 4)
+            return True
+        return False
 
     def close(self, x: int, y: int, radius: int):
         return abs(self.x - x) < radius + self.size / 2 and abs(self.y - y) < radius + self.size / 2

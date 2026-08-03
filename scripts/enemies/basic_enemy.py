@@ -2,7 +2,7 @@ from scripts.enemies._enemy import Enemy
 
 
 class BasicEnemy(Enemy):
-    size_range = (40, 70)
+    size_range = (20, 70)
     costume = "1"
     health_factor = 0.5
 

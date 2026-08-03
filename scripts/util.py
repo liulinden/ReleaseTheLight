@@ -1,4 +1,4 @@
-import math
+import math, random
 
 import pygame
 
@@ -18,6 +18,9 @@ def safe_append(list, item):
 
 def dist(x, y):
     return math.dist((0, 0), (x, y))
+
+def frame_random(frame_length, expected_per_second):
+    return random.random() < min(1, frame_length / 1000 * expected_per_second)
 
 def normalize_1d(n):
     if n > 0:

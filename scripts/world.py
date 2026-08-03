@@ -13,7 +13,7 @@ import scripts.player as player
 import scripts.terrain as terrain
 import scripts.UI as UI
 from scripts.global_assets import get_asset
-from scripts.util import rotate_and_get_offset
+from scripts.util import rotate_and_get_offset, frame_random
 
 
 class World:
@@ -85,6 +85,7 @@ class World:
         for chunk in self.terrain.chunks:
             for n in self.terrain.chunks[chunk].nests:
                 n.enemies.clear()
+        self.terrain.enemies = []
 
     def tick(self, fps, window_size, frame, mouse_pos, keys_down, events):
         left, top, zoom = frame
@@ -102,10 +103,10 @@ class World:
         if self.player.tick(frame_length, self.terrain, mouse_pos, keys_down, events):
             return True
 
-        if random.randint(1, math.ceil(fps / 7)) == 1:
+        if frame_random(frame_length, 7) == 1:
             self.light.add_mist_particle(self.player.x, self.player.y, color=self.player.color)
         for lase in self.player.laser:
-            if random.randint(1, math.ceil(fps / max(1, lase.length) * 25)) == 1:
+            if frame_random(frame_length, lase.length / 20):
                 mist_pos = random.random()
                 self.light.add_mist_particle(lase.start_x + mist_pos * lase.length * math.cos(lase.angle), lase.start_y + mist_pos * lase.length * math.sin(lase.angle), color=self.player.color)
 
@@ -117,17 +118,16 @@ class World:
                     self.terrain.particles.spawn_mining_particles(10, n.color, particle_coords[2], particle_coords[0], particle_coords[1])
 
             if n.stage != n.max_stage:
-                ndx = self.player.x - n.x
-                ndy = self.player.y - n.y
-                d_sq = ndx * ndx + ndy * ndy
-                if d_sq < 300 * 300 and random.randint(1, int(200 + 0.1 * int(math.sqrt(d_sq) / 2) ** 2)) < frame_length:
+                d = math.dist((n.x, n.y),(self.player.x, self.player.y))
+                if d < 300 and frame_random(frame_length, 0.2 + 0.5 * (300 - d)/300):
                     n.add_enemy(self.terrain, self.player)
                 for i in range(len(n.enemies) - 1, -1, -1):
                     enemy = n.enemies[i]
                     if enemy.tick(frame_length, self.terrain, self.player):
+                        self.terrain.enemies.remove(enemy)
                         del n.enemies[i]
             else:
-                if random.randint(1, math.ceil(fps / (8 if n.interaction_display.active else 2))) == 1:
+                if frame_random(frame_length, 8 if n.interaction_display.active else 2):
                     self.light.add_mist_particle(n.x, n.y, color=n.color)
 
         for cell in self.terrain._cells_in_rect(screen_rect):

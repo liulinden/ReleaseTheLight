@@ -186,7 +186,7 @@ class Player:
         self.y = self.spawn_y
         self.x_speed = 0
         self.y_speed = 0
-        self.set_charges(max(150, self.charge_capacity * 2 / 3), 0, 0)
+        self.set_charges(max(100, self.charge_capacity * 2 / 3), 0, 0)
         self.filter_type = "white"
         self.practical_charges = filter_charges(self.filter_type, self.charges)
 
