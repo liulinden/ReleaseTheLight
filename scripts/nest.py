@@ -200,7 +200,7 @@ class Nest:
                 c_terrain.remove(enemy)
             self.enemies = []
         elif random.randint(1, 4) == 1:
-            self.add_enemy(self, c_terrain, player)
+            self.add_enemy(c_terrain, player)
         self.update_stage()
 
     def update_stage(self):
