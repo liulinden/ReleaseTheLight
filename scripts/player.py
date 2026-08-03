@@ -201,7 +201,7 @@ class Player:
         elif self.x > target_x:
             self.facing = "Left"
 
-        self.arm_angle = -math.atan2(target_y - self.y, target_x - self.x)
+        self.arm_angle = -math.atan2(target_y - (self.y + 3), target_x - self.x)
 
         if not self.on_ground:
             if self.y_speed > 0.2:
@@ -393,7 +393,7 @@ class Player:
             locked = lase.update_laser(
                 _terrain,
                 self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
-                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + self.laser_attributes.distance * math.sin(-self.arm_angle),
+                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + self.laser_attributes.distance * math.sin(-self.arm_angle) + 3,
                 -self.arm_angle,
             )
             lase.tick(frame_length)
@@ -502,7 +502,7 @@ class Player:
             lase.update_laser(
                 _terrain,
                 self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
-                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + self.laser_attributes.distance * math.sin(-self.arm_angle),
+                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + 3 + self.laser_attributes.distance * math.sin(-self.arm_angle),
                 -self.arm_angle,
                 self.laser_attributes.cooldown,
             )

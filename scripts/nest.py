@@ -198,19 +198,20 @@ class Nest:
             for enemy in self.enemies:
                 enemy.spawn_particles(c_terrain)
                 c_terrain.enemies.remove(enemy)
-            self.enemies = []   
+            self.enemies = []
         #elif random.randint(1, 5) == 1:
         #    self.add_enemy(c_terrain, player)
         if self.update_stage():
-            for i in range(3):
-                self.add_enemy(c_terrain, player)
+            if self.stage != self.max_stage:
+                for i in range(3):
+                    self.add_enemy(c_terrain, player)
 
     def update_stage(self):
         new_stage = self.max_stage - math.ceil((self.max_stage - 1) * self.health / self.max_health)
         if new_stage != self.stage:
             self.stage = new_stage
             self.basic_enemy_cap = math.floor(self.stage * 4)
-            return True
+            return new_stage
         return False
 
     def close(self, x: int, y: int, radius: int):
