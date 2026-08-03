@@ -197,7 +197,7 @@ class Nest:
             self.health = 0
             for enemy in self.enemies:
                 enemy.spawn_particles(c_terrain)
-                c_terrain.remove(enemy)
+                c_terrain.enemies.remove(enemy)
             self.enemies = []
         elif random.randint(1, 4) == 1:
             self.add_enemy(c_terrain, player)
