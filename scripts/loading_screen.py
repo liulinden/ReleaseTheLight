@@ -152,7 +152,7 @@ class TitleSpinner(pygame.sprite.Sprite):
 
         self.frames: list[pygame.Surface] = []
         for i in range(8):
-            frame = LoadingScreen.assets.get(f"frame_{i}")
+            frame = LoadingScreen.assets.get(f"loading_{i}")
             frame = pygame.transform.scale(frame, (width, width * frame.get_height() // frame.get_width()))
             self.frames.append(frame)
 
@@ -217,6 +217,6 @@ class GradientSurface(pygame.sprite.Sprite):
     def __init__(self, size: int) -> None:
         super().__init__()
 
-        self.image = LoadingScreen.assets.get("VignetteGradientTitle")
+        self.image = LoadingScreen.assets.get("gradient_loading")
         self.image = pygame.transform.scale(self.image, (size, size))
         self.rect = self.image.get_rect()

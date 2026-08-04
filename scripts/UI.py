@@ -13,8 +13,8 @@ charge_tuples = None
 def init():
     global charge_icon, light_gradient, chargeColors
 
-    charge_icon = pygame.transform.scale(get_asset("ChargeIcon"), (80, 80))
-    light_gradient = get_asset("LightGradient")
+    charge_icon = pygame.transform.scale(get_asset("charge_icon"), (80, 80))
+    light_gradient = get_asset("gradient_light")
     InteractionDisplay.font = pygame.font.SysFont("maiandragd", InteractionDisplay.font_size)
 
 
@@ -120,7 +120,7 @@ class InteractionDisplay:
     keys_to_characters = {pygame.K_e: "E"}
     cached_displays = {}
 
-    def __init__(self, coords, display, color=(255, 255, 255), align="Centered"):  # text is tuple of str and pygame key objects - e.g. ("Hold", pygame.K_e, "to drain")
+    def __init__(self, coords, display, color=(255, 255, 255), align="centered"):  # text is tuple of str and pygame key objects - e.g. ("Hold", pygame.K_e, "to drain")
         self.x, self.y = coords
         self.color = color
         self.align = align
@@ -199,7 +199,7 @@ class InteractionDisplay:
     def draw(self, surface, frame, time=None, offset_x=0, offset_y=0):
         if self.opacity > 0:
             left, top, zoom = frame
-            if self.align == "Screen":
+            if self.align == "screen":
                 x, y = self.x + offset_x, self.y + offset_y
             else:
                 x, y = (self.x - left) * zoom + offset_x, (self.y - top) * zoom + offset_y
@@ -217,9 +217,9 @@ class InteractionDisplay:
             self.surface.blit(self.text, (0, 0))
             self.surface.fill(self.color, special_flags=pygame.BLEND_RGB_MULT)
 
-            if self.align == "Centered":
+            if self.align == "centered":
                 surface.blit(self.surface, (x - self.w / 2, y - self.h / 2))
-            elif self.align == "Top-centered":
+            elif self.align == "top_centered":
                 surface.blit(self.surface, (x - self.w / 2, y))
             return True
         return False

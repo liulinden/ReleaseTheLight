@@ -99,19 +99,19 @@ def init():
     circle_rim_im_gs = []
     circle_explode_im_gs = []
     for i in range(2):
-        circle_im_gs.append(get_asset("AirPocket" + str(i + 1)))
+        circle_im_gs.append(get_asset("air_pocket_" + str(i + 1)))
     for i in range(1):
-        circle_rim_im_gs.append(get_asset("AirPocket" + str(i + 1) + "_rim"))
+        circle_rim_im_gs.append(get_asset("air_pocket_" + str(i + 1) + "_rim"))
     for i in range(1):
-        circle_explode_im_gs.append(get_asset("AirPocket" + str(i + 1) + "_explode"))
-    air_im_gs["Circle"] = circle_im_gs
-    air_rim_im_gs["Circle"] = circle_rim_im_gs
-    air_explode_im_gs["Circle"] = circle_explode_im_gs
-    air_hitbox_im_gs["Circle"] = get_asset("AirPocketHitbox")
+        circle_explode_im_gs.append(get_asset("air_pocket_" + str(i + 1) + "_explode"))
+    air_im_gs["circle"] = circle_im_gs
+    air_rim_im_gs["circle"] = circle_rim_im_gs
+    air_explode_im_gs["circle"] = circle_explode_im_gs
+    air_hitbox_im_gs["circle"] = get_asset("air_pocket_hitbox")
 
-    rocks_raw = get_asset("Rocks")
+    rocks_raw = get_asset("rocks")
     rocks_img["raw"] = rocks_raw
-    vignette_img = get_asset("VignetteGradient")
+    vignette_img = get_asset("gradient_vignette")
 
 
 def rect_to_circle(left, top, width, height):
@@ -182,7 +182,7 @@ class Chunk:
 class AirPocket:
     __slots__ = ("x", "y", "r", "true_r", "top", "left", "type", "player_made", "img_index", "rim_img_index")
 
-    def __init__(self, x, y, radius, pocket_type="Circle", player_made=False):
+    def __init__(self, x, y, radius, pocket_type="circle", player_made=False):
         radius = _snap_radius(radius)
         self.x = x
         self.y = y
@@ -817,7 +817,7 @@ class Terrain:
                             return self.add_air_pocket((air_pocket.x + x) / 2, (air_pocket.y + y) / 2, (air_pocket.r + radius) / 2, recursions=recursions + 1)
 
         if (not player_made) and random.randint(1, 10) == 1:  # noqa: SIM108
-            new_air_pocket = AirPocket(x, y, radius, pocket_type="Circle", player_made=player_made)
+            new_air_pocket = AirPocket(x, y, radius, pocket_type="circle", player_made=player_made)
         else:
             new_air_pocket = AirPocket(x, y, radius, player_made=player_made)
 
@@ -943,7 +943,7 @@ class Terrain:
             return True
         if self._sample_chunk(x, y):
             return True
-        return any(enemy.mode != "Spawn" and enemy.rect.collidepoint(x, y) for enemy in self.enemies)
+        return any(enemy.mode != "spawn" and enemy.rect.collidepoint(x, y) for enemy in self.enemies)
 
     def nests_collide_rect(self, rect):
         rect_mask = pygame.Mask((rect.width, rect.height), fill=True)

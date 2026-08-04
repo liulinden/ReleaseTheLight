@@ -14,30 +14,30 @@ def init():
     global mist_particle_im_gs, light_gradient, thick_gradient
     mist_particle_im_gs = []
     for i in range(5):
-        mist_particle_im_gs.append(get_asset("MistParticle" + str(i + 1)))
-    light_gradient = get_asset("LightGradient")
-    thick_gradient = get_asset("ThickGradient")
+        mist_particle_im_gs.append(get_asset("particles_mist_" + str(i + 1)))
+    light_gradient = get_asset("gradient_light")
+    thick_gradient = get_asset("gradient_thick")
 
 
 class Lighting:
     def __init__(self, default_zooms=(0.1, 2)):
         self.particles = []
         self.resized_light_im_gs = {}
-        self.resized_light_im_gs["MistParticles"] = []
+        self.resized_light_im_gs["particles_mist_"] = []
         for light_img in mist_particle_im_gs:
             for size in [110, 130, 150]:
                 imgs = {}
                 for zoom in default_zooms:
                     imgs[zoom] = pygame.transform.scale(light_img, (zoom * size, zoom * size))
-                self.resized_light_im_gs["MistParticles"].append(imgs)
+                self.resized_light_im_gs["particles_mist_"].append(imgs)
         for size in [400, 600, 800]:
-            self.resized_light_im_gs["Gradient" + str(size)] = {}
+            self.resized_light_im_gs["gradient_" + str(size)] = {}
             for zoom in default_zooms:
-                self.resized_light_im_gs["Gradient" + str(size)][zoom] = pygame.transform.scale(light_gradient, (zoom * size, zoom * size))
+                self.resized_light_im_gs["gradient_" + str(size)][zoom] = pygame.transform.scale(light_gradient, (zoom * size, zoom * size))
         size = 300
-        self.resized_light_im_gs["ThickGradient"] = {}
+        self.resized_light_im_gs["thick_gradient"] = {}
         for zoom in default_zooms:
-            self.resized_light_im_gs["ThickGradient"][zoom] = pygame.transform.scale(thick_gradient, (zoom * size, zoom * size))
+            self.resized_light_im_gs["thick_gradient"][zoom] = pygame.transform.scale(thick_gradient, (zoom * size, zoom * size))
 
         # FIX 1: pre-allocate gradient filter surfaces keyed by (zoom, gradient_size)
         # so drawGradient never allocates a Surface per call
@@ -45,14 +45,14 @@ class Lighting:
         self._gradient_premul = {}  # non-SRCALPHA surface for pre-multiplied composite
         for size in [400, 600, 800]:
             for zoom in default_zooms:
-                dims = self.resized_light_im_gs["Gradient" + str(size)][zoom].get_size()
+                dims = self.resized_light_im_gs["gradient_" + str(size)][zoom].get_size()
                 surf = pygame.Surface(dims, flags=pygame.SRCALPHA)
                 self._gradient_filters[(zoom, size)] = surf
                 self._gradient_premul[(zoom, size)] = pygame.Surface(dims)  # black opaque
 
     def add_mist_particle(self, x, y, color=(255, 255, 255)):
         # FIX 2: was indexing a dict with an integer (bug) — now correctly indexes the list
-        mist_list = self.resized_light_im_gs["MistParticles"]
+        mist_list = self.resized_light_im_gs["particles_mist"]
         new_particle = MistParticle(x, y, mist_list[random.randint(0, len(mist_list) - 1)], color)
         self.particles.append(new_particle)
 
@@ -65,7 +65,7 @@ class Lighting:
     def draw_gradient(self, surface: pygame.Surface, frame, color, x, y, offset_x=0, offset_y=0):
         left, top, zoom = frame
 
-        img = self.resized_light_im_gs["Gradient400"][zoom]
+        img = self.resized_light_im_gs["gradient_400"][zoom]
         dimensions = img.get_size()
 
         # Build filter: color tinted at full RGB, soft falloff from gradient PNG's alpha channel.
@@ -87,7 +87,7 @@ class Lighting:
     def draw_thick_gradient(self, surface: pygame.Surface, frame, x, y, offset_x=0, offset_y=0):
         left, top, zoom = frame
 
-        img = self.resized_light_im_gs["ThickGradient"][zoom]
+        img = self.resized_light_im_gs["gradient_thick"][zoom]
         dimensions = img.get_size()
         surface.blit(img, ((x - left) * zoom - dimensions[0] / 2 + offset_x, (y - top) * zoom - dimensions[1] / 2 + offset_y))
 

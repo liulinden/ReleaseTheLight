@@ -12,8 +12,8 @@ from scripts.util import charges_to_color
 def load_nest_img_set(id, stages):
     imgs = []
     for i in range(stages):
-        imgs.append(get_asset("Nest" + str(id) + "_" + str(i + 1)))
-    return imgs, get_asset("Nest" + str(id) + "Hitbox")
+        imgs.append(get_asset("nest_" + str(id) + "_" + str(i + 1)))
+    return imgs, get_asset("nest_" + str(id) + "_hitbox")
 
 
 # FIX 2: module-level lightGradient and nestIMGs loaded in init() after display exists
@@ -24,10 +24,10 @@ nest_hitboxes = {}
 
 def init():
     global light_gradient, nest_im_gs, nest_hitboxes
-    light_gradient = get_asset("LightGradient")
+    light_gradient = get_asset("gradient_light")
     nest_im_gs = {}
     nest_hitboxes = {}
-    for nest_type, n_stages, variants in [("white", 3, [1, 2, 3, 4]), ("blue", 4, [5, 6]), ("red", 4, [5, 6]), ("sun", 10, [])]:
+    for nest_type, n_stages, variants in [("white", 3, [1, 2, 3, 4, 7]), ("blue", 4, [5, 6]), ("red", 4, [5, 6]), ("sun", 10, [])]:
         img_sets = []
         hitboxes = []
         for variant in variants:

@@ -90,8 +90,8 @@ class Game:
         self.charge_display = UI.ChargeDisplay(self.WORLD_HEIGHT)
 
         self.clock = pygame.time.Clock()
-        self.keys_down = {pygame.K_w: False, pygame.K_a: False, pygame.K_d: False, pygame.K_e: False, "leftMouse": False, "rightMouse": False}
-        self.events = {"leftMouseDown": False, "leftMouseUp": False, "rightMouseDown": False, "rightMouseUp": False, pygame.K_SPACE: False, pygame.K_RIGHT: False, pygame.K_LEFT: False}
+        self.keys_down = {pygame.K_w: False, pygame.K_a: False, pygame.K_d: False, pygame.K_e: False, "left_mouse": False, "right_mouse": False}
+        self.events = {"left_mouse_down": False, "left_mouse_up": False, "right_mouse_down": False, "right_mouse_up": False, pygame.K_SPACE: False, pygame.K_RIGHT: False, pygame.K_LEFT: False}
 
         self.zoom = self.DEFAULT_ZOOMS[len(self.DEFAULT_ZOOMS) - 1]
         self.default_cam_coords = self.get_world_centered_cam()[0], -100
@@ -122,7 +122,7 @@ class Game:
             mouse_x, mouse_y = pygame.mouse.get_pos()
 
             # player inputs
-            self.events = {"leftMouseDown": False, "leftMouseUp": False, "rightMouseDown": False, "rightMouseUp": False, pygame.K_SPACE: False, pygame.K_RIGHT: False, pygame.K_LEFT: False}
+            self.events = {"left_mouse_down": False, "left_mouse_up": False, "right_mouse_down": False, "right_mouse_up": False, pygame.K_SPACE: False, pygame.K_RIGHT: False, pygame.K_LEFT: False}
             for event in pygame.event.get():
                 # close game
                 if event.type == pygame.QUIT:
@@ -133,21 +133,21 @@ class Game:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     match event.button:
                         case 1:
-                            self.events["leftMouseDown"] = True
-                            self.keys_down["leftMouse"] = True
+                            self.events["left_mouse_down"] = True
+                            self.keys_down["left_mouse"] = True
                         case 3:
-                            self.events["rightMouseDown"] = True
-                            self.keys_down["rightMouse"] = True
+                            self.events["right_mouse_down"] = True
+                            self.keys_down["right_mouse"] = True
                     x, y = self.coords_window_to_world((mouse_x, mouse_y))
 
                 if event.type == pygame.MOUSEBUTTONUP:
                     match event.button:
                         case 1:
-                            self.events["leftMouseUp"] = True
-                            self.keys_down["leftMouse"] = False
+                            self.events["left_mouse_up"] = True
+                            self.keys_down["left_mouse"] = False
                         case 3:
-                            self.events["rightMouseUp"] = True
-                            self.keys_down["rightMouse"] = False
+                            self.events["right_mouse_up"] = True
+                            self.keys_down["right_mouse"] = False
 
                 if event.type == pygame.KEYDOWN:
                     if event.key in self.keys_down:

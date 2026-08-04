@@ -20,7 +20,7 @@ IMPACT_FRAMES = 7
 
 PLAYER_IMGS = {}
 LASER_IMPACT_IMGS_RAW = []  # raw unscaled images, loaded in init()
-ANIMATION_LENGTHS = {"Idle": 8, "Run": 8, "Backpedal": 8, "Falling": 1, "Jumping": 1}
+ANIMATION_LENGTHS = {"idle": 8, "run": 8, "backpedal": 8, "fall": 1, "jump": 1}
 ANIMATION_FPS = 13
 
 
@@ -42,30 +42,30 @@ def init():
 
     img_set = []
     for i in range(5):
-        img_set.append(get_asset("PlayerIdle" + str(i + 1)))
+        img_set.append(get_asset("player_idle_" + str(i + 1)))
     for i in range(3):
-        img_set.append(get_asset("PlayerIdle" + str(4 - i)))
-    PLAYER_IMGS["Idle"] = img_set
+        img_set.append(get_asset("player_idle_" + str(4 - i)))
+    PLAYER_IMGS["idle"] = img_set
 
     img_set = []
     for i in range(8):
-        img_set.append(get_asset("PlayerRun" + str(i + 1)))
-    PLAYER_IMGS["Run"] = img_set
+        img_set.append(get_asset("player_run_" + str(i + 1)))
+    PLAYER_IMGS["run"] = img_set
 
     # TEMPORARY ANIMATION
     img_set = []
     for i in range(8):
-        img_set.append(get_asset("PlayerRun" + str(8 - i)))
-    PLAYER_IMGS["Backpedal"] = img_set
+        img_set.append(get_asset("player_run_" + str(8 - i)))
+    PLAYER_IMGS["backpedal"] = img_set
 
-    PLAYER_IMGS["Falling"] = [get_asset("PlayerFalling")]
-    PLAYER_IMGS["Jumping"] = [get_asset("PlayerJumping")]
+    PLAYER_IMGS["fall"] = [get_asset("player_fall")]
+    PLAYER_IMGS["jump"] = [get_asset("player_jump")]
     # playerIMGs["Sliding"]=[get_asset("PlayerSliding")]
-    PLAYER_IMGS["Arm"] = [get_asset("Arm")]
+    PLAYER_IMGS["arm"] = [get_asset("player_arm")]
 
     LASER_IMPACT_IMGS_RAW = []
     for i in range(1, IMPACT_FRAMES + 1):
-        LASER_IMPACT_IMGS_RAW.append(get_asset(f"LaserImpact{i}"))
+        LASER_IMPACT_IMGS_RAW.append(get_asset(f"laser_impact_{i}"))
 
 
 class LaserImpact:
@@ -131,9 +131,9 @@ class Player:
         self.on_ground = False
         self.color = (255, 0, 0)
         self.default_zooms = default_zooms
-        self.facing = "Right"
+        self.facing = "right"
         self.animation_timer = 0
-        self.animation_type = "Idle"
+        self.animation_type = "idle"
         self.animation_frame = 0
         self.arm_angle = 0
         self.arm_offset_x = 0
@@ -163,13 +163,13 @@ class Player:
         self.player_im_gs = {}
         for zoom in self.default_zooms:
             zoom_img_sets = {}
-            for direction in ["Left", "Right"]:
+            for direction in ["left", "right"]:
                 direction_set = {}
                 for animation_type in PLAYER_IMGS:
                     direction_set[animation_type] = []
                     for img in PLAYER_IMGS[animation_type]:
                         resized_img = pygame.transform.scale(img, (SPRITE_WIDTH * zoom, SPRITE_HEIGHT * zoom))
-                        if direction == "Left":
+                        if direction == "left":
                             resized_img = pygame.transform.flip(resized_img, True, False)
                         direction_set[animation_type].append(resized_img)
                 zoom_img_sets[direction] = direction_set
@@ -197,25 +197,25 @@ class Player:
         target_x, target_y = mouse_pos
 
         if self.x < target_x:
-            self.facing = "Right"
+            self.facing = "right"
         elif self.x > target_x:
-            self.facing = "Left"
+            self.facing = "left"
 
         self.arm_angle = -math.atan2(target_y - (self.y + 3), target_x - self.x)
 
         if not self.on_ground:
             if self.y_speed > 0.2:
-                self.animation_type = "Falling"
+                self.animation_type = "fall"
             elif self.y_speed < -0.2:
-                self.animation_type = "Jumping"
+                self.animation_type = "jump"
         else:
             if abs(self.x_speed) > 0.1:
-                if (self.x_speed > 0 and self.facing == "Right") or (self.x_speed < 0 and self.facing == "Left"):
-                    self.animation_type = "Run"
+                if (self.x_speed > 0 and self.facing == "right") or (self.x_speed < 0 and self.facing == "left"):
+                    self.animation_type = "run"
                 else:
-                    self.animation_type = "Backpedal"
+                    self.animation_type = "backpedal"
             else:
-                self.animation_type = "Idle"
+                self.animation_type = "idle"
 
         if self.animation_type != previous_animation_type:
             self.animation_timer = 0
@@ -367,17 +367,17 @@ class Player:
                     _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range * 2, self.x, self.y, 800)
                     self.ability_timer = self.ability_cooldown
 
-        if keys_down["leftMouse"] and len(self.laser) == 0 and self.laser_timer <= self.laser_attributes.cooldown / 4:
+        if keys_down["left_mouse"] and len(self.laser) == 0 and self.laser_timer <= self.laser_attributes.cooldown / 4:
             new_laser = laser.Laser()
             self.laser = [new_laser]
             self.laser_ramps = 0
             self.laser_first_hit = True
 
-        if events["leftMouseUp"] and len(self.laser) > 0:
+        if events["left_mouse_up"] and len(self.laser) > 0:
             self.laser_timer = self.laser[0].timer
             self.laser = []
 
-        if events["rightMouseUp"]:
+        if events["right_mouse_up"]:
             mx, my = mouse_pos
             dx, dy = mx - self.x, my - self.y
             d = dist(dx, dy)
@@ -600,9 +600,9 @@ class Player:
                 player_surface = pygame.transform.rotate(player_surface, tilt)
 
             adjusted_arm_angle = self.arm_angle
-            if self.facing == "Left":
+            if self.facing == "left":
                 adjusted_arm_angle += math.pi
-            arm, arm_offset_x, arm_offset_y = rotate_and_get_offset(self.player_im_gs[zoom][self.facing]["Arm"][0], zoom * ARM_PIVOT_X, zoom * ARM_PIVOT_Y, adjusted_arm_angle)
+            arm, arm_offset_x, arm_offset_y = rotate_and_get_offset(self.player_im_gs[zoom][self.facing]["arm"][0], zoom * ARM_PIVOT_X, zoom * ARM_PIVOT_Y, adjusted_arm_angle)
             width, height = arm.get_size()
             arm_surface = pygame.Surface((width, height), flags=pygame.SRCALPHA)
             arm_surface.fill((boosted_color[0], boosted_color[1], boosted_color[2], 255))
