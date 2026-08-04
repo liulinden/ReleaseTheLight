@@ -718,7 +718,7 @@ class Terrain:
         new_nest = nest.Nest(self.default_zooms, self.world_height, nest_type, x, y, size)
         rect = new_nest.get_rect()
         for existing in self._nests_touching_rect(rect):
-            if rect.colliderect(existing.get_rect()): #redundant?
+            if rect.colliderect(existing.get_rect()):  # redundant?
                 return False
         for row, col in self._chunks_in_rect(new_nest.left, new_nest.top, new_nest.size, new_nest.size, pad=1):
             self.get_or_create_chunk(row, col).nests.append(new_nest)

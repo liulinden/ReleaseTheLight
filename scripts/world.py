@@ -13,7 +13,7 @@ import scripts.player as player
 import scripts.terrain as terrain
 import scripts.UI as UI
 from scripts.global_assets import get_asset
-from scripts.util import rotate_and_get_offset, frame_random
+from scripts.util import frame_random, rotate_and_get_offset
 
 
 class World:
@@ -59,7 +59,7 @@ class World:
     def generate_world(self, loading_screen):
         self.terrain.generate_world(loading_screen)
 
-    #def generate_next_layer(self):
+    # def generate_next_layer(self):
     #    self.terrain.generate_layer(1)
 
     def _get_world_layer(self, real_window_size):
@@ -118,8 +118,8 @@ class World:
                     self.terrain.particles.spawn_mining_particles(10, n.color, particle_coords[2], particle_coords[0], particle_coords[1])
 
             if n.stage != n.max_stage:
-                d = math.dist((n.x, n.y),(self.player.x, self.player.y))
-                if d < 300 and frame_random(frame_length, 0.2 + 0.5 * (300 - d)/300):
+                d = math.dist((n.x, n.y), (self.player.x, self.player.y))
+                if d < 300 and frame_random(frame_length, 0.2 + 0.5 * (300 - d) / 300):
                     n.add_enemy(self.terrain, self.player)
                 for i in range(len(n.enemies) - 1, -1, -1):
                     enemy = n.enemies[i]
@@ -184,7 +184,6 @@ class World:
         self.draw_background(scratch_layer, window_size, frame)
 
         # struct back elements (behind terrain)
-
 
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
 

@@ -1,4 +1,5 @@
-import math, random
+import math
+import random
 
 import pygame
 
@@ -9,6 +10,7 @@ def safe_remove(list, item):
         return True
     return False
 
+
 def safe_append(list, item):
     if item not in list:
         list.append(item)
@@ -16,11 +18,14 @@ def safe_append(list, item):
     else:
         return False
 
+
 def dist(x, y):
     return math.dist((0, 0), (x, y))
 
+
 def frame_random(frame_length, expected_per_second):
     return random.random() < min(1, frame_length / 1000 * expected_per_second)
+
 
 def normalize_1d(n):
     if n > 0:
@@ -30,15 +35,17 @@ def normalize_1d(n):
     else:
         return 0
 
-def about_equal(a, b, threshold = 0.01):
+
+def about_equal(a, b, threshold=0.01):
     diff = a - b
-    return (diff < threshold and diff > - threshold)
+    return diff < threshold and diff > -threshold
+
 
 def polar_to_rect(r, angle, center=(0, 0)):
     return r * math.cos(angle) + center[0], r * math.sin(angle) + center[1]
 
 
-def get_bounced_vector(vector, normal, elasticity = 1):
+def get_bounced_vector(vector, normal, elasticity=1):
     ax, ay = vector
     bx, by = normal
     factor = dist(bx, by)
@@ -54,9 +61,9 @@ def get_bounced_vector(vector, normal, elasticity = 1):
     bounced_y = ay * s - p * ax
     # bounced x and y are now already equal to bounced vector assuming elasticity = 1
 
-    factor = (elasticity + 1)/2
+    factor = (elasticity + 1) / 2
 
-    return bounced_x * factor + ax * (1-factor), bounced_y * factor + ay * (1-factor)
+    return bounced_x * factor + ax * (1 - factor), bounced_y * factor + ay * (1 - factor)
 
 
 def rotate_and_get_offset(surface, cx, cy, angle, degrees=False):
