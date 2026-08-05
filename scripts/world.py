@@ -104,7 +104,7 @@ class World:
         if self.player.tick(frame_length, self.terrain, mouse_pos, keys_down, events):
             return True
 
-        if frame_random(frame_length, 7) == 1:
+        if frame_random(frame_length, 5) == 1:
             self.light.add_mist_particle(self.player.x, self.player.y, color=self.player.color)
         for lase in self.player.laser:
             if frame_random(frame_length, lase.length / 20):

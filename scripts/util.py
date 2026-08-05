@@ -57,6 +57,10 @@ def polar_to_rect(r, angle, center=(0, 0)):
     return r * math.cos(angle) + center[0], r * math.sin(angle) + center[1]
 
 
+def multiply_tuple(tuple_, factor):
+    return tuple(entry*factor for entry in tuple_)
+
+
 def get_bounced_vector(vector, normal, elasticity=1):
     ax, ay = vector
     bx, by = normal
@@ -109,9 +113,9 @@ def channel_bound(value):
 
 
 def charges_to_color(cw, cb, cr, max_charge=500, maximize=False):
-    r = cr + cw
-    g = cw + cb / 4
-    b = cw + cb
+    r = cr + cw / 3
+    g = cw / 3 + cb / 6
+    b = cw / 3 + cb
     dominant = max(r, g, b)
     if dominant == 0:
         return (0, 0, 0)
@@ -121,7 +125,7 @@ def charges_to_color(cw, cb, cr, max_charge=500, maximize=False):
         if not maximize:
             factor *= charge / (max_charge / 8) * 0.8
     else:
-        factor *= 0.8 * (1 + (2 * (8 * charge - max_charge) / (max_charge * 8)))
+        factor *= 0.8 * (1 + (1.5 * (8 * charge - max_charge) / (max_charge * 8)))
     if maximize:
         factor *= 1.25
     return rgb_bound((r * factor, g * factor, b * factor))

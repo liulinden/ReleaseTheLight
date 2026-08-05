@@ -27,8 +27,9 @@ class Game:
         # self.HITBOX_ZOOM=0.2 -- add later
         self.WORLD_WIDTH = 15 * CHUNK_SIZE
         self.WORLD_HEIGHT = 100 * CHUNK_SIZE
-        # if not full_world:
-        #    self.WORLD_HEIGHT = 50 * CHUNK_SIZE
+        if not full_world:
+            self.WORLD_WIDTH = 5 * CHUNK_SIZE
+            self.WORLD_HEIGHT = 5 * CHUNK_SIZE
         # high temporarily
 
         self.offset_x = 0
@@ -169,7 +170,9 @@ class Game:
                             new_zoom = self.DEFAULT_ZOOMS[0] if self.DEFAULT_ZOOMS.index(self.zoom) == len(self.DEFAULT_ZOOMS) - 1 else self.DEFAULT_ZOOMS[self.DEFAULT_ZOOMS.index(self.zoom) + 1]
                             self.set_zoom(new_zoom, (self.game_world.player.x, self.game_world.player.y))
                         elif event.key == pygame.K_i:
-                            self.game_world.player.add_charge(100, {"white": 1, "red": 0, "blue": 0}, 500)
+                            added_dist = {"white": 0, "red": 0, "blue": 0}
+                            added_dist[self.game_world.player.filter_type] = 1
+                            self.game_world.player.add_charge(25, added_dist, 500)
                         elif event.key == pygame.K_0:
                             self.kind_visibility = not self.kind_visibility
                         elif event.key == pygame.K_h:

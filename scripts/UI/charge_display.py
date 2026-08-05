@@ -3,21 +3,33 @@ import math
 import pygame
 
 from scripts.global_assets import get_asset
-from scripts.util import charges_to_color, polar_to_rect
+from scripts.util import charges_to_color, multiply_tuple, polar_to_rect
 
 charge_icon = None
 light_gradient = None
 charge_tuples = None
+cell_imgs = None
+
+animation_fps = 12
+tl_x, tl_y = 30, 30
+display_size = 250
+cell_display_size = display_size * 0.22
+charge_icon_size = display_size * 0.6
 
 
 def init():
-    global charge_icon, light_gradient, chargeColors
+    global charge_icon, light_gradient, chargeColors, cell_imgs
 
-    charge_icon = pygame.transform.scale(get_asset("UI_charge_icon"), (80, 80))
+    charge_icon = pygame.transform.scale(get_asset("UI_charge_icon"), (charge_icon_size, charge_icon_size))
     light_gradient = get_asset("gradient_light")
+    cell_imgs = {
+        "shell": pygame.transform.scale(get_asset("cell_basic_shell"), (cell_display_size, cell_display_size)),
+        **{"crackle_" + str(i + 1): pygame.transform.scale(get_asset("cell_basic_crackle_" + str(i + 1)), (cell_display_size, cell_display_size)) for i in range(5)},
+    }
 
 
 charge_tuples = {"white": (1, 0, 0), "blue": (0, 1, 0), "red": (0, 0, 1)}
+
 
 def draw_line_from_center(surface, color, center, angle, r1, r2, thickness):
     pygame.draw.line(surface, color, polar_to_rect(r1, -angle, center), polar_to_rect(r2, -angle, center), thickness)
@@ -32,6 +44,7 @@ def get_outer_triangle_points(center, angle):
 
 
 order_charges = {"white": (["white", "blue", "red"], []), "blue": (["blue", "white"], ["red"]), "red": (["red", "white"], ["blue"])}
+
 
 class ChargeDisplay:
     def __init__(self, world_height):
@@ -50,9 +63,16 @@ class ChargeDisplay:
         self.player_y = 0
         self.charge_capacity = 0
         self.filters = {"white": 0}
+        self.cell_imgs_cache = {}
+        self.scratch_surfaces = {}
+        self.animation_timer = 0
+        self.frame = 1
 
     def update(self, fps, player):
         frame_length = 1000 / fps
+
+        self.animation_timer = (self.animation_timer + frame_length) % (1000 / animation_fps * 5)
+        self.frame = math.floor(self.animation_timer / (1000 / animation_fps)) + 1
 
         self.charge_capacity = player.charge_capacity
         self.filter_type = player.filter_type
@@ -72,17 +92,17 @@ class ChargeDisplay:
         for color in player_charges:
             charge_change = int(player_charges[color]) - self.player_charges[color]
             if abs(charge_change) > 0:
-                if abs(charge_change) < frame_length / 16:
+                if abs(charge_change) < frame_length / 5:
                     self.player_charges[color] += charge_change
                 else:
-                    self.player_charges[color] += charge_change / abs(charge_change) * frame_length / 16
+                    self.player_charges[color] += charge_change / abs(charge_change) * frame_length / 5
 
         cw, cb, cr = player.practical_charges.values()
         self.color = charges_to_color(cw, cb, cr)
 
         if total_charge_change > 0.1:
             self.rotation_goal += total_charge_change / 10
-            self.scale = 90
+            self.scale = 100
         elif total_charge_change < -0.1:
             # self.rotation=0
             # self.rotationGoal=0
@@ -118,8 +138,11 @@ class ChargeDisplay:
             self.filters[color] = (self.filters[color] + diff / 150 * frame_length) % (2 * math.pi)
 
     def draw(self, surface):
-        transformed_icon = pygame.transform.rotate(pygame.transform.scale(charge_icon, (self.scale, self.scale)), -self.rotation * (360))
-        filter = pygame.Surface(transformed_icon.get_size(), flags=pygame.SRCALPHA)
+
+        transformed_icon = pygame.transform.rotate(pygame.transform.scale(charge_icon, (charge_icon_size * self.scale / 100, charge_icon_size * self.scale / 100)), -self.rotation * (360))
+        charge_surface = pygame.Surface(transformed_icon.get_size(), flags=pygame.SRCALPHA)
+        cx = tl_x + display_size / 2
+        cy = tl_y + display_size / 2
 
         # different filter than above
         filter_colors = {
@@ -129,6 +152,51 @@ class ChargeDisplay:
         }
 
         filter_color = filter_colors[self.filter_type]
+
+        charge_surface.fill(self.color)
+        charge_surface.blit(transformed_icon, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        surface.blit(charge_surface, (cx - charge_surface.get_width() / 2, cy - charge_surface.get_height() / 2))
+
+        radius = display_size * 0.4
+
+        charge_order = order_charges[self.filter_type][0] + order_charges[self.filter_type][1]
+        charges = self.player_charges.copy()
+        for i in range(14):
+            angle = i * 360 / 20
+            shell, size = self.get_cell_img("shell", -angle)
+            cell_surface = self.get_scratch_surface(size, True)
+            x, y = polar_to_rect(radius, (angle - 90) * math.pi / 180, (cx - size[0] / 2, cy - size[0] / 2))
+
+            darken_factor = 0.2
+            if sum(charges.values()) > 0:
+                used = {"white": 0, "blue": 0, "red": 0}
+                remaining = 25
+                for charge in charge_order:
+                    used[charge] = min(charges[charge], remaining)
+                    remaining -= used[charge]
+                    charges[charge] -= used[charge]
+                    if remaining == 0 or sum(charges.values()) == 0:
+                        break
+
+                aligned_used = 0
+                for charge in order_charges[self.filter_type][0]:
+                    aligned_used += used[charge]
+                darken_factor = 0.2 + 0.8 * (aligned_used / 25)
+
+                crackle_color = charges_to_color(used["white"], used["blue"], used["red"], 25)
+                crackle, size = self.get_cell_img("crackle_" + str(self.frame), -angle)
+
+                cell_surface.fill(crackle_color)
+                cell_surface.blit(crackle, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                surface.blit(cell_surface, (x, y))
+
+            cell_surface.fill(multiply_tuple(filter_color, darken_factor))
+            cell_surface.blit(shell, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            surface.blit(cell_surface, (x, y))
+
+        # pygame.draw.rect(surface, filter_color, pygame.Rect(tl_x, tl_y, display_size, display_size), 2)
+
+        """
 
         pygame.draw.line(surface, filter_color, (self.x + 0, self.y + 20), (self.x + 14, self.y + 20), 2)
         pygame.draw.line(surface, filter_color, (self.x + 0, self.y + 140), (self.x + 14, self.y + 140), 2)
@@ -192,3 +260,18 @@ class ChargeDisplay:
         draw_line_from_center(surface, filter_color, center, math.pi * (1 / 2 - 2 * (400 / 500)), 60, 65, 3)
 
         pygame.draw.circle(surface, filter_color, polar_to_rect(72, -math.pi * (1 / 2 - 2 * (200 / 500)), center), 6, 3)
+        """
+
+    def get_cell_img(self, img, angle):
+        if (img, angle) not in self.cell_imgs_cache:
+            rotated_img = pygame.transform.rotate(cell_imgs[img], angle)
+            self.cell_imgs_cache[(img, angle)] = (rotated_img, rotated_img.get_size())
+        return self.cell_imgs_cache[(img, angle)]
+
+    def get_scratch_surface(self, size, alpha=False):
+        if (size, alpha) not in self.scratch_surfaces:
+            if alpha:
+                self.scratch_surfaces[(size, alpha)] = pygame.Surface(size, pygame.SRCALPHA)
+            else:
+                self.scratch_surfaces[(size, alpha)] = pygame.Surface(size)
+        return self.scratch_surfaces[(size, alpha)]

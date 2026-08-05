@@ -3,7 +3,7 @@ import random
 
 import pygame
 
-import scripts.UI as UI
+from scripts.UI.health_bar import HealthBar
 from scripts.global_assets import get_asset
 
 enemy_attack_frames = {"1": [4, 5]}
@@ -71,12 +71,11 @@ class Enemy:
         self.glow = 0
         self.r = math.dist((0, 0), (self.width / 2, self.height / 2))
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
-        self.health_bar = UI.HealthBar(self.max_health)
+        self.health_bar = HealthBar(self.max_health)
 
         self.resized_gradients = {}
         self.resized_im_gs = {}
 
-        # FIX 1: pre-allocate filter surfaces for draw() and drawGradient() per zoom
         self._draw_filter = {}
         self._gradient_filter = {}
 
@@ -247,7 +246,7 @@ class Enemy:
         self.y_speed = min(2, self.y_speed + 0.0015 * frame_length * self.gravity_multiplier)
 
     def tick_enemy_behavior(self, frame_length, player):
-        if self.mode == "Walk":
+        if self.mode == "walk":
             if player.y < self.y - 10 and self.on_ground and random.randint(1, 500) < frame_length:
                 self.y_speed = -0.3
             if abs(player.x - self.x) > self.size / 2 or abs(player.y - self.y) > self.size / 2:
@@ -290,7 +289,7 @@ class Enemy:
                 player.deal_damage(self.damage)
 
     def tick(self, frame_length, _terrain, player):
-        if self.mode != "Spawn":
+        if self.mode != "spawn":
             self.tick_gravity(frame_length)
             if self.tick_damage_and_knockback(frame_length, _terrain, player):
                 return True

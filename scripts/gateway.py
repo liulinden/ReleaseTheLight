@@ -16,41 +16,41 @@ GATEWAY_Y_POSITIONS = [CHUNK_SIZE * 15, CHUNK_SIZE * 30, CHUNK_SIZE * 45, CHUNK_
 # ---------------------------------------------------------------------------
 # Image storage — populated by init() after pygame.display.set_mode()
 # ---------------------------------------------------------------------------
-gateway_im_gs = {}  # keyed by tile type + state, e.g. "corridorclosed"
-gateway_hitbox_im_gs = {}  # keyed by tile type + state
+gateway_imgs = {}  # keyed by tile type + state, e.g. "corridorclosed"
+gateway_hitbox_imgs = {}  # keyed by tile type + state
 
 
 def init():
-    global gateway_im_gs, gateway_hitbox_im_gs
+    global gateway_imgs, gateway_hitbox_imgs
 
     # corridor
-    gateway_im_gs["corridorclosed"] = get_asset("gateCorridorClosed")
-    gateway_im_gs["corridoropened"] = get_asset("gateCorridorOpened")
-    gateway_im_gs["corridorback"] = get_asset("gateCorridorErase")
-    gateway_im_gs["corridorerase"] = get_asset("gateCorridorErase")
-    gateway_hitbox_im_gs["corridor"] = get_asset("gateCorridorHitbox")
-    gateway_hitbox_im_gs["corridorerase"] = get_asset("gateCorridorEraseHitbox")
+    gateway_imgs["corridorclosed"] = get_asset("gateCorridorClosed")
+    gateway_imgs["corridoropened"] = get_asset("gateCorridorOpened")
+    gateway_imgs["corridorback"] = get_asset("gateCorridorErase")
+    gateway_imgs["corridorerase"] = get_asset("gateCorridorErase")
+    gateway_hitbox_imgs["corridor"] = get_asset("gateCorridorHitbox")
+    gateway_hitbox_imgs["corridorerase"] = get_asset("gateCorridorEraseHitbox")
 
     # entry
-    gateway_im_gs["entryclosed"] = get_asset("gateEntryClosed")
-    gateway_im_gs["entrycharging1"] = get_asset("gateEntryCharging1")
-    gateway_im_gs["entrycharging2"] = get_asset("gateEntryCharging2")
-    gateway_im_gs["entrycharging3"] = get_asset("gateEntryCharging3")
-    gateway_im_gs["entryopened"] = get_asset("gateEntryOpened")
-    gateway_im_gs["entryback"] = get_asset("gateEntryBack")
-    gateway_im_gs["entryerase"] = get_asset("gateEntryErase")
-    gateway_hitbox_im_gs["entryerase"] = get_asset("gateEntryEraseHitbox")
-    gateway_hitbox_im_gs["entryclosed"] = get_asset("gateEntryClosedHitbox")
-    gateway_hitbox_im_gs["entryopened"] = get_asset("gateEntryOpenedHitbox")
-    gateway_hitbox_im_gs["activator"] = get_asset("gatewayActivatorHitbox")
+    gateway_imgs["entryclosed"] = get_asset("gateEntryClosed")
+    gateway_imgs["entrycharging1"] = get_asset("gateEntryCharging1")
+    gateway_imgs["entrycharging2"] = get_asset("gateEntryCharging2")
+    gateway_imgs["entrycharging3"] = get_asset("gateEntryCharging3")
+    gateway_imgs["entryopened"] = get_asset("gateEntryOpened")
+    gateway_imgs["entryback"] = get_asset("gateEntryBack")
+    gateway_imgs["entryerase"] = get_asset("gateEntryErase")
+    gateway_hitbox_imgs["entryerase"] = get_asset("gateEntryEraseHitbox")
+    gateway_hitbox_imgs["entryclosed"] = get_asset("gateEntryClosedHitbox")
+    gateway_hitbox_imgs["entryopened"] = get_asset("gateEntryOpenedHitbox")
+    gateway_hitbox_imgs["activator"] = get_asset("gatewayActivatorHitbox")
 
     # exit
-    gateway_im_gs["exitclosed"] = get_asset("gateExitClosed")
-    gateway_im_gs["exitopened"] = get_asset("gateExitOpened")
-    gateway_im_gs["exitback"] = get_asset("gateExitBack")
-    gateway_im_gs["exiterase"] = get_asset("gateExitErase")
-    gateway_hitbox_im_gs["exit"] = get_asset("gateExitHitbox")
-    gateway_hitbox_im_gs["exiterase"] = get_asset("gateExitEraseHitbox")
+    gateway_imgs["exitclosed"] = get_asset("gateExitClosed")
+    gateway_imgs["exitopened"] = get_asset("gateExitOpened")
+    gateway_imgs["exitback"] = get_asset("gateExitBack")
+    gateway_imgs["exiterase"] = get_asset("gateExitErase")
+    gateway_hitbox_imgs["exit"] = get_asset("gateExitHitbox")
+    gateway_hitbox_imgs["exiterase"] = get_asset("gateExitEraseHitbox")
 
 
 # ---------------------------------------------------------------------------
@@ -116,11 +116,11 @@ class CorridorTile(GatewayTile):
     def _build_surfaces(self):
         state = "opened" if self.opened else "closed"
         for zoom in self.default_zooms:
-            self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_im_gs["corridor"], zoom)
-            self._front_surfs[zoom] = self._scaled_img(gateway_im_gs[f"corridor{state}"], zoom)
-            self._back_surfs[zoom] = self._scaled_img(gateway_im_gs["corridorback"], zoom)
-            self._erase_surfs[zoom] = self._scaled_img(gateway_im_gs["corridorerase"], zoom)
-            self._erase_hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_im_gs["corridorerase"], zoom)
+            self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["corridor"], zoom)
+            self._front_surfs[zoom] = self._scaled_img(gateway_imgs[f"corridor{state}"], zoom)
+            self._back_surfs[zoom] = self._scaled_img(gateway_imgs["corridorback"], zoom)
+            self._erase_surfs[zoom] = self._scaled_img(gateway_imgs["corridorerase"], zoom)
+            self._erase_hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["corridorerase"], zoom)
 
     def open(self):
         if not self.opened:
@@ -139,11 +139,11 @@ class ExitTile(GatewayTile):
     def _build_surfaces(self):
         state = "opened" if self.opened else "closed"
         for zoom in self.default_zooms:
-            self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_im_gs["exit"], zoom)
-            self._front_surfs[zoom] = self._scaled_img(gateway_im_gs[f"exit{state}"], zoom)
-            self._back_surfs[zoom] = self._scaled_img(gateway_im_gs["exitback"], zoom)
-            self._erase_surfs[zoom] = self._scaled_img(gateway_im_gs["exiterase"], zoom)
-            self._erase_hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_im_gs["exiterase"], zoom)
+            self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["exit"], zoom)
+            self._front_surfs[zoom] = self._scaled_img(gateway_imgs[f"exit{state}"], zoom)
+            self._back_surfs[zoom] = self._scaled_img(gateway_imgs["exitback"], zoom)
+            self._erase_surfs[zoom] = self._scaled_img(gateway_imgs["exiterase"], zoom)
+            self._erase_hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["exiterase"], zoom)
 
     def open(self):
         if not self.opened:
@@ -167,7 +167,7 @@ class EntryTile(GatewayTile):
         self.gateway = None  # set by Gateway after construction
 
         # pre-scale activator hitbox at zoom=1 for laser detection
-        self._activator_hitbox = pygame.transform.scale(gateway_hitbox_im_gs["activator"], (int(tile_size), int(tile_size)))
+        self._activator_hitbox = pygame.transform.scale(gateway_hitbox_imgs["activator"], (int(tile_size), int(tile_size)))
 
         self._build_surfaces()
         self.health_bar = HealthBar(self.max_charge)
@@ -175,16 +175,16 @@ class EntryTile(GatewayTile):
     def _build_surfaces(self):
         for zoom in self.default_zooms:
             if self.opened:
-                self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_im_gs["entryopened"], zoom)
-                self._front_surfs[zoom] = self._scaled_img(gateway_im_gs["entryopened"], zoom)
+                self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["entryopened"], zoom)
+                self._front_surfs[zoom] = self._scaled_img(gateway_imgs["entryopened"], zoom)
             else:
-                self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_im_gs["entryclosed"], zoom)
+                self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["entryclosed"], zoom)
                 stage = self.charge_stage  # 0–3
-                img = gateway_im_gs["entryclosed"] if stage == 0 else gateway_im_gs[f"entrycharging{stage}"]
+                img = gateway_imgs["entryclosed"] if stage == 0 else gateway_imgs[f"entrycharging{stage}"]
                 self._front_surfs[zoom] = self._scaled_img(img, zoom)
-            self._back_surfs[zoom] = self._scaled_img(gateway_im_gs["entryback"], zoom)
-            self._erase_surfs[zoom] = self._scaled_img(gateway_im_gs["entryerase"], zoom)
-            self._erase_hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_im_gs["entryerase"], zoom)
+            self._back_surfs[zoom] = self._scaled_img(gateway_imgs["entryback"], zoom)
+            self._erase_surfs[zoom] = self._scaled_img(gateway_imgs["entryerase"], zoom)
+            self._erase_hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["entryerase"], zoom)
 
     def is_laser_hitting_activator(self, wx, wy):
         """Precise check: is world point (wx,wy) inside the activator sub-region?"""

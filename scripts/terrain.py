@@ -39,7 +39,7 @@ from scripts.util import dist
 # process at world-gen time, not chunk-scoped) -- that's future work.
 # ------------------------------------------------------------------
 
-max_airpocket_radius = 120
+max_air_pocket_radius = 120
 rim_pocket_ratio = 1.5
 rocks_world_span = 8 * CHUNK_SIZE
 
@@ -711,7 +711,7 @@ class Terrain:
     # ------------------------------------------------------------------
 
     def generate_nest(self, x, y, nest_type, size=0):
-        y = max(max_airpocket_radius, min(self.world_height - max_airpocket_radius, y))
+        y = max(max_air_pocket_radius, min(self.world_height - max_air_pocket_radius, y))
         if size == 0:
             size = random.randint(100, 100 + (y * 150) // self.world_height)
         # NOTE: nest.Nest no longer takes a layer_index argument.
@@ -788,7 +788,7 @@ class Terrain:
             self.add_air_pocket(x + spreading * (random.random() * 2 - 1), y + spreading * (random.random() * 2 - 1), radius, player_made=player_made, override=override)
 
     def add_air_pocket(self, x, y, radius, recursions=0, player_made=False, override=False):
-        radius = min(radius, max_airpocket_radius)
+        radius = min(radius, max_air_pocket_radius)
 
         if recursions > 3 or y < 0 or y > self.world_height:
             return False
