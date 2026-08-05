@@ -5,10 +5,10 @@ import random
 import pygame
 
 import scripts.loading_screen as loading_screen
-from scripts.UI.charge_display import ChargeDisplay
 import scripts.world as world
 from config import CHUNK_SIZE
 from scripts.global_assets import load_assets
+from scripts.UI.charge_display import ChargeDisplay
 
 
 class Game:
