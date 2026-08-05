@@ -1,6 +1,6 @@
 import pygame
 
-from scripts.UI import InteractionDisplay
+from scripts.UI.interaction_display import InteractionDisplay
 from scripts.util import about_equal, dist, get_bounced_vector, normalize_1d
 
 

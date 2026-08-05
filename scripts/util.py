@@ -4,6 +4,18 @@ import random
 import pygame
 
 
+def draw_rounded_line(surface, color, start, end, thickness):
+    pygame.draw.line(surface, color, start, end, thickness)
+    pygame.draw.circle(surface, color, start, thickness // 2)
+    pygame.draw.circle(surface, color, end, thickness // 2)
+
+
+def draw_single_side_rounded_line(surface, color, start, end, thickness):
+    # thickness should be odd
+    pygame.draw.line(surface, color, start, end, thickness)
+    pygame.draw.circle(surface, color, end, thickness / 2)
+
+
 def safe_remove(list, item):
     if item in list:
         list.remove(item)

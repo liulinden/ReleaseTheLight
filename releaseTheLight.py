@@ -5,7 +5,7 @@ import random
 import pygame
 
 import scripts.loading_screen as loading_screen
-import scripts.UI as UI
+from scripts.UI.charge_display import ChargeDisplay
 import scripts.world as world
 from config import CHUNK_SIZE
 from scripts.global_assets import load_assets
@@ -87,7 +87,7 @@ class Game:
 
         self.game_world = world.World(self.WORLD_WIDTH, self.WORLD_HEIGHT, loading_screen=world_loading, default_zooms=self.DEFAULT_ZOOMS, developing_mode=self.developing_mode)
 
-        self.charge_display = UI.ChargeDisplay(self.WORLD_HEIGHT)
+        self.charge_display = ChargeDisplay(self.WORLD_HEIGHT)
 
         self.clock = pygame.time.Clock()
         self.keys_down = {pygame.K_w: False, pygame.K_a: False, pygame.K_d: False, pygame.K_e: False, "left_mouse": False, "right_mouse": False}

@@ -4,8 +4,9 @@ import random
 import pygame
 
 import scripts.enemies._enemy_handling as _enemy_handling
-import scripts.UI as UI
 from scripts.global_assets import get_asset
+from scripts.UI.health_bar import HealthBar
+from scripts.UI.interaction_display import InteractionDisplay
 from scripts.util import charges_to_color
 
 
@@ -52,7 +53,7 @@ class Nest:
         self.size = size
         self.enemies = []
         self.basic_enemy_cap = 1
-        #self.total_enemy_cap = min(max(3, int(size / 30)), 10)
+        # self.total_enemy_cap = min(max(3, int(size / 30)), 10)
         self.color = (255, 255, 255)
         self.glow = 0
         self.stage = 0
@@ -99,9 +100,8 @@ class Nest:
         self.charging = {"white": 0, "blue": 0, "red": 0}
         self.charging[self.nest_type] = 1
 
-        self.health_bar = UI.HealthBar(self.max_health)
-        self.interaction_display = UI.InteractionDisplay((self.x, self.top+self.size*0.75), ("Hold", pygame.K_e, "to drain"), charges_to_color(*self.charging.values(), 500, maximize=True))
-
+        self.health_bar = HealthBar(self.max_health)
+        self.interaction_display = InteractionDisplay((self.x, self.top + self.size * 0.75), ("Hold", pygame.K_e, "to drain"), charges_to_color(*self.charging.values(), 500, maximize=True))
 
     def get_rect(self):
         return pygame.Rect(self.left, self.top, self.size, self.size)
@@ -199,7 +199,7 @@ class Nest:
                 enemy.spawn_particles(c_terrain)
                 c_terrain.enemies.remove(enemy)
             self.enemies = []
-        #elif random.randint(1, 5) == 1:
+        # elif random.randint(1, 5) == 1:
         #    self.add_enemy(c_terrain, player)
         if self.update_stage():
             if self.stage != self.max_stage:

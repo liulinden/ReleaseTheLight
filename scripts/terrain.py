@@ -12,7 +12,7 @@ from config import CHUNK_SIZE
 from scripts.cells import Cell, validate_cell_coords
 from scripts.global_assets import get_asset
 from scripts.loading_screen import LoadingScreen
-from scripts.UI import InteractionDisplayManager
+from scripts.UI.interaction_display import InteractionDisplayManager
 from scripts.util import dist
 
 # ------------------------------------------------------------------

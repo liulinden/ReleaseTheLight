@@ -11,7 +11,8 @@ import scripts.loading_screen as loading_screen
 import scripts.nest as nest
 import scripts.player as player
 import scripts.terrain as terrain
-import scripts.UI as UI
+import scripts.UI.charge_display as charge_display
+import scripts.UI.interaction_display as interaction_display
 from scripts.global_assets import get_asset
 from scripts.util import frame_random, rotate_and_get_offset
 
@@ -25,7 +26,7 @@ class World:
 
         init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.05, 0.12)
 
-        inits = [lighting.init, enemies.init, nest.init, terrain.init, player.init, laser.init, UI.init]
+        inits = [lighting.init, enemies.init, nest.init, terrain.init, player.init, laser.init, interaction_display.init, charge_display.init]
 
         for i, init in enumerate(inits):
             init_loading_screen.put((i + 1) / len(inits), f"{init.__module__}.{init.__name__}()")

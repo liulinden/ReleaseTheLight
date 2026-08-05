@@ -6,7 +6,7 @@ import scripts.laser as laser
 import scripts.laser_properties as laser_properties
 import scripts.terrain as terrain
 from scripts.global_assets import get_asset
-from scripts.UI import HealthBar
+from scripts.UI.health_bar import HealthBar
 from scripts.util import channel_bound, charges_to_color, dist, rotate_and_get_offset
 
 SPRITE_WIDTH = 40
