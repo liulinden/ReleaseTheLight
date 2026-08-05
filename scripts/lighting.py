@@ -23,21 +23,21 @@ class Lighting:
     def __init__(self, default_zooms=(0.1, 2)):
         self.particles = []
         self.resized_light_im_gs = {}
-        self.resized_light_im_gs["particles_mist_"] = []
+        self.resized_light_im_gs["particles_mist"] = []
         for light_img in mist_particle_im_gs:
             for size in [110, 130, 150]:
                 imgs = {}
                 for zoom in default_zooms:
                     imgs[zoom] = pygame.transform.scale(light_img, (zoom * size, zoom * size))
-                self.resized_light_im_gs["particles_mist_"].append(imgs)
+                self.resized_light_im_gs["particles_mist"].append(imgs)
         for size in [400, 600, 800]:
             self.resized_light_im_gs["gradient_" + str(size)] = {}
             for zoom in default_zooms:
                 self.resized_light_im_gs["gradient_" + str(size)][zoom] = pygame.transform.scale(light_gradient, (zoom * size, zoom * size))
         size = 300
-        self.resized_light_im_gs["thick_gradient"] = {}
+        self.resized_light_im_gs["gradient_thick"] = {}
         for zoom in default_zooms:
-            self.resized_light_im_gs["thick_gradient"][zoom] = pygame.transform.scale(thick_gradient, (zoom * size, zoom * size))
+            self.resized_light_im_gs["gradient_thick"][zoom] = pygame.transform.scale(thick_gradient, (zoom * size, zoom * size))
 
         # FIX 1: pre-allocate gradient filter surfaces keyed by (zoom, gradient_size)
         # so drawGradient never allocates a Surface per call

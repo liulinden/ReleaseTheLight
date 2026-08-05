@@ -49,7 +49,7 @@ class Bouncer(Enemy):
             self.x_speed = 0
 
     def tick_enemy_behavior(self, frame_length, player):
-        if self.mode == "Walk":
+        if self.mode == "walk":
             if abs(player.x - self.x) > self.size / 2 or abs(player.y - self.y) > self.size / 2:
                 if self.on_ground and random.randint(1, 50) < frame_length:
                     self.y_speed = -0.2
@@ -71,7 +71,7 @@ class Bouncer(Enemy):
                         else:
                             self.x_speed += 0.0003 * frame_length * self.speed
             else:
-                self.mode = "Attack"
+                self.mode = "attack"
                 self.animation_timer = 0
 
             if self.on_ground:

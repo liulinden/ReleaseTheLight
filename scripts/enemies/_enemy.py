@@ -7,7 +7,7 @@ import scripts.UI as UI
 from scripts.global_assets import get_asset
 
 enemy_attack_frames = {"1": [4, 5]}
-enemy_animation_lengths = {"1": {"Spawn": 6, "Walk": 7, "Attack": 9}}
+enemy_animation_lengths = {"1": {"spawn": 6, "walk": 7, "attack": 9}}
 costume_dimensions = {"1": (3 / 8, 3 / 4)}
 
 animation_fps = 15
@@ -18,26 +18,26 @@ enemy_animations = {}
 
 def init():
     global light_gradient, enemy_animations
-    light_gradient = get_asset("LightGradient")
+    light_gradient = get_asset("gradient_light")
     enemy_animations = {}
     for costume_id in ["1"]:
         animation_im_gs = {}
 
         spawn_im_gs = []
-        for i in range(enemy_animation_lengths[costume_id]["Spawn"]):
-            spawn_im_gs.append(get_asset("Enemy" + costume_id + "Spawn" + str(i + 1)))
-        animation_im_gs["Spawn"] = spawn_im_gs
+        for i in range(enemy_animation_lengths[costume_id]["spawn"]):
+            spawn_im_gs.append(get_asset("enemy_" + costume_id + "_spawn_" + str(i + 1)))
+        animation_im_gs["spawn"] = spawn_im_gs
 
         walk_im_gs = []
-        for i in range(enemy_animation_lengths[costume_id]["Walk"]):
-            walk_im_gs.append(get_asset("Enemy" + costume_id + "Walk" + str(i + 1)))
-        animation_im_gs["Walk"] = walk_im_gs
+        for i in range(enemy_animation_lengths[costume_id]["walk"]):
+            walk_im_gs.append(get_asset("enemy_" + costume_id + "_walk_" + str(i + 1)))
+        animation_im_gs["walk"] = walk_im_gs
 
         attack_im_gs = []
-        for i in range(enemy_animation_lengths[costume_id]["Attack"]):
-            attack_im_gs.append(get_asset("Enemy" + costume_id + "Attack" + str(i + 1)))
-        animation_im_gs["Attack"] = attack_im_gs
-        animation_im_gs["AttackHitbox"] = get_asset("Enemy" + costume_id + "AttackHitbox")
+        for i in range(enemy_animation_lengths[costume_id]["attack"]):
+            attack_im_gs.append(get_asset("enemy_" + costume_id + "_attack_" + str(i + 1)))
+        animation_im_gs["attack"] = attack_im_gs
+        animation_im_gs["attack_hitbox"] = get_asset("enemy_" + costume_id + "_attack_hitbox")
 
         enemy_animations[costume_id] = animation_im_gs
 
@@ -66,8 +66,8 @@ class Enemy:
         self.on_ground = False
         self.animation_timer = 0
         self.animation_frame = 0
-        self.facing = "Right"
-        self.mode = "Spawn"
+        self.facing = "right"
+        self.mode = "spawn"
         self.glow = 0
         self.r = math.dist((0, 0), (self.width / 2, self.height / 2))
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
@@ -82,37 +82,37 @@ class Enemy:
 
         for zoom in default_zooms:
             zoom_set = {}
-            for direction in ["Left", "Right"]:
+            for direction in ["left", "right"]:
                 imgs = {}
 
                 resizedspawns = []
-                for spawn_img in enemy_animations[self.costume_id]["Spawn"]:
+                for spawn_img in enemy_animations[self.costume_id]["spawn"]:
                     resized = pygame.transform.scale(spawn_img, (self.size * zoom, self.size * zoom))
-                    if direction == "Left":
+                    if direction == "left":
                         resized = pygame.transform.flip(resized, True, False)
                     resizedspawns.append(resized)
-                imgs["Spawn"] = resizedspawns
+                imgs["spawn"] = resizedspawns
 
                 resizedwalks = []
-                for walk_img in enemy_animations[self.costume_id]["Walk"]:
+                for walk_img in enemy_animations[self.costume_id]["walk"]:
                     resized = pygame.transform.scale(walk_img, (self.size * zoom, self.size * zoom))
-                    if direction == "Left":
+                    if direction == "left":
                         resized = pygame.transform.flip(resized, True, False)
                     resizedwalks.append(resized)
-                imgs["Walk"] = resizedwalks
+                imgs["walk"] = resizedwalks
 
                 resized_attacks = []
-                for attack_img in enemy_animations[self.costume_id]["Attack"]:
+                for attack_img in enemy_animations[self.costume_id]["attack"]:
                     resized = pygame.transform.scale(attack_img, (self.size * zoom, self.size * zoom))
-                    if direction == "Left":
+                    if direction == "left":
                         resized = pygame.transform.flip(resized, True, False)
                     resized_attacks.append(resized)
-                imgs["Attack"] = resized_attacks
+                imgs["attack"] = resized_attacks
 
-                resized = pygame.transform.scale(enemy_animations[self.costume_id]["AttackHitbox"], (self.size * zoom, self.size * zoom))
-                if direction == "Left":
+                resized = pygame.transform.scale(enemy_animations[self.costume_id]["attack_hitbox"], (self.size * zoom, self.size * zoom))
+                if direction == "left":
                     resized = pygame.transform.flip(resized, True, False)
-                imgs["AttackHitbox"] = resized
+                imgs["attack_hitbox"] = resized
 
                 zoom_set[direction] = imgs
             self.resized_im_gs[zoom] = zoom_set
@@ -128,22 +128,22 @@ class Enemy:
     def update_costume(self, frame_length, player):
         self.glow += (0 - self.glow) / 500 * frame_length
         self.animation_timer = self.animation_timer + frame_length
-        if self.mode == "Spawn":
-            if self.animation_timer >= self.animation_lengths["Spawn"] * 1000 / animation_fps:
-                self.mode = "Walk"
+        if self.mode == "spawn":
+            if self.animation_timer >= self.animation_lengths["spawn"] * 1000 / animation_fps:
+                self.mode = "walk"
                 self.animation_timer = 0
-        elif self.mode == "Walk":
-            self.animation_timer = self.animation_timer % (self.animation_lengths["Walk"] * 1000 / animation_fps)
-        elif self.mode == "Attack":
-            if self.animation_timer >= self.animation_lengths["Attack"] * 1000 / animation_fps:
-                self.mode = "Walk"
+        elif self.mode == "walk":
+            self.animation_timer = self.animation_timer % (self.animation_lengths["walk"] * 1000 / animation_fps)
+        elif self.mode == "attack":
+            if self.animation_timer >= self.animation_lengths["attack"] * 1000 / animation_fps:
+                self.mode = "walk"
                 self.animation_timer = 0
 
-        if self.mode == "Walk":
+        if self.mode == "walk":
             if self.x < player.x:
-                self.facing = "Right"
+                self.facing = "right"
             elif self.x > player.x:
-                self.facing = "Left"
+                self.facing = "left"
 
         self.animation_frame = math.floor(self.animation_timer / (1000 / animation_fps))
 
@@ -164,7 +164,7 @@ class Enemy:
 
         self.update_rect()
         if hitbox:
-            if self.mode != "Spawn":
+            if self.mode != "spawn":
                 l = float(self.rect.left)
                 r = float(self.rect.right - 1)
                 t = float(self.rect.top)
@@ -189,7 +189,7 @@ class Enemy:
     def draw_attack_hitbox(self, surface, frame, offset_x=0, offset_y=0):
         # never used
         cam_x, cam_y, zoom = frame
-        surface.blit(self.resized_im_gs[zoom][self.facing]["AttackHitbox"], ((self.rect.centerx - self.size / 2 - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y))
+        surface.blit(self.resized_im_gs[zoom][self.facing]["attack_hitbox"], ((self.rect.centerx - self.size / 2 - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y))
 
     def deal_damage(self, damage, direct=False):
         self.glow = 255
@@ -263,7 +263,7 @@ class Enemy:
                     else:
                         self.x_speed += 0.0003 * frame_length * self.speed
             else:
-                self.mode = "Attack"
+                self.mode = "attack"
                 self.animation_timer = 0
 
             if self.on_ground:
@@ -279,10 +279,10 @@ class Enemy:
         return math.dist((self.x, self.y), (player.x, player.y)) > 500
 
     def handle_attack(self, player):
-        if player.immunity_timer == 0 and self.mode == "Attack" and self.animation_frame in self.attack_frames:
+        if player.immunity_timer == 0 and self.mode == "attack" and self.animation_frame in self.attack_frames:
             if self.attack_collide_rect(player.rect):
                 player.immunity_timer = player.immunity_time
-                if self.facing == "Right":
+                if self.facing == "right":
                     player.x_speed = self.knockback
                 else:
                     player.x_speed = -self.knockback

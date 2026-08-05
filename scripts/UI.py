@@ -13,7 +13,7 @@ charge_tuples = None
 def init():
     global charge_icon, light_gradient, chargeColors
 
-    charge_icon = pygame.transform.scale(get_asset("charge_icon"), (80, 80))
+    charge_icon = pygame.transform.scale(get_asset("UI_charge_icon"), (80, 80))
     light_gradient = get_asset("gradient_light")
     InteractionDisplay.font = pygame.font.SysFont("maiandragd", InteractionDisplay.font_size)
 
