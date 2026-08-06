@@ -82,10 +82,10 @@ class LaserImpact:
         self.scaled_im_gs = scaled_im_gs  # pre-scaled images for all zooms
         self.timer = 0.0
 
-    def tick(self, frame_length, active_lasers):
+    def tick(self, frame_length, active_laser):
         # update position if source laser is still active
         if self.source_laser is not None:
-            if self.source_laser in active_lasers:
+            if self.source_laser is active_laser:
                 lase = self.source_laser
                 self.x = lase.start_x + math.cos(lase.angle) * lase.length
                 self.y = lase.start_y + math.sin(lase.angle) * lase.length
@@ -144,14 +144,14 @@ class Player:
         self.laser_timer = 0
         self.laser_ramps = 0
         self.laser_first_hit = False
-        self.laser = []
+        self.laser = None
         self.impacts = []  # active LaserImpact instances
         self.laser_attributes = laser_properties.LaserAttributes(18, 1, 0.2, 10, 400, 1, 20, 0.3, 1, 20, 20, 0.5, 2, 0.5, {"white": (0, False), "blue": (0, False), "red": (0, False)})
 
         self.ability_timer = 0
         self.ability_cooldown = 800
 
-        self.n_cells = 16
+        self.n_cells = 15
         self.charge_capacity = self.n_cells * 25
         self.charges = {"white": self.charge_capacity * 2/3, "blue": 0, "red": 0}
         self.practical_charges = {"white": self.charge_capacity * 2/3, "blue": 0, "red": 0}
@@ -187,9 +187,10 @@ class Player:
         self.y = self.spawn_y
         self.x_speed = 0
         self.y_speed = 0
-        self.set_charges(max(100, self.charge_capacity * 2 / 3), 0, 0)
+        self.set_charges(max(100, 25 * int(self.n_cells * 2 / 3)), 0, 0)
         self.filter_type = "white"
         self.practical_charges = filter_charges(self.filter_type, self.charges)
+        self.laser = None
 
     def update_costume(self, frame_length, mouse_pos):
         self.animation_timer = (self.animation_timer + frame_length) % (1000 / ANIMATION_FPS * (ANIMATION_LENGTHS[self.animation_type]))
@@ -379,15 +380,15 @@ class Player:
                     _terrain.particles.spawn_pulse_particle(self.color, self.laser_attributes.dmg_range * 2, self.x, self.y, 800)
                     self.ability_timer = self.ability_cooldown
 
-        if keys_down["left_mouse"] and len(self.laser) == 0 and self.laser_timer <= self.laser_attributes.cooldown / 4:
+        if keys_down["left_mouse"] and self.laser is None and self.laser_timer <= self.laser_attributes.cooldown / 4:
             new_laser = laser.Laser()
-            self.laser = [new_laser]
+            self.laser = new_laser
             self.laser_ramps = 0
             self.laser_first_hit = True
 
-        if events["left_mouse_up"] and len(self.laser) > 0:
-            self.laser_timer = self.laser[0].timer
-            self.laser = []
+        if events["left_mouse_up"] and self.laser is not None:
+            self.laser_timer = self.laser.timer
+            self.laser = None
 
         if events["right_mouse_up"]:
             if self.n_cells > 1:
@@ -404,25 +405,25 @@ class Player:
         self.laser_timer -= frame_length
         self.laser_timer = max(0, self.laser_timer)
 
-        for lase in self.laser:
-            locked = lase.update_laser(
+        if self.laser:
+            locked = self.laser.update_laser(
                 _terrain,
-                self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
-                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + self.laser_attributes.distance * math.sin(-self.arm_angle) + 3,
+                self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + 10 * math.cos(self.arm_angle),
+                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + 10 * math.sin(-self.arm_angle) + 3,
                 -self.arm_angle,
                 self.laser_attributes.distance,
                 self.laser_attributes.cooldown,
             )
-            lase.tick(frame_length)
-            if lase.damage_frame:
+            self.laser.tick(frame_length)
+            if self.laser.damage_frame:
                 if not locked:
                     self.laser_ramps = 0
-                if lase.collision:
-                    point = lase.collision[0]
+                if self.laser.collision:
+                    point = self.laser.collision[0]
                     x, y = point
                     explosion_size = laser_properties.get_laser_expl(self.laser_attributes, self.laser_first_hit, self.laser_ramps)
                     _terrain.add_air_pocket_clump(x, y, explosion_size, player_made=True, spreading=1 / 5)
-                    if lase.collision[1] == "ground":
+                    if self.laser.collision[1] == "ground":
                         _terrain.particles.spawn_mining_particles(10, (0, 0, 0), explosion_size * 1.5, x, y)
                         HealthBar.targeted = None
 
@@ -445,9 +446,9 @@ class Player:
                     return True
 
                 # spawn impact — position follows live laser, freezes when laser released
-                end_x = lase.start_x + math.cos(lase.angle) * lase.length
-                end_y = lase.start_y + math.sin(lase.angle) * lase.length
-                self.impacts.append(LaserImpact(end_x, end_y, lase.angle, lase, self._impact_im_gs))
+                end_x = self.laser.start_x + math.cos(self.laser.angle) * self.laser.length
+                end_y = self.laser.start_y + math.sin(self.laser.angle) * self.laser.length
+                self.impacts.append(LaserImpact(end_x, end_y, self.laser.angle, self.laser, self._impact_im_gs))
 
         # tick impacts, passing current active lasers so they can track position
         for i in range(len(self.impacts) - 1, -1, -1):
@@ -517,11 +518,11 @@ class Player:
         self.update_color()
         self.update_costume(frame_length, mouse_pos)
 
-        for lase in self.laser:
-            lase.update_laser(
+        if self.laser:
+            self.laser.update_laser(
                 _terrain,
-                self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
-                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + 3 + self.laser_attributes.distance * math.sin(-self.arm_angle),
+                self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + 10 * math.cos(self.arm_angle),
+                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + 3 + 10 * math.sin(-self.arm_angle),
                 -self.arm_angle,
                 self.laser_attributes.distance,
                 self.laser_attributes.cooldown,
@@ -608,8 +609,8 @@ class Player:
             pygame.draw.line(surface, self.color, ((r - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
             pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y))
             pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
-            for lase in self.laser:
-                lase.draw(surface, frame, self.color, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
+            if self.laser:
+                self.laser.draw(surface, frame, self.color, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
         else:
             boosted_color = (channel_bound(self.color[0] + 30), channel_bound(self.color[1] + 30), channel_bound(self.color[2] + 30))
             player_surface = pygame.Surface((SPRITE_WIDTH * zoom, SPRITE_HEIGHT * zoom), flags=pygame.SRCALPHA)
@@ -630,8 +631,8 @@ class Player:
 
             surface.blit(player_surface, ((self.x - SPRITE_WIDTH / 2 - cam_x) * zoom + offset_x, (3 + self.rect.bottom - SPRITE_HEIGHT - cam_y) * zoom + offset_y))
             surface.blit(arm_surface, ((self.x - SPRITE_WIDTH / 2 - cam_x) * zoom + arm_offset_x + offset_x, (3 + self.rect.bottom - SPRITE_HEIGHT - cam_y) * zoom + arm_offset_y + offset_y))
-            for lase in self.laser:
-                lase.draw(surface, frame, boosted_color, offset_x=offset_x, offset_y=offset_y)
+            if self.laser:
+                self.laser.draw(surface, frame, boosted_color, offset_x=offset_x, offset_y=offset_y)
             # draw impact animations — rendered after laser so they appear on top
             for impact in self.impacts:
                 impact.draw(surface, frame, boosted_color, zoom, offset_x=offset_x, offset_y=offset_y)

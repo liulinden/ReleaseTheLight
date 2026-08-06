@@ -208,8 +208,7 @@ class Enemy:
             dy = self.y - y
             d = math.sqrt(dx**2 + dy**2)
             if player.laser:
-                lase = player.laser[0]
-                if lase.laser_target is self:
+                if player.laser.laser_target is self:
                     self.x_speed += frame_length * dx / d / self.size * pow / self.knockback_resistance
                     self.y_speed += frame_length * dy / d / self.size * pow / self.knockback_resistance
                 elif d < r + self.r:
@@ -226,8 +225,7 @@ class Enemy:
             dy = self.y - y
             d = math.sqrt(dx**2 + dy**2)
             if player.laser:
-                lase = player.laser[0]
-                if lase.laser_target is self:
+                if player.laser.laser_target is self:
                     _terrain.particles.spawn_mining_particles(10, self.color, self.size / 5, x, y)
                     if self.deal_damage(pow, True):
                         return True

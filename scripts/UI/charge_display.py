@@ -12,7 +12,7 @@ cell_imgs = None
 
 animation_fps = 12
 tl_x, tl_y = 20, 30
-display_size = 220
+display_size = 250
 cell_display_size = display_size * 0.22
 charge_icon_size = display_size * 0.62
 
@@ -35,12 +35,17 @@ def draw_line_from_center(surface, color, center, angle, r1, r2, thickness):
     pygame.draw.line(surface, color, polar_to_rect(r1, -angle, center), polar_to_rect(r2, -angle, center), thickness)
 
 
-def get_triangle_points(center, angle):
-    return (polar_to_rect(display_size * 0.43, angle - math.pi * 0.5, center), polar_to_rect(display_size * 0.5, angle - math.pi * 0.53, center), polar_to_rect(display_size * 0.5, angle - math.pi * 0.47, center))
+def get_diamond_points(center, angle):
+    return (polar_to_rect(display_size * 0.43, angle - math.pi * 0.5, center),
+            polar_to_rect(display_size * 0.5, angle - math.pi * 0.53, center),
+            polar_to_rect(display_size * 0.59, angle - math.pi * 0.5, center),
+            polar_to_rect(display_size * 0.5, angle - math.pi * 0.47, center),)
 
 
 def get_outer_triangle_points(center, angle):
-    return (polar_to_rect(display_size * 0.57, angle - math.pi * 0.5, center), polar_to_rect(display_size * 0.5, angle - math.pi * 0.52, center), polar_to_rect(display_size * 0.5, angle - math.pi * 0.48, center))
+    return (polar_to_rect(display_size * 0.57, angle - math.pi * 0.5, center),
+            polar_to_rect(display_size * 0.5, angle - math.pi * 0.52, center),
+            polar_to_rect(display_size * 0.5, angle - math.pi * 0.48, center))
 
 
 order_charges = {"white": (["white", "blue", "red"], []), "blue": (["blue", "white"], ["red"]), "red": (["red", "white"], ["blue"])}
@@ -82,7 +87,7 @@ class ChargeDisplay:
         if player.filter_type is not self.filter_type:
             self.filter_type = player.filter_type
             self.rotation_goal += 1
-        #if self.filter_type != "white":
+        # if self.filter_type != "white":
         #    player_charges["white"] /= 2
         #    self.charge_capacity -= player_charges["white"]
         if self.filter_type not in self.filters:
@@ -153,12 +158,15 @@ class ChargeDisplay:
 
         # different filter than above
         filter_colors = {
-            "white": charges_to_color(self.player_charges["white"], self.player_charges["blue"], self.player_charges["red"], maximize=True),
+            "white": charges_to_color(1, 0, 0, maximize=True),
             "blue": charges_to_color(0, self.player_charges["blue"] + 20, 0, maximize=True),
             "red": charges_to_color(0, 0, self.player_charges["red"] + 20, maximize=True),
         }
 
-        self.color = filter_colors[self.filter_type]
+        if self.filter_type == "white":
+            self.color = charges_to_color(self.player_charges["white"], self.player_charges["blue"], self.player_charges["red"], maximize=True)
+        else:
+            self.color = filter_colors[self.filter_type]
 
         charge_surface.fill(self.charge_color)
         charge_surface.blit(transformed_icon, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
@@ -202,25 +210,26 @@ class ChargeDisplay:
             cell_surface.blit(shell, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
             surface.blit(cell_surface, (x, y))
 
-
         pygame.draw.circle(surface, (0, 0, 0), (cx, cy), display_size * 0.5, 5)
 
-        pygame.draw.polygon(surface, self.color, get_triangle_points((cx, cy), self.filters[self.filter_type]))
-        pygame.draw.polygon(surface, (0, 0, 0), get_triangle_points((cx, cy), self.filters[self.filter_type]), 3)
-
         for color in self.filters:
-            pygame.draw.polygon(surface, filter_colors[color], get_outer_triangle_points((cx, cy), self.filters[color]))
+            if color is not self.filter_type:
+                pygame.draw.polygon(surface, filter_colors[color], get_outer_triangle_points((cx, cy), self.filters[color]))
 
         pygame.draw.circle(surface, self.color, (cx, cy), display_size * 0.5, 3)
         # draw_line_from_center(surface, filter_color, (cx, cy), math.pi * (1 / 2 - 2 * (150 / 500)), 60, 65, 3)
         # draw_line_from_center(surface, filter_color, (cx, cy), math.pi * (1 / 2 - 2 * (200 / 500)), 60, 65, 3)
         # draw_line_from_center(surface, filter_color, (cx, cy), math.pi * (1 / 2 - 2 * (400 / 500)), 60, 65, 3)
 
+        # threshold indicator
         pygame.draw.circle(surface, self.color, polar_to_rect(display_size * 0.5 + 5, -math.pi * (1 / 2 - 2 * (200 / 500)), (cx, cy)), 6, 3)
+
+
+        pygame.draw.polygon(surface, filter_colors[self.filter_type], get_diamond_points((cx, cy), self.filters[self.filter_type]))
+        pygame.draw.polygon(surface, (0, 0, 0), get_diamond_points((cx, cy), self.filters[self.filter_type]), 3)
 
         # pygame.draw.rect(surface, self.color, pygame.Rect(tl_x, tl_y, display_size, display_size), 2)
 
-        
         """
 
         pygame.draw.line(surface, filter_color, (self.x + 0, self.y + 20), (self.x + 14, self.y + 20), 2)

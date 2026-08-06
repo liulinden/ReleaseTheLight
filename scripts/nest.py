@@ -183,7 +183,7 @@ class Nest:
                 pow, x, y, r, falloff = circle
                 if self.close(x, y, r):
                     # direct hit: full damage; splash: reduced damage
-                    direct_hit = any(lase.laser_target is self for lase in player.laser)
+                    direct_hit = (player.laser.laser_target is self) if player.laser else False
                     damage = pow if direct_hit else pow * falloff
                     self.deal_damage(damage, c_terrain, player)
                     new_particles.append([x, y, self.size / (5 if direct_hit else 10)])

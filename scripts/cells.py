@@ -31,8 +31,7 @@ class Cell:
             dy = self.y - y
             d = dist(dx, dy)
             if player.laser:
-                lase = player.laser[0]
-                if lase.laser_target is self:
+                if player.laser.laser_target is self:
                     self.x_speed += frame_length * dx / d * pow / 30
                     self.y_speed += frame_length * dy / d * pow / 30
                     affected = True

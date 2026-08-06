@@ -223,8 +223,8 @@ class Game:
             # clear window
             self.window.fill((255, 255, 255))
 
-            for lase in self.game_world.player.laser:
-                if lase.damage_frame:
+            if self.game_world.player.laser:
+                if self.game_world.player.laser.damage_frame:
                     self.shake = self.game_world.player.laser_attributes.base_xpl / 8
                 else:
                     self.shake += self.game_world.player.laser_attributes.base_xpl / 450

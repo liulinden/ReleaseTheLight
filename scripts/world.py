@@ -13,9 +13,9 @@ import scripts.player as player
 import scripts.terrain as terrain
 import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display
+from scripts.bloom import get_bloom
 from scripts.global_assets import get_asset
 from scripts.util import frame_random, rotate_and_get_offset
-from scripts.bloom import get_bloom
 
 
 class World:
@@ -107,7 +107,8 @@ class World:
 
         if frame_random(frame_length, 5) == 1:
             self.light.add_mist_particle(self.player.x, self.player.y, color=self.player.color)
-        for lase in self.player.laser:
+        if self.player.laser:
+            lase = self.player.laser
             if frame_random(frame_length, lase.length / 20):
                 mist_pos = random.random()
                 self.light.add_mist_particle(lase.start_x + mist_pos * lase.length * math.cos(lase.angle), lase.start_y + mist_pos * lase.length * math.sin(lase.angle), color=self.player.color)
@@ -173,8 +174,8 @@ class World:
 
         self.light.draw_gradient(layer, frame, self.player.color, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
         if self.player.laser:
-            if self.player.laser[0].collision:
-                cx, cy = self.player.laser[0].collision[0]
+            if self.player.laser.collision:
+                cx, cy = self.player.laser.collision[0]
                 self.light.draw_gradient(layer, frame, self.player.color, cx, cy, offset_x=offset_x, offset_y=offset_y)
 
         self.terrain.draw_nest_gradients(window_size, layer, frame, offset_x=offset_x, offset_y=offset_y)
@@ -211,8 +212,8 @@ class World:
             self.draw_foreground(scratch_layer, window_size, frame)
             self.light.draw_thick_gradient(scratch_layer, frame, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
             if self.player.laser:
-                if self.player.laser[0].collision:
-                    cx, cy = self.player.laser[0].collision[0]
+                if self.player.laser.collision:
+                    cx, cy = self.player.laser.collision[0]
                     self.light.draw_thick_gradient(scratch_layer, frame, cx, cy, offset_x=offset_x, offset_y=offset_y)
             layer.blit(self.scratch_layer, (0, 0), special_flags=pygame.BLEND_MULT)
 
