@@ -151,9 +151,10 @@ class Player:
         self.ability_timer = 0
         self.ability_cooldown = 800
 
-        self.charge_capacity = 100
-        self.charges = {"white": self.charge_capacity, "blue": 0, "red": 0}
-        self.practical_charges = {"white": self.charge_capacity, "blue": 0, "red": 0}
+        self.n_cells = 16
+        self.charge_capacity = self.n_cells * 25
+        self.charges = {"white": self.charge_capacity * 2/3, "blue": 0, "red": 0}
+        self.practical_charges = {"white": self.charge_capacity * 2/3, "blue": 0, "red": 0}
         self.max_charge = 500
         self.immunity_timer = 0
         self.immunity_time = 500
@@ -233,6 +234,18 @@ class Player:
         cw, cb, cr = self.practical_charges.values()
         self.color = charges_to_color(cw, cb, cr, self.max_charge)
 
+    def update_charge_capacity(self):
+        self.charge_capacity = self.n_cells * 25
+        total_charge = sum(self.charges.values())
+        overflow = 0
+        if total_charge > self.charge_capacity:
+            overflow = total_charge - self.charge_capacity
+
+        self.lose_charge(overflow)
+
+        self.practical_charges = filter_charges(self.filter_type, self.charges)
+
+
     def update_laser_stats(self):
         laser_properties.set_laser_attributes(self.laser_attributes, self.practical_charges, self.filter_type, self.max_charge)
 
@@ -241,7 +254,7 @@ class Player:
         self.charges["blue"] = blue
         self.charges["red"] = red
 
-    def add_charge(self, added_charge, charge_distribution, max_charge):
+    def add_charge(self, added_charge, charge_distribution):
 
         sum_added = 0
         for color in self.charges:
@@ -260,7 +273,6 @@ class Player:
         total_charge = sum(self.charges.values())
         overflow = 0
         if total_charge > self.charge_capacity:
-            self.charge_capacity = max(self.charge_capacity, min(self.max_charge, min(max_charge, total_charge)))
             overflow = total_charge - self.charge_capacity
 
         self.lose_charge(overflow)
@@ -378,10 +390,13 @@ class Player:
             self.laser = []
 
         if events["right_mouse_up"]:
-            mx, my = mouse_pos
-            dx, dy = mx - self.x, my - self.y
-            d = dist(dx, dy)
-            _terrain.add_cell((self.x, self.y), (self.x_speed + dx / d / 3, self.y_speed + dy / d / 3))
+            if self.n_cells > 1:
+                mx, my = mouse_pos
+                dx, dy = mx - self.x, my - self.y
+                d = dist(dx, dy)
+                _terrain.add_cell((self.x, self.y), (self.x_speed + dx / d / 3, self.y_speed + dy / d / 3))
+                self.n_cells -= 1
+                self.update_charge_capacity()
 
         self.ability_timer -= frame_length
         self.ability_timer = max(0, self.ability_timer)
@@ -450,7 +465,7 @@ class Player:
             if nest.stage == nest.max_stage and self.charge_capacity > self.charges[nest.nest_type] and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
                 _terrain.add_interaction_display(nest.interaction_display)
                 if nest.interaction_display.active:
-                    charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging, nest.max_charge)
+                    charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging)
                     nest.lose_charge(charge_gain)
             else:
                 _terrain.remove_interaction_display(nest.interaction_display, nest.charge == 0 or self.charge_capacity == self.charges[nest.nest_type])
@@ -463,9 +478,11 @@ class Player:
                     if cell.interaction_display.active:  # should be triggered by an event not a key down
                         _terrain.remove_interaction_display(cell.interaction_display, True)
                         cells.remove(cell)
+                        self.n_cells += 1
                 else:
                     _terrain.remove_interaction_display(cell.interaction_display)
 
+        self.update_charge_capacity()
         self.update_laser_stats()
 
         if self.x < 50:

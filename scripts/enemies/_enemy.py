@@ -3,8 +3,8 @@ import random
 
 import pygame
 
-from scripts.UI.health_bar import HealthBar
 from scripts.global_assets import get_asset
+from scripts.UI.health_bar import HealthBar
 
 enemy_attack_frames = {"1": [4, 5]}
 enemy_animation_lengths = {"1": {"spawn": 6, "walk": 7, "attack": 9}}
