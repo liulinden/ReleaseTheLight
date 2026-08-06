@@ -104,11 +104,13 @@ class Laser:
 
         return distance + step / 2
 
-    def update_laser(self, terrain, start_x, start_y, angle, laser_cooldown=0):
+    def update_laser(self, terrain, start_x, start_y, angle, length=None, laser_cooldown=None):
         self.start_x, self.start_y = start_x, start_y
         self.angle = angle
         self.length = self.get_length(terrain, angle)
-        if laser_cooldown != 0:
+        if length is not None:
+            self.max_length = length * 15
+        if laser_cooldown is not None:
             self.laser_time = laser_cooldown
         return self.laser_target is self.previous_target and self.laser_target is not None
 

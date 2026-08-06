@@ -15,6 +15,7 @@ import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display
 from scripts.global_assets import get_asset
 from scripts.util import frame_random, rotate_and_get_offset
+from scripts.bloom import get_bloom
 
 
 class World:
@@ -227,5 +228,8 @@ class World:
             size = 10
             pygame.draw.line(layer, (255, 0, 0), (real_window_size[0] // 2 - size, real_window_size[1] // 2), (real_window_size[0] // 2 + size, real_window_size[1] // 2), 2)
             pygame.draw.line(layer, (255, 0, 0), (real_window_size[0] // 2, real_window_size[1] // 2 - size), (real_window_size[0] // 2, real_window_size[1] // 2 + size), 2)
+
+        bloom_surface = get_bloom(layer)
+        layer.blit(bloom_surface, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
         return layer

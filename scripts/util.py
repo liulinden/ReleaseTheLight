@@ -58,7 +58,7 @@ def polar_to_rect(r, angle, center=(0, 0)):
 
 
 def multiply_tuple(tuple_, factor):
-    return tuple(entry*factor for entry in tuple_)
+    return tuple(entry * factor for entry in tuple_)
 
 
 def get_bounced_vector(vector, normal, elasticity=1):
@@ -114,18 +114,31 @@ def channel_bound(value):
 
 def charges_to_color(cw, cb, cr, max_charge=500, maximize=False):
     r = cr + cw / 3
-    g = cw / 3 + cb / 6
+    g = cw / 3 + cb / 8 + cr / 8
     b = cw / 3 + cb
-    dominant = max(r, g, b)
-    if dominant == 0:
-        return (0, 0, 0)
-    factor = 255 / dominant
-    charge = cw + cb + cr
-    if charge < max_charge / 8:
-        if not maximize:
-            factor *= charge / (max_charge / 8) * 0.8
-    else:
-        factor *= 0.8 * (1 + (1.5 * (8 * charge - max_charge) / (max_charge * 8)))
+    med = sorted((r, g, b))[1]
+    sum = r + g + b
+    if sum == 0:
+        return (0,0,0)
+    r = max(sum/20, r + 2 * (r - med)) * 255 / sum
+    g = max(sum/20, g + 2 * (g - med)) * 255 / sum
+    b = max(sum/20, b + 2 * (b - med)) * 255 / sum
+    frac = ((cw + cb + cr) / max_charge) ** 0.5
+    factor = frac * 5
     if maximize:
-        factor *= 1.25
+        factor = max(factor, 3)
+
+    # factor = 255 / dominant
+    # charge = cw + cb + cr
+    # if charge < max_charge / 8:
+    #    if not maximize:
+    #        factor *= charge / (max_charge / 8) * 0.8
+    # elif charge < max_charge / 2:
+    #    frac = (charge/max_charge - 1/8)/(1/2 - 1/8)
+    #    factor *= 0.8 + 2 * frac
+    # else:
+    #    frac = (charge/max_charge - 1/2)/(1/2)
+    #    factor *= 2.8 + 4 * frac
+    # if maximize:
+    #    factor *= 1.25
     return rgb_bound((r * factor, g * factor, b * factor))

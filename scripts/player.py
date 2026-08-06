@@ -410,6 +410,8 @@ class Player:
                 self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
                 self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + self.laser_attributes.distance * math.sin(-self.arm_angle) + 3,
                 -self.arm_angle,
+                self.laser_attributes.distance,
+                self.laser_attributes.cooldown,
             )
             lase.tick(frame_length)
             if lase.damage_frame:
@@ -521,6 +523,7 @@ class Player:
                 self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + self.laser_attributes.distance * math.cos(self.arm_angle),
                 self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + 3 + self.laser_attributes.distance * math.sin(-self.arm_angle),
                 -self.arm_angle,
+                self.laser_attributes.distance,
                 self.laser_attributes.cooldown,
             )
         return False

@@ -23,7 +23,7 @@ class LaserAttributes:
 base = LaserAttributes(10, 0.8, 0.15, 20, 500, 1, 20, 0.3, 1, 20, 20, 0.5, 1.5, 0.5, {})
 max_white = LaserAttributes(25, 1.2, 0.25, 40, 300, 1, 50, 0.3, 1, 30, 30, 0.5, 2, 0.5, {})
 max_blue = LaserAttributes(30, 3, 0.8, 35, 400, 1, 20, 0.3, 1, 20, 50, 0.5, 3, 0.5, {})
-max_red = LaserAttributes(5, 5, 0.15, 60, 500, 0.2, 20, 1, 1, 50, 20, 0.8, 1.5, 1, {})
+max_red = LaserAttributes(8, 5, 0.15, 60, 500, 0.2, 20, 1, 1, 50, 20, 0.8, 1.5, 1, {})
 
 ability_thresholds = {"white": 200 / 500, "blue": 200 / 500, "red": 200 / 500}
 

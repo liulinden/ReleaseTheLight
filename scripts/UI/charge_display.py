@@ -154,8 +154,8 @@ class ChargeDisplay:
         # different filter than above
         filter_colors = {
             "white": charges_to_color(self.player_charges["white"], self.player_charges["blue"], self.player_charges["red"], maximize=True),
-            "blue": charges_to_color(0, self.player_charges["blue"] + 1, 0, maximize=True),
-            "red": charges_to_color(0, 0, self.player_charges["red"] + 1, maximize=True),
+            "blue": charges_to_color(0, self.player_charges["blue"] + 20, 0, maximize=True),
+            "red": charges_to_color(0, 0, self.player_charges["red"] + 20, maximize=True),
         }
 
         self.color = filter_colors[self.filter_type]
