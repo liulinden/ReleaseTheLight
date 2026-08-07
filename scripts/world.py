@@ -109,8 +109,8 @@ class World:
             return True
 
         player_speed = dist(self.player.x_speed, self.player.y_speed)
-        alpha_target = max(0, 255 - 500 * player_speed)
-        self.foreground_alpha += (alpha_target - self.foreground_alpha) * frame_length / (100 if alpha_target < self.foreground_alpha else 1000)
+        alpha_target = max(0, 255 - 600 * player_speed)
+        self.foreground_alpha += (alpha_target - self.foreground_alpha) * frame_length / (100 if alpha_target < self.foreground_alpha else 1500)
         self.foreground.set_alpha(self.foreground_alpha)
 
         if frame_random(frame_length, 5) == 1:
@@ -157,8 +157,8 @@ class World:
 
     def draw_background(self, layer, window_size, frame):
         left, top, zoom = frame
-        x = (-left / 10 * zoom) % self.bg_width / 2 - self.bg_width / 2
-        y = (-top / 10 * zoom) % self.bg_height / 2 - self.bg_height / 2
+        x = (-left * 2 * zoom) % self.bg_width / 2 - self.bg_width / 2
+        y = (-top * 2 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background, (x, y))
 
     def draw_foreground(self, layer, window_size, frame):
@@ -176,9 +176,9 @@ class World:
         if kind_visibility:
             layer.fill((200, 200, 200))
         else:
-            self.terrain.draw_depth_background(layer, frame, offset_x=offset_x, offset_y=offset_y)
+            layer.fill((10,10,10))
+            #self.terrain.draw_depth_background(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
-        self.light.draw_effects(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.light.draw_gradient(layer, frame, self.player.color, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
         if self.player.laser:
@@ -190,13 +190,18 @@ class World:
 
         self.terrain.draw_enemy_gradients(window_size, layer, frame, offset_x=offset_x, offset_y=offset_y)
 
-        self.terrain.particles.draw_pulse_particles(layer, frame, offset_x=offset_x, offset_y=offset_y)
-
         self.draw_background(scratch_layer, window_size, frame)
 
         # struct back elements (behind terrain)
 
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        layer.fill(self.terrain.get_frame_color(layer,frame), special_flags=pygame.BLEND_RGBA_MULT)
+        if kind_visibility:
+            layer.fill(self.terrain.get_frame_color(layer,frame))
+
+        self.light.draw_effects(layer, frame, offset_x=offset_x, offset_y=offset_y)
+
+        self.terrain.particles.draw_pulse_particles(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.player.draw(layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y, tilt=tilt)
 

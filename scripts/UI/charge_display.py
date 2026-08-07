@@ -55,7 +55,7 @@ class ChargeDisplay:
     def __init__(self):
         self.rotation = 0
         self.rotation_goal = 1
-        self.scale = 100
+        self.scale = 90
 
         # x/y are left/top
         self.x = 40
@@ -114,7 +114,7 @@ class ChargeDisplay:
 
         if total_charge_change > 0.1:
             self.rotation_goal += total_charge_change / 10
-            self.scale = 100
+            self.scale = 90
         elif total_charge_change < -0.1:
             # self.rotation=0
             # self.rotationGoal=0

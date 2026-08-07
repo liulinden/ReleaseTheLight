@@ -43,17 +43,25 @@ max_air_pocket_radius = 120
 rim_pocket_ratio = 1.5
 rocks_world_span = 8 * CHUNK_SIZE
 
-PALETTES = [
-    [(0.0, (120, 100, 65)), (0.5, (60, 55, 65)), (1.0, (70, 20, 60))],
-    [(0.0, (30, 20, 30)), (0.5, (10, 10, 10)), (0.55, (50, 70, 100)), (0.6, (15, 10, 20)), (1.0, (10, 10, 10))],
-    [(0.0, (70, 100, 240)), (0.65, (0, 64, 255)), (0.7, (200, 50, 60)), (0.75, (100, 120, 255)), (1.0, (20, 62, 250))],
-    [(0.0, (255, 55, 65)), (0.4, (180, 40, 60)), (0.45, (60, 200, 255)), (0.5, (200, 55, 100)), (1.0, (170, 60, 150))],
-    [(0.0, (200, 55, 150)), (0.5, (10, 10, 10)), (1.0, (150, 55, 200))],
-    [(0.0, (60, 55, 65)), (1.0, (60, 55, 65))],
-    [(0.0, (60, 55, 65)), (1.0, (60, 55, 65))],
-    [(0.0, (60, 55, 65)), (1.0, (60, 55, 65))],
-    [(0.0, (60, 55, 65)), (1.0, (60, 55, 65))],
-    [(0.0, (60, 55, 65)), (1.0, (255, 255, 255))],
+
+PALETTE = [
+    (0.000, (255, 200, 60)),   # golden yellow
+    (0.060, (255, 110, 40)),   # bright orange
+    (0.120, (255, 60, 90)),    # hot pink-red
+    (0.180, (230, 40, 180)),   # magenta
+    (0.240, (170, 50, 240)),   # violet
+    (0.300, (100, 70, 255)),   # indigo
+    (0.360, (60, 120, 255)),   # bright blue
+    (0.420, (40, 190, 255)),   # cyan-blue
+    (0.480, (40, 230, 210)),   # turquoise
+    (0.540, (60, 230, 120)),   # spring green
+    (0.600, (170, 230, 60)),   # lime
+    (0.660, (255, 230, 50)),   # bright yellow
+    (0.720, (255, 160, 40)),   # amber
+    (0.780, (255, 90, 60)),    # coral red
+    (0.840, (230, 50, 130)),   # rose
+    (0.900, (150, 60, 255)),   # purple
+    (1.000, (80, 200, 255)),   # sky blue
 ]
 
 # ------------------------------------------------------------------
@@ -418,7 +426,7 @@ class Terrain:
     # Noise / colour -- continuous with world_y, no layers
     # ------------------------------------------------------------------
 
-    def _noise_val(self, x, y, scale=1.0):
+    def _noise_val(self, x, y, scale=1):
         x, y = x * scale, y * scale
         v = math.sin(x * 0.017 + y * 0.011) * 0.4
         v += math.cos(x * 0.031 - y * 0.023) * 0.3
@@ -430,29 +438,20 @@ class Terrain:
         return max(0.0, min(1.0, y / self.world_height))
 
     def _depth_color(self, world_x, world_y):
-        # PALETTES is treated as a sequence of equal-height bands spanning
-        # the full world height (this replaces the old gateway-defined
-        # layer bounds). Easy to swap for non-uniform bands later.
         depth_frac = self._depth_fraction(world_y)
-        band_count = len(PALETTES)
-        band_f = depth_frac * band_count
-        band = min(band_count - 1, int(band_f))
-        local_d = band_f - band
+        noise = self._noise_val(world_x, world_y) * 0.03
+        d = max(0.0, min(1.0, depth_frac + noise))
 
-        noise = self._noise_val(world_x, world_y) * 0.3
-        d = max(0.0, min(1.0, local_d + noise))
-
-        palette = PALETTES[band]
-        for i in range(len(palette) - 1):
-            d0, c0 = palette[i]
-            d1, c1 = palette[i + 1]
+        for i in range(len(PALETTE) - 1):
+            d0, c0 = PALETTE[i]
+            d1, c1 = PALETTE[i + 1]
             if d <= d1:
                 t = (d - d0) / (d1 - d0) if d1 != d0 else 0.0
                 r = int(c0[0] + (c1[0] - c0[0]) * t)
                 g = int(c0[1] + (c1[1] - c0[1]) * t)
                 b = int(c0[2] + (c1[2] - c0[2]) * t)
                 return (r, g, b)
-        return palette[-1][1]
+        return PALETTE[-1][1]
 
     def _make_gradient_surf(self, tl, tr, bl, br, width, height):
         surf = self._get_scratch_surface(2, 2)
@@ -952,16 +951,19 @@ class Terrain:
     # Draw
     # ------------------------------------------------------------------
 
-    def draw_depth_background(self, surface, frame, offset_x=0, offset_y=0):
+    # def draw_depth_background(self, surface, frame, offset_x=0, offset_y=0):
+    def get_frame_color(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w, h = surface.get_size()
         cx = left + w / zoom / 2
         cy = top + h / zoom / 2
 
-        def darken(c):
-            return (int(c[0] * 0.05), int(c[1] * 0.05), int(c[2] * 0.05))
+        return(self._depth_color(cx, cy))
 
-        surface.fill(darken(self._depth_color(cx, cy)))
+        # def darken(c):
+        #    return (int(c[0] * 0.05), int(c[1] * 0.05), int(c[2] * 0.05))
+        #
+        #surface.fill(darken(self._depth_color(cx, cy)))
 
     def draw_collision_debug(self, surface, rect, frame, color=(255, 0, 0), offset_x=0, offset_y=0):
         left, top, zoom = frame
