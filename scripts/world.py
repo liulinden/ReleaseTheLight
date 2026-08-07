@@ -4,6 +4,7 @@ import random
 
 import pygame
 
+import scripts.cells as cells
 import scripts.enemies._enemy as enemies
 import scripts.laser as laser
 import scripts.lighting as lighting
@@ -15,7 +16,7 @@ import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display
 from scripts.bloom import get_bloom
 from scripts.global_assets import get_asset
-from scripts.util import frame_random, rotate_and_get_offset
+from scripts.util import frame_random, rotate_and_get_offset, dist
 
 
 class World:
@@ -27,7 +28,7 @@ class World:
 
         init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.05, 0.12)
 
-        inits = [lighting.init, enemies.init, nest.init, terrain.init, player.init, laser.init, interaction_display.init, charge_display.init]
+        inits = [lighting.init, cells.init, enemies.init, nest.init, terrain.init, player.init, laser.init, interaction_display.init, charge_display.init]
 
         for i, init in enumerate(inits):
             init_loading_screen.put((i + 1) / len(inits), f"{init.__module__}.{init.__name__}()")
@@ -54,6 +55,8 @@ class World:
         self._world_layer = None
         self._world_layer_size = None
         self.scratch_layer = None
+
+        self.foreground_alpha = 0
 
         self.generate_world(generate_loading_screen)
         self.terrain.start_streaming()
@@ -104,6 +107,11 @@ class World:
 
         if self.player.tick(frame_length, self.terrain, mouse_pos, keys_down, events):
             return True
+
+        player_speed = dist(self.player.x_speed, self.player.y_speed)
+        alpha_target = max(0, 255 - 500 * player_speed)
+        self.foreground_alpha += (alpha_target - self.foreground_alpha) * frame_length / (100 if alpha_target < self.foreground_alpha else 1000)
+        self.foreground.set_alpha(self.foreground_alpha)
 
         if frame_random(frame_length, 5) == 1:
             self.light.add_mist_particle(self.player.x, self.player.y, color=self.player.color)
@@ -192,9 +200,9 @@ class World:
 
         self.player.draw(layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y, tilt=tilt)
 
-        self.terrain.draw_enemies(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
-
         self.terrain.draw_cells(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
+
+        self.terrain.draw_enemies(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
         self.terrain.particles.draw_particles(layer, frame, offset_x=offset_x, offset_y=offset_y)
 

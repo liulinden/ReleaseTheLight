@@ -23,7 +23,7 @@ def init():
     charge_icon = pygame.transform.scale(get_asset("UI_charge_icon"), (charge_icon_size, charge_icon_size))
     light_gradient = get_asset("gradient_light")
     cell_imgs = {
-        "shell": pygame.transform.scale(get_asset("cell_basic_shell"), (cell_display_size, cell_display_size)),
+        "shell": pygame.transform.scale(get_asset("cell_basic_shell_outlined"), (cell_display_size, cell_display_size)),
         **{"crackle_" + str(i + 1): pygame.transform.scale(get_asset("cell_basic_crackle_" + str(i + 1)), (cell_display_size, cell_display_size)) for i in range(5)},
     }
 

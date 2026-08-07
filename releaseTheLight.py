@@ -9,7 +9,7 @@ import scripts.world as world
 from config import CHUNK_SIZE
 from scripts.global_assets import load_assets
 from scripts.UI.charge_display import ChargeDisplay
-from scripts.UI.minimap import Minimap
+# from scripts.UI.minimap import Minimap
 
 
 class Game:
@@ -90,7 +90,7 @@ class Game:
         self.game_world = world.World(self.WORLD_WIDTH, self.WORLD_HEIGHT, loading_screen=world_loading, default_zooms=self.DEFAULT_ZOOMS, developing_mode=self.developing_mode)
 
         self.charge_display = ChargeDisplay()
-        self.minimap = Minimap(self.WORLD_WIDTH, self.WORLD_HEIGHT)
+        # self.minimap = Minimap(self.WORLD_WIDTH, self.WORLD_HEIGHT)
 
         self.clock = pygame.time.Clock()
         self.keys_down = {pygame.K_w: False, pygame.K_a: False, pygame.K_d: False, pygame.K_e: False, "left_mouse": False, "right_mouse": False}
@@ -209,7 +209,7 @@ class Game:
                 self.game_world.remove_enemies()
 
             self.charge_display.update(practical_fps, self.game_world.player)
-            self.minimap.update(self.game_world.player, self.game_world.terrain)
+            # self.minimap.update(self.game_world.player, self.game_world.terrain)
 
             self.update_cam_pos(practical_fps, self.zoom, self.game_world.player.x, self.game_world.player.y, self.game_world.player.x_speed, self.game_world.player.y_speed)
             # world wrapping
@@ -267,7 +267,7 @@ class Game:
 
             # display UI stuff
             self.charge_display.draw(self.window)
-            self.minimap.draw(self.window, self.charge_display.color)
+            # self.minimap.draw(self.window, self.charge_display.color)
 
             if self.loading_debug:
                 pygame.draw.rect(self.window, (0, 255, 0), pygame.Rect(self.offset_x, self.offset_y, self.window_width, self.window_height), 1)

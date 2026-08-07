@@ -1,7 +1,13 @@
+import math
+
 import pygame
 
+from scripts.global_assets import get_asset
 from scripts.UI.interaction_display import InteractionDisplay
-from scripts.util import about_equal, dist, get_bounced_vector, normalize_1d
+from scripts.util import ImageCache, about_equal, dist, get_bounced_vector, normalize_1d
+
+cell_imgs = None
+animation_fps = 12
 
 
 def validate_cell_coords(_terrain, coords):
@@ -9,18 +15,39 @@ def validate_cell_coords(_terrain, coords):
     rect = pygame.Rect(x - Cell.width / 2, y - Cell.height / 2, Cell.width, Cell.height)
     return not _terrain.collide_rect(rect)
 
+
+def init():
+    global cell_imgs
+    cell_imgs = {
+        "shell": get_asset("cell_basic_shell"),
+        **{"crackle_" + str(i + 1): get_asset("cell_basic_crackle_" + str(i + 1)) for i in range(5)},
+    }
+
+
 class Cell:
     width = 10
-    height = 20
-    def __init__(self, coords, velocities):
+    height = 18
+    size = 30
+    cell_imgs_cache = ImageCache()
+
+    def __init__(self, default_zooms, coords, velocities):
         self.w = Cell.width
         self.h = Cell.height
+        self.size = Cell.size
         self.x, self.y = coords
         self.x_speed, self.y_speed = velocities
         self.rect = pygame.Rect(self.x - self.w / 2, self.y - self.h / 2, self.w, self.h)
         self.r = dist(self.w, self.h)
         self.interaction_display = InteractionDisplay((self.x, self.y + self.h / 2), (pygame.K_e, ""))
         self.frames_since_moved = 0
+        self.animation_timer = 0
+        self.frame = 1
+
+        self.cell_imgs = {}
+        for zoom in default_zooms:
+            self.cell_imgs[zoom] = {}
+            for id in cell_imgs:
+                self.cell_imgs[zoom][id] = Cell.cell_imgs_cache.get_resized_image(cell_imgs[id], id, (Cell.size * zoom, Cell.size * zoom))
 
     def tick_knockback(self, frame_length, _terrain, player):
         affected = False
@@ -173,6 +200,8 @@ class Cell:
         return
 
     def tick(self, frame_length, _terrain, player):
+        self.animation_timer = (self.animation_timer + frame_length) % (1000 / animation_fps * 5)
+        self.frame = math.floor(self.animation_timer / (1000 / animation_fps)) + 1
         if self.tick_knockback(frame_length, _terrain, player) or self.frames_since_moved <= 2:
             last_x, last_y = self.x, self.y
             self.tick_gravity(frame_length)
@@ -193,8 +222,16 @@ class Cell:
         cam_x, cam_y, zoom = frame
 
         self.update_rect()
-        vis_rect = (self.rect.left - cam_x) * zoom + offset_x, (self.rect.top - cam_y) * zoom + offset_y, self.w * zoom, self.h * zoom
-        pygame.draw.rect(surface, (0, 0, 0), vis_rect, 2)
+
+        if hitbox:
+            vis_rect = (self.rect.left - cam_x) * zoom + offset_x, (self.rect.top - cam_y) * zoom + offset_y, self.w * zoom, self.h * zoom
+            pygame.draw.rect(surface, (0, 0, 0), vis_rect, 2)
+        else:
+            dest = ((self.x - self.size / 2 - cam_x) * zoom + offset_x, (self.y - self.size / 2 - cam_y) * zoom + offset_y)
+            shell = self.cell_imgs[zoom]["shell"]
+            crackle = self.cell_imgs[zoom]["crackle_" + str(self.frame)]
+            surface.blit(shell, dest)
+            surface.blit(crackle, dest)
 
     def within_interaction_radius(self, coords):
         x, y = coords

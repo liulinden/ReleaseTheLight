@@ -244,7 +244,7 @@ class Terrain:
         self._rocks_scaled = {}
         for zoom in default_zooms:
             scaled_span = int(rocks_world_span * zoom)
-            self._rocks_scaled[zoom] = pygame.transform.scale(rocks_img["raw"], (scaled_span, scaled_span))
+            self._rocks_scaled[zoom] = pygame.transform.smoothscale(rocks_img["raw"], (scaled_span, scaled_span))
 
         self._terrain_layer = None
         self._terrain_layer_size = None
@@ -821,9 +821,6 @@ class Terrain:
         else:
             new_air_pocket = AirPocket(x, y, radius, player_made=player_made)
 
-        if not player_made and random.randint(1, 50) == 1:
-            self.add_cell((x, y))
-
         touched_chunks = []
         for row, col in self._chunks_in_rect(new_air_pocket.left, new_air_pocket.top, new_air_pocket.true_r * 2, new_air_pocket.true_r * 2, pad=0):
             chunk = self.get_or_create_chunk(row, col)
@@ -845,7 +842,7 @@ class Terrain:
 
     def add_cell(self, coords, velocities=(1, 1)):
         if validate_cell_coords(self, coords):
-            new_cell = Cell(coords, velocities)
+            new_cell = Cell(self.default_zooms, coords, velocities)
             row = math.floor(new_cell.y / CHUNK_SIZE)
             col = math.floor(new_cell.x / CHUNK_SIZE)
             self.get_or_create_chunk(row, col).cells.append(new_cell)

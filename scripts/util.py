@@ -4,6 +4,18 @@ import random
 import pygame
 
 
+class ImageCache:
+    def __init__(self):
+        self.cache = {}
+
+    def get_resized_image(self, image:pygame.Surface, id, size, smoothscale = True):
+        if (id, size, smoothscale) not in self.cache:
+            if smoothscale:
+                self.cache[(id, size, smoothscale)] = pygame.transform.smoothscale(image, size)
+            else:
+                self.cache[(id, size, smoothscale)] = pygame.transform.scale(image, size)
+        return self.cache[(id, size, smoothscale)]
+
 def draw_rounded_line(surface, color, start, end, thickness):
     pygame.draw.line(surface, color, start, end, thickness)
     pygame.draw.circle(surface, color, start, thickness // 2)

@@ -169,7 +169,7 @@ class Player:
                 for animation_type in PLAYER_IMGS:
                     direction_set[animation_type] = []
                     for img in PLAYER_IMGS[animation_type]:
-                        resized_img = pygame.transform.scale(img, (SPRITE_WIDTH * zoom, SPRITE_HEIGHT * zoom))
+                        resized_img = pygame.transform.smoothscale(img, (SPRITE_WIDTH * zoom, SPRITE_HEIGHT * zoom))
                         if direction == "left":
                             resized_img = pygame.transform.flip(resized_img, True, False)
                         direction_set[animation_type].append(resized_img)
@@ -180,7 +180,7 @@ class Player:
         self._impact_im_gs = {}
         for zoom in self.default_zooms:
             size = int(IMPACT_SIZE * zoom)
-            self._impact_im_gs[zoom] = [pygame.transform.scale(img, (size, size)) for img in LASER_IMPACT_IMGS_RAW]
+            self._impact_im_gs[zoom] = [pygame.transform.smoothscale(img, (size, size)) for img in LASER_IMPACT_IMGS_RAW]
 
     def reset_player(self):
         self.x = self.spawn_x

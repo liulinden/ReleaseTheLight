@@ -1,4 +1,5 @@
 import random
+import math
 
 import pygame
 
@@ -21,7 +22,9 @@ eligible_enemies = {"white": [basic_enemy.BasicEnemy], "blue": [basic_enemy.Basi
 
 def get_enemy(_terrain, player, nest_type, color, nest_health, nest_x, nest_y, nest_size):
     for i in range(20):
-        x, y = random.randint(int(nest_x - 10 - nest_size / 2), int(nest_x + 10 + nest_size / 2)), random.randint(int(nest_y - 10 - nest_size / 2), int(nest_y + 10 + nest_size / 2))
+        angle = math.atan2(player.y - nest_y, player.x - nest_x) + (random.random() * 2 - 1) * math.pi/2
+        r = random.randint(int(nest_size / 2 - 10), int(nest_size / 2 + 10))
+        x, y = int(nest_x + r * math.cos(angle)), int(nest_y + r * math.sin(angle))
 
         eligible = eligible_enemies[nest_type]
         variant = eligible[random.randint(0, len(eligible) - 1)]
