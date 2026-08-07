@@ -72,7 +72,7 @@ class Lighting:
         # BLEND_RGBA_MULT multiplies both RGB and alpha — so the gradient's alpha falloff
         # is preserved in the filter surface. Then BLEND_ADD composites additively but
         # we need the falloff respected, so we pre-multiply alpha into RGB and use BLEND_ADD.
-        filt = self._gradient_filters[(zoom, 400)]
+        filt = self._gradient_filters[(zoom, 600)]
         filt.fill((color[0], color[1], color[2], 255))
         filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         # Pre-multiply alpha into RGB: blit SRCALPHA filt onto black opaque surface —
