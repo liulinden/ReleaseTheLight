@@ -182,7 +182,7 @@ class World:
         if kind_visibility:
             layer.fill((200, 200, 200))
         else:
-            layer.fill((10,10,10))
+            layer.fill((5,5,5))
             #self.terrain.draw_depth_background(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
 
@@ -201,6 +201,8 @@ class World:
         # struct back elements (behind terrain)
 
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+
+        self.light.draw_gradient(layer, frame, self.player.color, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
 
         scratch_layer.fill(self.terrain.get_frame_color(layer, frame))
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)

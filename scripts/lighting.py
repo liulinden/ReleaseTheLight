@@ -56,10 +56,10 @@ class Lighting:
             if self.particles[i].tick(frame_length) == "end":
                 del self.particles[i]
 
-    def draw_gradient(self, surface: pygame.Surface, frame, color, x, y, offset_x=0, offset_y=0):
+    def draw_gradient(self, surface: pygame.Surface, frame, color, x, y, size=400, offset_x=0, offset_y=0):
         left, top, zoom = frame
 
-        img_lookup = self.resized_light_im_gs["gradient_400"]
+        img_lookup = self.resized_light_im_gs["gradient_" + str(size)]
         dimensions = img_lookup[zoom].get_size()
 
         darken = 60 / 255
