@@ -186,7 +186,7 @@ class World:
             #self.terrain.draw_depth_background(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
 
-        self.light.draw_gradient(layer, frame, self.player.color, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
+        self.light.draw_gradient(layer, frame, self.player.color, self.player.x, self.player.y, size=600, offset_x=offset_x, offset_y=offset_y)
         if self.player.laser:
             if self.player.laser.collision:
                 cx, cy = self.player.laser.collision[0]
