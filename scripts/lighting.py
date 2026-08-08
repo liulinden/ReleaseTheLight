@@ -1,4 +1,5 @@
 import random
+from collections import OrderedDict
 
 import pygame
 
@@ -18,6 +19,8 @@ def init():
     light_gradient = get_asset("gradient_light")
     thick_gradient = get_asset("gradient_thick")
 
+def snap_color(color, snap=4):
+    return (color[0] // snap * snap, color[1] // snap * snap, color[2] // snap * snap)
 
 class Lighting:
     def __init__(self, default_zooms=(0.1, 2)):
@@ -39,19 +42,11 @@ class Lighting:
         for zoom in default_zooms:
             self.resized_light_im_gs["gradient_thick"][zoom] = pygame.transform.scale(thick_gradient, (zoom * size, zoom * size))
 
-        # FIX 1: pre-allocate gradient filter surfaces keyed by (zoom, gradient_size)
-        # so drawGradient never allocates a Surface per call
-        self._gradient_filters = {}
-        self._gradient_premul = {}  # non-SRCALPHA surface for pre-multiplied composite
-        for size in [400, 600, 800]:
-            for zoom in default_zooms:
-                dims = self.resized_light_im_gs["gradient_" + str(size)][zoom].get_size()
-                surf = pygame.Surface(dims, flags=pygame.SRCALPHA)
-                self._gradient_filters[(zoom, size)] = surf
-                self._gradient_premul[(zoom, size)] = pygame.Surface(dims)  # black opaque
+        # NOTE: _gradient_filters / _gradient_premul preallocation removed —
+        # GradientCache now owns caching, keyed by color instead of being
+        # rebuilt from scratch every draw_gradient call.
 
     def add_mist_particle(self, x, y, color=(255, 255, 255)):
-        # FIX 2: was indexing a dict with an integer (bug) — now correctly indexes the list
         mist_list = self.resized_light_im_gs["particles_mist"]
         new_particle = MistParticle(x, y, mist_list[random.randint(0, len(mist_list) - 1)], color)
         self.particles.append(new_particle)
@@ -59,30 +54,22 @@ class Lighting:
     def tick_effects(self, frame_length):
         for i in range(len(self.particles) - 1, -1, -1):
             if self.particles[i].tick(frame_length) == "end":
-                # FIX 1: del at known index is O(1); list.remove() scans from front O(n)
                 del self.particles[i]
 
     def draw_gradient(self, surface: pygame.Surface, frame, color, x, y, offset_x=0, offset_y=0):
         left, top, zoom = frame
 
-        img = self.resized_light_im_gs["gradient_400"][zoom]
-        dimensions = img.get_size()
+        img_lookup = self.resized_light_im_gs["gradient_600"]
+        dimensions = img_lookup[zoom].get_size()
 
-        # Build filter: color tinted at full RGB, soft falloff from gradient PNG's alpha channel.
-        # BLEND_RGBA_MULT multiplies both RGB and alpha — so the gradient's alpha falloff
-        # is preserved in the filter surface. Then BLEND_ADD composites additively but
-        # we need the falloff respected, so we pre-multiply alpha into RGB and use BLEND_ADD.
-        filt = self._gradient_filters[(zoom, 600)]
-        filt.fill((color[0], color[1], color[2], 255))
-        filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-        # Pre-multiply alpha into RGB: blit SRCALPHA filt onto black opaque surface —
-        # normal blit folds alpha falloff into RGB against black background.
-        premul = self._gradient_premul[(zoom, 400)]
-        premul.fill((0, 0, 0))
-        premul.blit(filt, (0, 0))
-        scale = 60 / 255
-        premul.fill((int(scale * 255), int(scale * 255), int(scale * 255)), special_flags=pygame.BLEND_RGB_MULT)
-        surface.blit(premul, ((x - left) * zoom - dimensions[0] / 2 + offset_x, (y - top) * zoom - dimensions[1] / 2 + offset_y), special_flags=pygame.BLEND_ADD)
+        darken = 60 / 255
+        premul = GradientCache.get_premul(img_lookup, zoom, color, darken)
+
+        surface.blit(
+            premul,
+            ((x - left) * zoom - dimensions[0] / 2 + offset_x, (y - top) * zoom - dimensions[1] / 2 + offset_y),
+            special_flags=pygame.BLEND_ADD,
+        )
 
     def draw_thick_gradient(self, surface: pygame.Surface, frame, x, y, offset_x=0, offset_y=0):
         left, top, zoom = frame
@@ -95,10 +82,10 @@ class Lighting:
         for particle in self.particles:
             particle.draw(surface, frame, offset_x=offset_x, offset_y=offset_y)
 
-
 class MistParticle:
     def __init__(self, x, y, imgs, color=(255, 255, 255)):
         self.color = color
+        self.base_imgs = imgs  # shared, untinted source images -- no per-particle copies
         self.x_speed = (random.random() - 0.5) / 12
         self.y_speed = (random.random() - 0.5) / 12
         self.life_time = 500
@@ -106,17 +93,6 @@ class MistParticle:
         self.y = y + random.randint(-50, 50)
         self.brightness = (random.random() + 0.2) * 2
         self.fade_in = 0
-        # FIX 2: was assigning self.IMGs = IMGs then immediately overwriting with {}
-        # Now we only build the tinted dict once
-        self.IMGs = {}
-        self._premul = {}
-        for key in imgs:
-            dimensions = (imgs[key].get_width(), imgs[key].get_height())
-            filt = pygame.Surface(dimensions, flags=pygame.SRCALPHA)
-            filt.fill((self.color[0], self.color[1], self.color[2], 255))
-            filt.blit(imgs[key], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-            self.IMGs[key] = filt
-            self._premul[key] = pygame.Surface(dimensions)  # black opaque, reused each draw
 
     def tick(self, frame_length):
         self.life_time -= frame_length / 3
@@ -133,12 +109,95 @@ class MistParticle:
 
     def draw(self, surface: pygame.Surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
-        img = self.IMGs[zoom]
-        dimensions = (img.get_width(), img.get_height())
-        # set_alpha scales the whole surface opacity non-destructively
-        img.set_alpha(min(255, int(self.life_time / 4 * self.brightness * self.fade_in)))
-        # fold alpha into RGB by blitting onto a black opaque surface,
-        # then composite additively so the particle illuminates the scene
-        self._premul[zoom].fill((0, 0, 0))
-        self._premul[zoom].blit(img, (0, 0))
-        surface.blit(self._premul[zoom], ((self.x - left) * zoom - dimensions[0] / 2 + offset_x, (self.y - top) * zoom - dimensions[1] / 2 + offset_y), special_flags=pygame.BLEND_ADD)
+        base_img = self.base_imgs[zoom]
+        dimensions = (base_img.get_width(), base_img.get_height())
+
+        alpha = max(0, min(255, int(self.life_time / 4 * self.brightness * self.fade_in)))
+        premul = MistParticleCache.get_premul(self.base_imgs, self.color, zoom, alpha)
+
+        surface.blit(
+            premul,
+            ((self.x - left) * zoom - dimensions[0] / 2 + offset_x, (self.y - top) * zoom - dimensions[1] / 2 + offset_y),
+            special_flags=pygame.BLEND_ADD,
+        )
+
+
+class GradientCache:
+    """
+    Global cache of premultiplied (tinted + alpha-folded) gradient surfaces.
+    Keyed by color, LRU-capped so slowly-drifting colors don't grow unboundedly.
+    """
+
+    MAX_COLORS = 20
+
+    _cache: "OrderedDict[tuple, dict]" = OrderedDict()  # (source_id, color, darken) -> {zoom: surface}
+
+    @classmethod
+    def get_premul(cls, img_lookup: dict, zoom, color: tuple, darken: float) -> pygame.Surface:
+        color = snap_color(color)
+        cache_key = (id(img_lookup), color, darken)
+        zoom_entry = cls._cache.get(cache_key)
+        if zoom_entry is None:
+            zoom_entry = {}
+            cls._cache[cache_key] = zoom_entry
+            if len(cls._cache) > cls.MAX_COLORS:
+                cls._cache.popitem(last=False)
+        else:
+            cls._cache.move_to_end(cache_key)
+
+        surf = zoom_entry.get(zoom)
+        if surf is None:
+            img = img_lookup[zoom]
+            dimensions = img.get_size()
+
+            filt = pygame.Surface(dimensions, flags=pygame.SRCALPHA)
+            filt.fill((color[0] * darken, color[1] * darken, color[2] * darken, 255))
+            filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+            premul = pygame.Surface(dimensions)
+            premul.fill((0, 0, 0))
+            premul.blit(filt, (0, 0))
+
+            zoom_entry[zoom] = premul
+            surf = premul
+        return surf
+
+class MistParticleCache:
+    MAX_COLORS = 20
+    ALPHA_STEP = 4
+
+    _cache: "OrderedDict[tuple, dict]" = OrderedDict()
+
+    @classmethod
+    def get_premul(cls, base_imgs: dict, color: tuple, zoom, alpha: int) -> pygame.Surface:
+        alpha_bucket = max(0, min(255, (alpha // cls.ALPHA_STEP) * cls.ALPHA_STEP))
+        color = snap_color(color)
+
+        cache_key = (id(base_imgs), color)
+        color_entry = cls._cache.get(cache_key)
+        if color_entry is None:
+            color_entry = {}
+            cls._cache[cache_key] = color_entry
+            if len(cls._cache) > cls.MAX_COLORS:
+                cls._cache.popitem(last=False)
+        else:
+            cls._cache.move_to_end(cache_key)
+
+        key = (zoom, alpha_bucket)
+        surf = color_entry.get(key)
+        if surf is None:
+            base = base_imgs[zoom]
+            tinted = pygame.Surface(base.get_size(), flags=pygame.SRCALPHA)
+            tinted.fill((*color, 255))
+            tinted.blit(base, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            tinted.set_alpha(alpha_bucket)
+
+            premul = pygame.Surface(base.get_size())
+            premul.fill((0, 0, 0))
+            premul.blit(tinted, (0, 0))
+
+            color_entry[key] = premul
+            surf = premul
+        return surf
+
+

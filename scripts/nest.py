@@ -131,8 +131,9 @@ class Nest:
 
     def update_visuals(self, frame_length):
         if self.charge == 0 and self.visual_charge != 0:
-            self.visual_charge -= frame_length / 10
-            if self.visual_charge < 0:
+            self.visual_charge *= 0.99 ** frame_length
+            print(self.visual_charge)
+            if self.visual_charge < 1:
                 self.visual_charge = 0
         # self.visualCharge=self.charge
         self.glow += ((self.stage / self.max_stage * self.visual_charge / self.max_charge * 150) - self.glow) / 1500 * frame_length

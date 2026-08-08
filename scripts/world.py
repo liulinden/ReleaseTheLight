@@ -18,7 +18,6 @@ from scripts.bloom import get_bloom
 from scripts.global_assets import get_asset
 from scripts.util import frame_random, rotate_and_get_offset, dist
 
-
 class World:
     def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=(0.1, 2), developing_mode=False):
         self.world_width = world_width
@@ -50,6 +49,7 @@ class World:
         foreground_raw = get_asset("foreground")
         self.foreground = pygame.transform.scale(foreground_raw, (10000, 10000))
         self.fg_width, self.fg_height = self.foreground.get_size()
+        objects_loading_screen.put(0.95, "Creating utility modules")
         objects_loading_screen.put(1.0, "Object creation complete.")
 
         self._world_layer = None
@@ -161,17 +161,18 @@ class World:
         y = (-top * 2 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background, (x, y))
 
-    def draw_foreground(self, layer, window_size, frame):
+    def draw_foreground(self, layer:pygame.Surface, window_size, frame):
         left, top, zoom = frame
         x = (-left * 6 * zoom) % self.fg_width / 2 - self.fg_width / 2
         y = ((-top * 6 + 500) * zoom) % self.fg_height / 2 - self.fg_height / 2
         layer.blit(self.foreground, (x, y))
 
-    def get_surface(self, window_size, frame, hitboxes=False, kind_visibility=False, real_window_size=None, offset_x=0, offset_y=0, tilt=0, crosshair=False):
+    def draw_world(self, window, window_size, frame, hitboxes=False, kind_visibility=False, real_window_size=None, offset_x=0, offset_y=0, tilt=0, crosshair=False):
         if real_window_size is None:
             real_window_size = window_size
 
         layer, scratch_layer = self._get_world_layer(real_window_size)
+        layer = window
 
         if kind_visibility:
             layer.fill((200, 200, 200))
@@ -195,9 +196,18 @@ class World:
         # struct back elements (behind terrain)
 
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
-        layer.fill(self.terrain.get_frame_color(layer,frame), special_flags=pygame.BLEND_RGBA_MULT)
-        if kind_visibility:
-            layer.fill(self.terrain.get_frame_color(layer,frame))
+
+        scratch_layer.fill(self.terrain.get_frame_color(layer, frame))
+        layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+
+        #time = pygame.time.get_ticks()
+        #FastFill.multiply(layer, self.terrain.get_frame_color(layer,frame))
+        #print(pygame.time.get_ticks()-time)
+        #time = pygame.time.get_ticks()
+        #layer.fill(self.terrain.get_frame_color(layer, frame), special_flags=pygame.BLEND_RGB_MULT)
+        #print(pygame.time.get_ticks()-time)
+        #if kind_visibility:
+        #    layer.fill(self.terrain.get_frame_color(layer,frame))
 
         self.light.draw_effects(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
@@ -222,6 +232,7 @@ class World:
         self.terrain.draw_interaction_displays(layer, frame, time, offset_x=offset_x, offset_y=offset_y)
 
         if not kind_visibility:
+            scratch_layer.fill((255,255,255,0))
             self.draw_foreground(scratch_layer, window_size, frame)
             self.light.draw_thick_gradient(scratch_layer, frame, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
             if self.player.laser:

@@ -2,6 +2,8 @@ import multiprocessing
 
 import pygame
 
+import cProfile
+
 import config as config
 from releaseTheLight import Game
 from scripts.loading_screen import LoadingScreen, UserQuitDuringLoadingError
@@ -33,7 +35,14 @@ def main():
 
     if not did_user_quit_during_loading:
         game.set_window(pygame.display.set_mode((0, 0)))
+
+        #profile = cProfile.Profile()
+        #profile.enable()
+
         game.run()
+
+        #profile.disable()
+        #profile.dump_stats("profile.prof")
 
     pygame.quit()
 

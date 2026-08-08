@@ -9,8 +9,10 @@ import scripts.world as world
 from config import CHUNK_SIZE
 from scripts.global_assets import load_assets
 from scripts.UI.charge_display import ChargeDisplay
+import cProfile
 # from scripts.UI.minimap import Minimap
 
+profile = cProfile.Profile()
 
 class Game:
     def __init__(self, window: pygame.Surface, fps=60, full_world=True, dev_mode=False, loading_screen: loading_screen.LoadingScreen = None):
@@ -121,6 +123,8 @@ class Game:
         self.show_fps = self.developing_mode
 
         while running:
+
+            profile.enable()
             # get mouse pos
             mouse_x, mouse_y = pygame.mouse.get_pos()
 
@@ -161,6 +165,7 @@ class Game:
 
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
+                        profile.dump_stats("profile.prof")
                         return
 
                     if event.key == pygame.K_F4:
@@ -250,6 +255,20 @@ class Game:
             frame = [self.cam_x + (2 * random.random() - 1) * self.shake, self.cam_y + (2 * random.random() - 1) * self.shake, self.zoom]
             # self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
+            self.game_world.draw_world(self.window,
+                (self.window_width, self.window_height),
+                frame,
+                hitboxes=self.visible_hitboxes,
+                kind_visibility=self.kind_visibility,
+                real_window_size=self.window.get_size(),
+                offset_x=self.offset_x,
+                offset_y=self.offset_y,
+                tilt=self.tilt,
+                crosshair=self.crosshair,
+            ),
+            (0, 0),
+
+            """
             self.window.blit(
                 self.game_world.get_surface(
                     (self.window_width, self.window_height),
@@ -263,7 +282,7 @@ class Game:
                     crosshair=self.crosshair,
                 ),
                 (0, 0),
-            )
+            )"""
 
             # display UI stuff
             self.charge_display.draw(self.window)
@@ -283,5 +302,9 @@ class Game:
             # update window
             pygame.display.flip()
 
+            profile.disable()
+
             # tick game
             self.clock.tick(self.fps)
+
+        

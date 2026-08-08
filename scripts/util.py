@@ -1,4 +1,5 @@
 import math
+import numpy as np
 import random
 
 import pygame
@@ -15,6 +16,7 @@ class ImageCache:
             else:
                 self.cache[(id, size, smoothscale)] = pygame.transform.scale(image, size)
         return self.cache[(id, size, smoothscale)]
+
 
 def draw_rounded_line(surface, color, start, end, thickness):
     pygame.draw.line(surface, color, start, end, thickness)
