@@ -124,7 +124,6 @@ class Game:
 
         while running:
 
-            profile.enable()
             # get mouse pos
             mouse_x, mouse_y = pygame.mouse.get_pos()
 
@@ -255,6 +254,7 @@ class Game:
             frame = [self.cam_x + (2 * random.random() - 1) * self.shake, self.cam_y + (2 * random.random() - 1) * self.shake, self.zoom]
             # self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
+            profile.enable()
             self.game_world.draw_world(self.window,
                 (self.window_width, self.window_height),
                 frame,
@@ -265,8 +265,8 @@ class Game:
                 offset_y=self.offset_y,
                 tilt=self.tilt,
                 crosshair=self.crosshair,
-            ),
-            (0, 0),
+            )
+            profile.disable()
 
             """
             self.window.blit(
@@ -301,8 +301,6 @@ class Game:
 
             # update window
             pygame.display.flip()
-
-            profile.disable()
 
             # tick game
             self.clock.tick(self.fps)

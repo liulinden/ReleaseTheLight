@@ -153,8 +153,8 @@ class Player:
 
         self.n_cells = 15
         self.charge_capacity = self.n_cells * 25
-        self.charges = {"white": self.charge_capacity * 2/3, "blue": 0, "red": 0}
-        self.practical_charges = {"white": self.charge_capacity * 2/3, "blue": 0, "red": 0}
+        self.charges = {"white": 100, "blue": 0, "red": 0}
+        self.practical_charges = {"white": 100, "blue": 0, "red": 0}
         self.max_charge = 500
         self.immunity_timer = 0
         self.immunity_time = 500

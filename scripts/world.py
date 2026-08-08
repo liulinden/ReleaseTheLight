@@ -157,8 +157,8 @@ class World:
 
     def draw_background(self, layer, window_size, frame):
         left, top, zoom = frame
-        x = (-left * 2 * zoom) % self.bg_width / 2 - self.bg_width / 2
-        y = (-top * 2 * zoom) % self.bg_height / 2 - self.bg_height / 2
+        x = (-left * 1.5 * zoom) % self.bg_width / 2 - self.bg_width / 2
+        y = (-top * 1.5 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background, (x, y))
 
     def draw_foreground(self, layer:pygame.Surface, window_size, frame):
