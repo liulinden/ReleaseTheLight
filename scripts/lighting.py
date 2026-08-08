@@ -59,7 +59,7 @@ class Lighting:
     def draw_gradient(self, surface: pygame.Surface, frame, color, x, y, offset_x=0, offset_y=0):
         left, top, zoom = frame
 
-        img_lookup = self.resized_light_im_gs["gradient_600"]
+        img_lookup = self.resized_light_im_gs["gradient_400"]
         dimensions = img_lookup[zoom].get_size()
 
         darken = 60 / 255
@@ -152,6 +152,8 @@ class GradientCache:
 
             filt = pygame.Surface(dimensions, flags=pygame.SRCALPHA)
             filt.fill((color[0] * darken, color[1] * darken, color[2] * darken, 255))
+            #filt.fill((100,100, 100,255))
+            #print((color[0] * darken, color[1] * darken, color[2] * darken, 255))
             filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
             premul = pygame.Surface(dimensions)
