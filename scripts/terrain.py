@@ -41,7 +41,7 @@ from scripts.util import dist
 
 max_air_pocket_radius = 120
 rim_pocket_ratio = 1.5
-rocks_world_span = 8 * CHUNK_SIZE
+rocks_world_span = 2 * CHUNK_SIZE
 
 
 PALETTE = [

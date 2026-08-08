@@ -42,9 +42,11 @@ class World:
         objects_loading_screen.put(0.7, "Creating lighting object")
         self.light = lighting.Lighting(default_zooms=default_zooms)
         objects_loading_screen.put(0.8, "Creating background surface")
-        background_raw = get_asset("background")
-        self.background = pygame.transform.scale(background_raw, (4000, 4000))
-        self.bg_width, self.bg_height = self.background.get_size()
+        background_raw = get_asset("background_1")
+        self.background_1 = pygame.transform.scale(background_raw, (3000, 3000))
+        background_raw = get_asset("background_2")
+        self.background_2 = pygame.transform.scale(background_raw, (3000, 3000))
+        self.bg_width, self.bg_height = 3000, 3000
         objects_loading_screen.put(0.9, "Creating foreground surface")
         foreground_raw = get_asset("foreground")
         self.foreground = pygame.transform.scale(foreground_raw, (10000, 10000))
@@ -157,9 +159,12 @@ class World:
 
     def draw_background(self, layer, window_size, frame):
         left, top, zoom = frame
-        x = (-left * 1.5 * zoom) % self.bg_width / 2 - self.bg_width / 2
-        y = (-top * 1.5 * zoom) % self.bg_height / 2 - self.bg_height / 2
-        layer.blit(self.background, (x, y))
+        x = (-left * 1 * zoom) % self.bg_width / 2 - self.bg_width / 2
+        y = (-top * 1 * zoom) % self.bg_height / 2 - self.bg_height / 2
+        layer.blit(self.background_1, (x, y))
+        x = (-left * 1.8 * zoom) % self.bg_width / 2 - self.bg_width / 2
+        y = (-top * 1.8 * zoom) % self.bg_height / 2 - self.bg_height / 2
+        layer.blit(self.background_2, (x, y))
 
     def draw_foreground(self, layer:pygame.Surface, window_size, frame):
         left, top, zoom = frame
@@ -199,6 +204,7 @@ class World:
 
         scratch_layer.fill(self.terrain.get_frame_color(layer, frame))
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        #layer.fill(self.terrain.get_frame_color(layer, frame), special_flags=pygame.BLEND_RGB_MULT)
 
         #time = pygame.time.get_ticks()
         #FastFill.multiply(layer, self.terrain.get_frame_color(layer,frame))
