@@ -28,7 +28,7 @@ def init():
     light_gradient = get_asset("gradient_light")
     nest_im_gs = {}
     nest_hitboxes = {}
-    for nest_type, n_stages, variants in [("white", 3, [1, 2, 3, 4, 7]), ("blue", 4, [5, 6]), ("red", 4, [5, 6]), ("sun", 10, [])]:
+    for nest_type, n_stages, variants in [("white", 4, [1, 2, 3, 4]), ("blue", 5, [5, 6]), ("red", 5, [5, 6]), ("sun", 10, [])]:
         img_sets = []
         hitboxes = []
         for variant in variants:

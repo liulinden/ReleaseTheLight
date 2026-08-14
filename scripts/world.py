@@ -19,7 +19,7 @@ from scripts.global_assets import get_asset
 from scripts.util import frame_random, rotate_and_get_offset, dist
 
 class World:
-    def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=(0.1, 2), developing_mode=False):
+    def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=(0.1, 2), developing_mode=False, profiler=None):
         self.world_width = world_width
         self.world_height = world_height
         self.default_zooms = default_zooms
@@ -57,6 +57,7 @@ class World:
         self._world_layer = None
         self._world_layer_size = None
         self.scratch_layer = None
+        self.profiler = profiler
 
         self.foreground_alpha = 0
 
@@ -240,7 +241,7 @@ class World:
         self.terrain.draw_interaction_displays(layer, frame, time, offset_x=offset_x, offset_y=offset_y)
 
         if not kind_visibility:
-            scratch_layer.fill((255,255,255,0))
+            scratch_layer.fill((255,255,255))
             self.draw_foreground(scratch_layer, window_size, frame)
             self.light.draw_thick_gradient(scratch_layer, frame, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
             if self.player.laser:
@@ -262,7 +263,13 @@ class World:
             pygame.draw.line(layer, (255, 0, 0), (real_window_size[0] // 2 - size, real_window_size[1] // 2), (real_window_size[0] // 2 + size, real_window_size[1] // 2), 2)
             pygame.draw.line(layer, (255, 0, 0), (real_window_size[0] // 2, real_window_size[1] // 2 - size), (real_window_size[0] // 2, real_window_size[1] // 2 + size), 2)
 
+        self.profiler.enable()
+        time = pygame.time.get_ticks()
+        
         bloom_surface = get_bloom(layer)
+        print(pygame.time.get_ticks()-time)
         layer.blit(bloom_surface, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+        
+        self.profiler.disable()
 
         return layer

@@ -33,7 +33,7 @@ def get_second_surface(size):
         scratch_second_surfaces[size] = pygame.Surface(size, pygame.SRCALPHA)
     return scratch_second_surfaces[size]
 
-def get_bloom(surface, threshold=50, downscale=30, blur_passes=2, intensity=0.8):
+def get_bloom(surface, threshold=30, downscale=30, blur_passes=2, intensity=0.8):
     """
     surface:     the pygame.Surface to extract bloom from (e.g. your full
                  rendered scene, or a specific layer).
@@ -85,7 +85,6 @@ def get_bloom(surface, threshold=50, downscale=30, blur_passes=2, intensity=0.8)
 
     # --- 3. Blur at small resolution (shrink/grow passes = cheap box blur) ---
     for _ in range(blur_passes):
-        shrink_size = (max(1, small.get_width() // 2), max(1, small.get_height() // 2))
         pygame.transform.smoothscale(small, shrink_size, tiny)
         pygame.transform.smoothscale(tiny, small_size, small)
 

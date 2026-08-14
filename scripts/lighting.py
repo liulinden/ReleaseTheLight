@@ -36,11 +36,11 @@ class Lighting:
         for size in [400, 600, 800]:
             self.resized_light_im_gs["gradient_" + str(size)] = {}
             for zoom in default_zooms:
-                self.resized_light_im_gs["gradient_" + str(size)][zoom] = pygame.transform.scale(light_gradient, (zoom * size, zoom * size))
+                self.resized_light_im_gs["gradient_" + str(size)][zoom] = pygame.transform.smoothscale(light_gradient, (zoom * size, zoom * size))
         size = 300
         self.resized_light_im_gs["gradient_thick"] = {}
         for zoom in default_zooms:
-            self.resized_light_im_gs["gradient_thick"][zoom] = pygame.transform.scale(thick_gradient, (zoom * size, zoom * size))
+            self.resized_light_im_gs["gradient_thick"][zoom] = pygame.transform.smoothscale(thick_gradient, (zoom * size, zoom * size))
 
         # NOTE: _gradient_filters / _gradient_premul preallocation removed —
         # GradientCache now owns caching, keyed by color instead of being

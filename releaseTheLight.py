@@ -89,7 +89,7 @@ class Game:
 
         load_assets(asset_loading)
 
-        self.game_world = world.World(self.WORLD_WIDTH, self.WORLD_HEIGHT, loading_screen=world_loading, default_zooms=self.DEFAULT_ZOOMS, developing_mode=self.developing_mode)
+        self.game_world = world.World(self.WORLD_WIDTH, self.WORLD_HEIGHT, loading_screen=world_loading, default_zooms=self.DEFAULT_ZOOMS, developing_mode=self.developing_mode, profiler = profile)
 
         self.charge_display = ChargeDisplay()
         # self.minimap = Minimap(self.WORLD_WIDTH, self.WORLD_HEIGHT)
@@ -254,7 +254,7 @@ class Game:
             frame = [self.cam_x + (2 * random.random() - 1) * self.shake, self.cam_y + (2 * random.random() - 1) * self.shake, self.zoom]
             # self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
-            profile.enable()
+            #profile.enable()
             self.game_world.draw_world(self.window,
                 (self.window_width, self.window_height),
                 frame,
@@ -266,7 +266,7 @@ class Game:
                 tilt=self.tilt,
                 crosshair=self.crosshair,
             )
-            profile.disable()
+            #profile.disable()
 
             """
             self.window.blit(
