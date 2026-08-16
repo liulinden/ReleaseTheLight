@@ -25,12 +25,14 @@ from scripts.util import dist
 #          Generated once for the whole world at startup (generate_world),
 #          and added to incrementally afterwards (player mining).
 #
-#   Chunk.visuals[zoom] / Chunk.hitboxes[zoom]
-#       -> derived pygame Surfaces, built lazily from truth data the first
-#          time a chunk is needed (see _build_chunk). These are the
-#          expensive, blit-heavy artifacts, and are safe to throw away
-#          and rebuild at any time (evict_far_chunks), since they're a
-#          pure function of the chunk's truth data.
+#   Chunk.visuals[zoom] -> derived pygame Surfaces (the pretty rendered
+#          art), built lazily from truth data the first time a chunk is
+#          needed (see _build_chunk).
+#   Chunk.mask[zoom] -> derived pygame.mask.Mask (collision truth), same
+#          lazy-build story, used for all terrain collision queries.
+#          Both are safe to throw away and rebuild at any time
+#          (evict_far_chunks), since they're a pure function of the
+#          chunk's truth data.
 #
 # Biomes: each Chunk has a `biome` string (currently always "default",
 # see get_biome). BIOME_RULES holds per-biome tunables (fill_mode, nest
@@ -127,6 +129,7 @@ def rect_to_circle(left, top, width, height):
 
 
 _scaled_img_cache: dict = {}
+_scaled_mask_cache: dict = {}
 _RADIUS_SNAP = 10
 
 
@@ -141,6 +144,14 @@ def _get_cached_scale(src_surface, pocket_type, img_index, radius, zoom):
         cached = pygame.transform.scale(src_surface, (side, side))
         _scaled_img_cache[key] = cached
     return _scaled_img_cache[key]
+
+
+def _get_cached_mask(src_surface, pocket_type, img_index, radius, zoom):
+    key = (pocket_type, img_index, radius, zoom)
+    if key not in _scaled_mask_cache:
+        scaled_img = _get_cached_scale(src_surface, pocket_type, img_index, radius, zoom)
+        _scaled_mask_cache[key] = pygame.mask.from_surface(scaled_img)
+    return _scaled_mask_cache[key]
 
 
 # ------------------------------------------------------------------
@@ -158,7 +169,7 @@ class Chunk:
         "cells",
         "structures",
         "visuals",
-        "hitboxes",
+        "mask",
         "built",
         "last_touched",
         "lock",
@@ -173,7 +184,7 @@ class Chunk:
         self.cells = []
         self.structures = []  # future: generic solid structures (was gateway tiles)
         self.visuals = {}  # dict[zoom] -> Surface, populated once built
-        self.hitboxes = {}  # dict[zoom] -> Surface, populated once built
+        self.mask = None  # single native-resolution pygame.mask.Mask, collision truth, populated once built
         self.built = False
         self.last_touched = 0.0
         # Reentrant: _build_chunk can call helpers that also lock this chunk.
@@ -212,6 +223,12 @@ class AirPocket:
 
     def get_hitbox_img(self, zoom):
         return _get_cached_scale(air_hitbox_im_gs[self.type], self.type + "_hitbox", 0, self.true_r, zoom)
+
+    def get_hitbox_mask(self):
+        # collision is always sampled at native (zoom=1) resolution -- no
+        # need for a mask per zoom, unlike get_img/get_hitbox_img/get_rim_img
+        # which feed the per-zoom rendered visuals.
+        return _get_cached_mask(air_hitbox_im_gs[self.type], self.type + "_hitbox", 0, self.true_r, 1)
 
     def get_rim_img(self, zoom):
         rim_imgs = air_explode_im_gs[self.type] if self.player_made else air_rim_im_gs[self.type]
@@ -262,6 +279,11 @@ class Terrain:
         self._vignette_size = None
         self._vignette_stencil = None
         self._vignette_stencil_size = None
+
+        # entity collision: cached fully-solid masks, keyed by (width, height) --
+        # entity hitbox rects don't change size after spawn, so this is built once
+        # per distinct size and reused every collision check thereafter.
+        self._rect_mask_cache = {}
 
         # streaming
         self._stream_queue = queue.PriorityQueue()
@@ -363,35 +385,35 @@ class Terrain:
     def _bake_structure_into_chunk(self, chunk, structure, erase=True):
         left, top = chunk.col * CHUNK_SIZE, chunk.row * CHUNK_SIZE
         with chunk.lock:
-            for zoom in self.default_zooms:
-                if zoom not in chunk.hitboxes:
-                    continue
-                erase_hitbox_surf = structure.get_erase_hitbox_surface(zoom)
-                hitbox_surf = structure.get_hitbox_surface(zoom)
+            if chunk.mask is not None:
+                offset = (int(structure.left - left), int(structure.top - top))
+                erase_hitbox_surf = structure.get_erase_hitbox_surface(1)
+                hitbox_surf = structure.get_hitbox_surface(1)
                 if hitbox_surf is not None:
                     if erase and erase_hitbox_surf:
-                        chunk.hitboxes[zoom].blit(erase_hitbox_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_SUB)
-                    chunk.hitboxes[zoom].blit(hitbox_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_MAX)
+                        chunk.mask.erase(pygame.mask.from_surface(erase_hitbox_surf), offset)
+                    chunk.mask.draw(pygame.mask.from_surface(hitbox_surf), offset)
+            for zoom in self.default_zooms:
                 if zoom in chunk.visuals:
                     erase_surf = structure.get_erase_surface(zoom)
                     if erase_surf is not None:
                         chunk.visuals[zoom].blit(erase_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_SUB)
 
     def _reblit_solid_structures_on_chunk(self, chunk):
-        """Re-apply nests + structures on top of a chunk's hitbox surfaces
-        after carving, since the carve SUB blend can erode overlapping
-        solid features drawn earlier."""
+        """Re-apply nests + structures on top of a chunk's collision mask
+        after carving, since the carve erase can remove overlapping solid
+        features drawn earlier."""
+        if chunk.mask is None:
+            return
         left, top = chunk.col * CHUNK_SIZE, chunk.row * CHUNK_SIZE
         for n in chunk.nests:
-            for zoom in self.default_zooms:
-                if zoom in chunk.hitboxes:
-                    chunk.hitboxes[zoom].blit(n.resized_hitboxes[zoom], (zoom * (n.left - left), zoom * (n.top - top)), special_flags=pygame.BLEND_RGBA_MAX)
+            offset = (int(n.left - left), int(n.top - top))
+            chunk.mask.draw(n.hitbox_mask, offset)
         for structure in chunk.structures:
-            for zoom in self.default_zooms:
-                if zoom in chunk.hitboxes:
-                    hitbox_surf = structure.get_hitbox_surface(zoom)
-                    if hitbox_surf:
-                        chunk.hitboxes[zoom].blit(hitbox_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_MAX)
+            hitbox_surf = structure.get_hitbox_surface(1)
+            if hitbox_surf:
+                offset = (int(structure.left - left), int(structure.top - top))
+                chunk.mask.draw(pygame.mask.from_surface(hitbox_surf), offset)
 
     # ------------------------------------------------------------------
     # Surface helpers
@@ -509,13 +531,11 @@ class Terrain:
 
             for zoom in self.default_zooms:
                 chunk.visuals[zoom] = self._render_base_terrain(chunk.row, chunk.col, zoom)
-                hitbox = pygame.Surface((max(1, int(CHUNK_SIZE * zoom)), max(1, int(CHUNK_SIZE * zoom))), pygame.SRCALPHA)
-                hitbox.fill((255, 255, 255, 255))
-                chunk.hitboxes[zoom] = hitbox
+            chunk.mask = pygame.mask.Mask((CHUNK_SIZE, CHUNK_SIZE), fill=True)
 
             for pocket in chunk.air_pockets:
+                self._carve_hitbox(chunk, pocket)
                 for zoom in self.default_zooms:
-                    self._carve_hitbox(chunk, pocket, zoom)
                     self._carve_visual(chunk, pocket, zoom)
 
             self._reblit_solid_structures_on_chunk(chunk)
@@ -538,11 +558,11 @@ class Terrain:
     # Carving (used both by lazy build, and incremental player-mining)
     # ------------------------------------------------------------------
 
-    def _carve_hitbox(self, chunk, air_pocket, zoom):
+    def _carve_hitbox(self, chunk, air_pocket):
         left, top = chunk.col * CHUNK_SIZE, chunk.row * CHUNK_SIZE
-        l = zoom * (air_pocket.left - left)
-        t = zoom * (air_pocket.top - top)
-        chunk.hitboxes[zoom].blit(air_pocket.get_hitbox_img(zoom), (l, t), special_flags=pygame.BLEND_RGBA_SUB)
+        l = int(air_pocket.left - left)
+        t = int(air_pocket.top - top)
+        chunk.mask.erase(air_pocket.get_hitbox_mask(), (l, t))
 
     def _carve_visual(self, chunk, air_pocket, zoom):
         left, top = chunk.col * CHUNK_SIZE, chunk.row * CHUNK_SIZE
@@ -569,10 +589,8 @@ class Terrain:
         """Patch a single already-built chunk with one new air pocket,
         without a full rebuild."""
         with chunk.lock:
+            self._carve_hitbox(chunk, air_pocket)
             for zoom in self.default_zooms:
-                if zoom not in chunk.hitboxes:
-                    continue
-                self._carve_hitbox(chunk, air_pocket, zoom)
                 self._carve_visual(chunk, air_pocket, zoom)
             self._reblit_solid_structures_on_chunk(chunk)
 
@@ -637,7 +655,7 @@ class Terrain:
                 if chunk.built:
                     with chunk.lock:
                         chunk.visuals.clear()
-                        chunk.hitboxes.clear()
+                        chunk.mask = None
                         chunk.built = False
 
     # ------------------------------------------------------------------
@@ -867,10 +885,18 @@ class Terrain:
     # Collision
     # ------------------------------------------------------------------
 
+    def _get_rect_mask(self, width, height):
+        key = (max(1, int(width)), max(1, int(height)))
+        cached = self._rect_mask_cache.get(key)
+        if cached is None:
+            cached = pygame.mask.Mask(key, fill=True)
+            self._rect_mask_cache[key] = cached
+        return cached
+
     def _sample_chunk(self, wx, wy):
-        # NOTE: preserves the original behavior of sampling hitboxes at
-        # zoom key 1 specifically (a full-res collision layer), which is
-        # assumed to be present in default_zooms at runtime, same as before.
+        # Collision is sampled from the chunk's single native-resolution
+        # mask -- there's only one, not one per zoom (zoom only matters for
+        # rendering, never for collision truth).
         if wy < 0:
             return False
         if wy >= self.world_height:
@@ -878,11 +904,11 @@ class Terrain:
         col = int(math.floor(wx / CHUNK_SIZE))
         row = int(math.floor(wy / CHUNK_SIZE))
         chunk = self.chunks.get((row, col))
-        if chunk is None or not chunk.built or 1 not in chunk.hitboxes:
+        if chunk is None or not chunk.built or chunk.mask is None:
             return True  # unbuilt/unknown chunk -> treat as solid (safe default)
         px = max(0, min(int(CHUNK_SIZE - 1), int(wx % CHUNK_SIZE)))
         py = max(0, min(int(CHUNK_SIZE - 1), int(wy % CHUNK_SIZE)))
-        return chunk.hitboxes[1].get_at((px, py))[0] > 128
+        return bool(chunk.mask.get_at((px, py)))
 
     def _sample_chunk_visuals(self, wx, wy):
         if wy < 0:
@@ -905,33 +931,27 @@ class Terrain:
             tl, tr, bl, br = self._sample_chunk(x - 1, y - 1), self._sample_chunk(x - 1, y + 1), self._sample_chunk(x + 1, y - 1), self._sample_chunk(x + 1, y + 1)
             v_x = (tr or br) - (tl or bl)
             v_y = (tl or tr) - (bl or br)
-        if v_x == v_y == 0:
-            x, y = int(x), int(y)
-            for i in range(x - 8, x + 9, 1):
-                row = ""
-                for j in range(y - 8, y + 9, 1):
-                    row += "X " if self._sample_chunk(i, j) else "_ "
-                print(row)
         return (v_x, v_y)
 
     def collide_rect(self, rect):
-        l = float(rect.left)
-        r = float(rect.right - 1)
-        t = float(rect.top)
-        b = float(rect.bottom - 1)
-        step = 1
-        for i in range(math.floor(b - t)):
-            y = t + step * i
-            if self._sample_chunk(l, y):
-                return (l, y)
-            if self._sample_chunk(r, y):
-                return (r, y)
-        for i in range(math.floor(r - l)):
-            x = l + step * i
-            if self._sample_chunk(x, b):
-                return (x, b)
-            if self._sample_chunk(x, t):
-                return (x, t)
+        # world-height floor: any part of the rect at/below world_height is
+        # always a collision, matching _sample_chunk's wy >= world_height -> solid
+        if rect.bottom - 1 >= self.world_height:
+            return (rect.left, rect.bottom - 1)
+
+        entity_mask = self._get_rect_mask(rect.width, rect.height)
+        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=0):
+            if row < 0:
+                continue  # above y=0 is never solid, matching _sample_chunk's wy < 0 -> False
+            chunk = self.chunks.get((row, col))
+            if chunk is None or not chunk.built or chunk.mask is None:
+                # unbuilt/unknown chunk -> treat as solid (safe default), matching _sample_chunk
+                return (max(rect.left, col * CHUNK_SIZE), max(rect.top, row * CHUNK_SIZE))
+            chunk_left, chunk_top = col * CHUNK_SIZE, row * CHUNK_SIZE
+            offset = (int(rect.left - chunk_left), int(rect.top - chunk_top))
+            point = chunk.mask.overlap(entity_mask, offset)
+            if point is not None:
+                return (chunk_left + point[0], chunk_top + point[1])
         return False
 
     def laser_collide_point(self, x, y):
@@ -942,10 +962,12 @@ class Terrain:
         return any(enemy.mode != "spawn" and enemy.rect.collidepoint(x, y) for enemy in self.enemies)
 
     def nests_collide_rect(self, rect):
-        rect_mask = pygame.Mask((rect.width, rect.height), fill=True)
-        colliding_layer = pygame.Surface((rect.width, rect.height), flags=pygame.SRCALPHA)
-        self.draw_nests((rect.width, rect.height), colliding_layer, [rect.left, rect.top, 1], hitboxes=True)
-        return pygame.mask.from_surface(colliding_layer).overlap(rect_mask, (0, 0)) is not None
+        rect_mask = self._get_rect_mask(rect.width, rect.height)
+        for n in self._nests_touching_rect(rect):
+            offset = (int(rect.left - n.left), int(rect.top - n.top))
+            if n.hitbox_mask.overlap(rect_mask, offset) is not None:
+                return True
+        return False
 
     # ------------------------------------------------------------------
     # Draw
@@ -977,15 +999,20 @@ class Terrain:
             for wx, wy in [(l, y), (r, y)]:
                 pygame.draw.circle(surface, color, (int((wx - left) * zoom + offset_x), int((wy - top) * zoom + offset_y)), max(2, int(zoom * 2)))
 
-    def draw_nest_gradients(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
+    def draw_nest_gradients(self, window_size, surface, frame, lighting, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
         w_width, w_height = window_size
         for n in self._nests_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
-            n.draw_gradient(surface, frame, offset_x=offset_x, offset_y=offset_y)
+            if n.glow > 0:
+                lighting.draw_gradient(surface, frame, n.color, n.x, n.y, size=n.size, darken=n.glow / 255, offset_x=offset_x, offset_y=offset_y)
 
-    def draw_enemy_gradients(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
+    def draw_enemy_gradients(self, window_size, surface, frame, lighting, offset_x=0, offset_y=0):
+        left, top, zoom = frame
+        w_width, w_height = window_size
+        screen_rect = pygame.Rect(left, top, w_width / zoom, w_height / zoom)
         for enemy in self.enemies:
-            enemy.draw_gradient(surface, frame, offset_x=offset_x, offset_y=offset_y)
+            if enemy.glow > 0 and enemy.rect.colliderect(screen_rect):
+                lighting.draw_gradient(surface, frame, enemy.color, enemy.x, enemy.y, size=enemy.size * 2, darken=enemy.glow / 255, offset_x=offset_x, offset_y=offset_y)
 
     def draw_nests(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame
@@ -1074,12 +1101,22 @@ class Terrain:
         right_chunk = math.floor((left + w_width / zoom) / CHUNK_SIZE)
 
         if hitboxes:
+            # Dev-only debug view (H key) -- masks aren't blittable, so
+            # convert to a Surface on demand here rather than maintaining a
+            # persistent debug surface for every chunk (let alone one per
+            # zoom) all the time. The mask itself is always native (zoom=1)
+            # resolution, so scale the converted surface to match whatever
+            # zoom is currently being viewed.
             layer.fill((0, 0, 0, 0))
+            side = max(1, int(CHUNK_SIZE * zoom))
             for row in range(top_chunk, bottom_chunk + 1):
                 if row < 0:
                     continue
                 for col in range(left_chunk, right_chunk + 1):
                     chunk = self.chunks.get((row, col))
-                    if chunk is not None and chunk.built and zoom in chunk.hitboxes:
-                        layer.blit(chunk.hitboxes[zoom], ((col * CHUNK_SIZE - left) * zoom + offset_x, (row * CHUNK_SIZE - top) * zoom + offset_y))
+                    if chunk is not None and chunk.built and chunk.mask is not None:
+                        debug_surf = chunk.mask.to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0))
+                        if zoom != 1:
+                            debug_surf = pygame.transform.scale(debug_surf, (side, side))
+                        layer.blit(debug_surf, ((col * CHUNK_SIZE - left) * zoom + offset_x, (row * CHUNK_SIZE - top) * zoom + offset_y))
         return layer

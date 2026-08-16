@@ -12,13 +12,11 @@ costume_dimensions = {"1": (3 / 8, 3 / 4)}
 
 animation_fps = 15
 
-light_gradient = None
 enemy_animations = {}
 
 
 def init():
-    global light_gradient, enemy_animations
-    light_gradient = get_asset("gradient_light")
+    global enemy_animations
     enemy_animations = {}
     for costume_id in ["1"]:
         animation_im_gs = {}
@@ -42,10 +40,87 @@ def init():
         enemy_animations[costume_id] = animation_im_gs
 
 
+# ------------------------------------------------------------------
+# Resized-costume-image cache. Enemy size is randomized per spawn, so
+# sizes are snapped to a coarse bucket before caching -- otherwise
+# almost every enemy would produce a unique, uncached set of scaled
+# animation frames. Keyed by (costume_id, snapped_size, zoom, direction).
+# Pre-warmed for all known costume/size combinations during loading
+# (see prewarm_size_range, called from _enemy_handling.prewarm_cache),
+# so Enemy.__init__ during gameplay is just a dict lookup.
+# ------------------------------------------------------------------
+
+_SIZE_SNAP = 5
+_costume_image_cache = {}
+
+
+def _snap_enemy_size(size):
+    return max(_SIZE_SNAP, int(round(size / _SIZE_SNAP) * _SIZE_SNAP))
+
+
+def _build_costume_images(costume_id, size, zoom, direction):
+    imgs = {}
+
+    resizedspawns = []
+    for spawn_img in enemy_animations[costume_id]["spawn"]:
+        resized = pygame.transform.scale(spawn_img, (size * zoom, size * zoom))
+        if direction == "left":
+            resized = pygame.transform.flip(resized, True, False)
+        resizedspawns.append(resized)
+    imgs["spawn"] = resizedspawns
+
+    resizedwalks = []
+    for walk_img in enemy_animations[costume_id]["walk"]:
+        resized = pygame.transform.scale(walk_img, (size * zoom, size * zoom))
+        if direction == "left":
+            resized = pygame.transform.flip(resized, True, False)
+        resizedwalks.append(resized)
+    imgs["walk"] = resizedwalks
+
+    resized_attacks = []
+    for attack_img in enemy_animations[costume_id]["attack"]:
+        resized = pygame.transform.scale(attack_img, (size * zoom, size * zoom))
+        if direction == "left":
+            resized = pygame.transform.flip(resized, True, False)
+        resized_attacks.append(resized)
+    imgs["attack"] = resized_attacks
+
+    resized = pygame.transform.scale(enemy_animations[costume_id]["attack_hitbox"], (size * zoom, size * zoom))
+    if direction == "left":
+        resized = pygame.transform.flip(resized, True, False)
+    imgs["attack_hitbox"] = resized
+
+    return imgs
+
+
+def _get_costume_images(costume_id, size, zoom, direction):
+    key = (costume_id, size, zoom, direction)
+    cached = _costume_image_cache.get(key)
+    if cached is None:
+        cached = _build_costume_images(costume_id, size, zoom, direction)
+        _costume_image_cache[key] = cached
+    return cached
+
+
+def prewarm_size_range(costume_id, size_min, size_max, default_zooms):
+    """Builds and caches every (snapped size x zoom x direction) image set
+    an enemy of this costume could ever need, so live spawns never pay the
+    pygame.transform.scale cost during gameplay."""
+    size = _snap_enemy_size(size_min)
+    max_snapped = _snap_enemy_size(size_max)
+    while size <= max_snapped:
+        for zoom in default_zooms:
+            for direction in ("left", "right"):
+                _get_costume_images(costume_id, size, zoom, direction)
+        size += _SIZE_SNAP
+
+
 class Enemy:
     def __init__(self, default_zooms, costume, color, x, y, size=50, health=500):
         self.costume_id = costume
-        self.size = size
+        # snapped so live-spawned enemies reuse cached scaled images instead
+        # of each triggering a fresh set of pygame.transform.scale calls
+        self.size = _snap_enemy_size(size)
         self.width = self.size * costume_dimensions[self.costume_id][0]
         self.height = self.size * costume_dimensions[self.costume_id][1]
         self.max_health = health
@@ -73,53 +148,15 @@ class Enemy:
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
         self.health_bar = HealthBar(self.max_health)
 
-        self.resized_gradients = {}
         self.resized_im_gs = {}
-
         self._draw_filter = {}
-        self._gradient_filter = {}
 
         for zoom in default_zooms:
             zoom_set = {}
             for direction in ["left", "right"]:
-                imgs = {}
-
-                resizedspawns = []
-                for spawn_img in enemy_animations[self.costume_id]["spawn"]:
-                    resized = pygame.transform.scale(spawn_img, (self.size * zoom, self.size * zoom))
-                    if direction == "left":
-                        resized = pygame.transform.flip(resized, True, False)
-                    resizedspawns.append(resized)
-                imgs["spawn"] = resizedspawns
-
-                resizedwalks = []
-                for walk_img in enemy_animations[self.costume_id]["walk"]:
-                    resized = pygame.transform.scale(walk_img, (self.size * zoom, self.size * zoom))
-                    if direction == "left":
-                        resized = pygame.transform.flip(resized, True, False)
-                    resizedwalks.append(resized)
-                imgs["walk"] = resizedwalks
-
-                resized_attacks = []
-                for attack_img in enemy_animations[self.costume_id]["attack"]:
-                    resized = pygame.transform.scale(attack_img, (self.size * zoom, self.size * zoom))
-                    if direction == "left":
-                        resized = pygame.transform.flip(resized, True, False)
-                    resized_attacks.append(resized)
-                imgs["attack"] = resized_attacks
-
-                resized = pygame.transform.scale(enemy_animations[self.costume_id]["attack_hitbox"], (self.size * zoom, self.size * zoom))
-                if direction == "left":
-                    resized = pygame.transform.flip(resized, True, False)
-                imgs["attack_hitbox"] = resized
-
-                zoom_set[direction] = imgs
+                zoom_set[direction] = _get_costume_images(self.costume_id, self.size, zoom, direction)
             self.resized_im_gs[zoom] = zoom_set
-
-            grad_img = pygame.transform.scale(light_gradient, (self.size * 2 * zoom, self.size * 2 * zoom))
-            self.resized_gradients[zoom] = grad_img
             self._draw_filter[zoom] = pygame.Surface((self.size * zoom, self.size * zoom), flags=pygame.SRCALPHA)
-            self._gradient_filter[zoom] = pygame.Surface(grad_img.get_size(), flags=pygame.SRCALPHA)
 
     def spawn_particles(self, _terrain):
         _terrain.particles.spawn_mining_particles(15, self.color, self.size / 3, self.x, self.y)
@@ -149,15 +186,6 @@ class Enemy:
     def update_rect(self):
         self.rect.x, self.rect.y = self.x - self.width / 2, self.y - self.height / 2
 
-    def draw_gradient(self, surface, frame, offset_x=0, offset_y=0):
-        cam_x, cam_y, zoom = frame
-        img = self.resized_gradients[zoom]
-        if self.glow > 0:
-            filt = self._gradient_filter[zoom]
-            filt.fill((self.color[0], self.color[1], self.color[2], self.glow))
-            filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-            surface.blit(filt, ((self.x - self.size - cam_x) * zoom + offset_x, (self.y - self.size - cam_y) * zoom + offset_y))
-
     def draw(self, surface, frame, hitbox=False, offset_x=0, offset_y=0):
         cam_x, cam_y, zoom = frame
 
@@ -172,7 +200,7 @@ class Enemy:
                 pygame.draw.line(surface, self.color, ((r - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
                 pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (t - cam_y) * zoom + offset_y))
                 pygame.draw.line(surface, self.color, ((l - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y), ((r - cam_x) * zoom + offset_x, (b - cam_y) * zoom + offset_y))
-                if self.mode == "Attack" and self.animation_frame in self.attack_frames:
+                if self.mode == "attack" and self.animation_frame in self.attack_frames:
                     self.draw_attack_hitbox(surface, frame, offset_x=offset_x, offset_y=offset_y)
         else:
             # FIX 1: reuse pre-allocated draw filter surface
@@ -206,6 +234,8 @@ class Enemy:
 
             dx = self.x - x
             dy = self.y - y
+            if dx == 0 and dy == 0:
+                dy = -1  # circle acts as if it's one pixel below
             d = math.sqrt(dx**2 + dy**2)
             if player.laser:
                 if player.laser.laser_target is self:
@@ -308,10 +338,7 @@ class Enemy:
                 self.y -= 1
                 self.update_rect()
                 if not self.colliding_with_terrain(_terrain):
-                    if self.x_speed > 0:
-                        self.x_speed -= self.x_speed * i / slope_tolerance
-                    else:
-                        self.x_speed -= self.x_speed * i / slope_tolerance
+                    self.x_speed -= self.x_speed * i / slope_tolerance
                     return
             self.y += slope_tolerance
             self.x -= frame_length * self.x_speed

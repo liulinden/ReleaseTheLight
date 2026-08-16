@@ -4,10 +4,7 @@ import math
 import pygame
 
 from scripts.enemies import basic_enemy, basic_flying, bouncer
-from scripts.enemies._enemy import costume_dimensions
-
-light_gradient = None
-enemy_animations = {}
+from scripts.enemies._enemy import costume_dimensions, prewarm_size_range
 
 enemies = [basic_enemy.BasicEnemy, basic_flying.BasicFlying, bouncer.Bouncer]
 enemy_sizes = {}
@@ -18,6 +15,15 @@ for enemy in enemies:
     enemy_costumes[enemy] = enemy.costume
 
 eligible_enemies = {"white": [basic_enemy.BasicEnemy], "blue": [basic_enemy.BasicEnemy, basic_flying.BasicFlying], "red": [basic_enemy.BasicEnemy]}
+
+
+def prewarm_cache(default_zooms):
+    """Pre-builds every enemy costume's resized image cache across all
+    reachable size buckets, so the first live enemy spawn of the game
+    doesn't have to build any images itself."""
+    for enemy_cls in enemies:
+        size_min, size_max = enemy_sizes[enemy_cls]
+        prewarm_size_range(enemy_costumes[enemy_cls], size_min, size_max, default_zooms)
 
 
 def get_enemy(_terrain, player, nest_type, color, nest_health, nest_x, nest_y, nest_size):

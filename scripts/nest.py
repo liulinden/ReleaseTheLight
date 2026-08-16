@@ -17,15 +17,13 @@ def load_nest_img_set(id, stages):
     return imgs, get_asset("nest_" + str(id) + "_hitbox")
 
 
-# FIX 2: module-level lightGradient and nestIMGs loaded in init() after display exists
-light_gradient = None
+# FIX 2: module-level nestIMGs loaded in init() after display exists
 nest_im_gs = {}
 nest_hitboxes = {}
 
 
 def init():
-    global light_gradient, nest_im_gs, nest_hitboxes
-    light_gradient = get_asset("gradient_light")
+    global nest_im_gs, nest_hitboxes
     nest_im_gs = {}
     nest_hitboxes = {}
     for nest_type, n_stages, variants in [("white", 4, [1, 2, 3, 4]), ("blue", 5, [5, 6]), ("red", 5, [5, 6]), ("sun", 10, [])]:
@@ -39,17 +37,91 @@ def init():
         nest_hitboxes[nest_type] = hitboxes
 
 
+# ------------------------------------------------------------------
+# Resized-image cache, mirroring the same approach used for enemies
+# (scripts/enemies/_enemy.py). Nest size is randomized per spawn
+# (roughly 100-250, see terrain.generate_nest), so sizes are snapped
+# to a coarse bucket before caching/building. Pre-warmed for every
+# known (nest_type, variant, size bucket) combination during loading,
+# so live nest generation is just a dict lookup.
+# ------------------------------------------------------------------
+
+_SIZE_SNAP = 10
+_NEST_SIZE_MIN = 100
+_NEST_SIZE_MAX = 250  # matches terrain.generate_nest's size formula (100 + up to 150 by depth)
+
+_nest_image_cache = {}
+_nest_mask_cache = {}
+
+
+def _snap_nest_size(size):
+    return max(_SIZE_SNAP, int(round(size / _SIZE_SNAP) * _SIZE_SNAP))
+
+
+def _build_nest_images(nest_type, variant_id, size, zoom):
+    stage_im_gs = nest_im_gs[nest_type][variant_id]
+    hitbox = nest_hitboxes[nest_type][variant_id]
+    imgs = [pygame.transform.scale(stage_img, (size * zoom, size * zoom)) for stage_img in stage_im_gs]
+    hitbox_img = pygame.transform.scale(hitbox, (size * zoom, size * zoom))
+    return imgs, hitbox_img
+
+
+def _get_nest_images(nest_type, variant_id, size, zoom):
+    key = (nest_type, variant_id, size, zoom)
+    cached = _nest_image_cache.get(key)
+    if cached is None:
+        cached = _build_nest_images(nest_type, variant_id, size, zoom)
+        _nest_image_cache[key] = cached
+    return cached
+
+
+def _get_nest_hitbox_mask(nest_type, variant_id, size, zoom):
+    """Collision truth for nests -- used for terrain-mask carving/solidifying
+    and for nests_collide_rect. resized_hitboxes (the Surface) is kept only
+    for the dev hitbox-debug draw; this is what actual collision checks use."""
+    key = (nest_type, variant_id, size, zoom)
+    cached = _nest_mask_cache.get(key)
+    if cached is None:
+        _, hitbox_img = _get_nest_images(nest_type, variant_id, size, zoom)
+        cached = pygame.mask.from_surface(hitbox_img)
+        _nest_mask_cache[key] = cached
+    return cached
+
+
+def prewarm_cache(default_zooms):
+    """Builds and caches every (nest_type, variant, snapped size, zoom)
+    image set that can occur, so live nest generation never scales images
+    on the main thread. Collision masks are only ever needed at native
+    (zoom=1) resolution -- zoom only matters for rendering."""
+    for nest_type, variants in nest_im_gs.items():
+        if not variants:
+            continue  # e.g. "sun" nests are defined but never generated
+        for variant_id in range(len(variants)):
+            size = _snap_nest_size(_NEST_SIZE_MIN)
+            max_snapped = _snap_nest_size(_NEST_SIZE_MAX)
+            while size <= max_snapped:
+                for zoom in default_zooms:
+                    _get_nest_images(nest_type, variant_id, size, zoom)
+                _get_nest_images(nest_type, variant_id, size, 1)  # zoom=1 image always needed for the hitbox-debug draw
+                _get_nest_hitbox_mask(nest_type, variant_id, size, 1)
+                size += _SIZE_SNAP
+
+
 class Nest:
     def __init__(self, default_zooms, world_height, nest_type, x, y, size):
+        # snapped so live-generated nests reuse cached scaled images instead
+        # of each triggering a fresh set of pygame.transform.scale calls
+        size = _snap_nest_size(size)
+
         self.x = x
         self.y = y
         self.left = x - size / 2
         self.top = y - size / 2
         self.nest_type = nest_type
         selection = nest_im_gs[nest_type]
-        id = random.randint(0, len(selection) - 1)
-        stage_im_gs = selection[id]
-        hitbox = nest_hitboxes[nest_type][id]
+        variant_id = random.randint(0, len(selection) - 1)
+        stage_im_gs = selection[variant_id]
+        self.variant_id = variant_id
         self.size = size
         self.enemies = []
         self.basic_enemy_cap = 1
@@ -59,27 +131,25 @@ class Nest:
         self.stage = 0
         self.max_stage = len(stage_im_gs) - 1
 
+        # resized_hitboxes (Surfaces) are kept only for the dev hitbox-debug
+        # draw; hitbox_mask (a single native-resolution Mask, not one per
+        # zoom -- collision is never sampled at any other resolution) is
+        # what actual collision checks use.
         self.resized_hitboxes = {}
-        self.resized_gradients = {}
         self.resized_im_gs = {}
 
-        # FIX 1: pre-allocate filter surfaces for draw() and drawGradient() per zoom
+        # FIX 1: pre-allocate filter surfaces for draw() per zoom
         self._draw_filter = {}
-        self._gradient_filter = {}
 
         for zoom in default_zooms:
-            imgs = []
-            for stage_img in stage_im_gs:
-                imgs.append(pygame.transform.scale(stage_img, (size * zoom, size * zoom)))
+            imgs, hitbox_img = _get_nest_images(nest_type, variant_id, size, zoom)
             self.resized_im_gs[zoom] = imgs
-            self.resized_hitboxes[zoom] = pygame.transform.scale(hitbox, (size * zoom, size * zoom))
-            grad_img = pygame.transform.scale(light_gradient, (size * zoom, size * zoom))
-            self.resized_gradients[zoom] = grad_img
-
+            self.resized_hitboxes[zoom] = hitbox_img
             self._draw_filter[zoom] = pygame.Surface((size * zoom, size * zoom), flags=pygame.SRCALPHA)
-            self._gradient_filter[zoom] = pygame.Surface(grad_img.get_size(), flags=pygame.SRCALPHA)
 
-        self.resized_hitboxes[1] = pygame.transform.scale(hitbox, (size, size))
+        _, hitbox_img_1 = _get_nest_images(nest_type, variant_id, size, 1)
+        self.resized_hitboxes[1] = hitbox_img_1
+        self.hitbox_mask = _get_nest_hitbox_mask(nest_type, variant_id, size, 1)
         if 1 not in self._draw_filter:
             self._draw_filter[1] = pygame.Surface((size, size), flags=pygame.SRCALPHA)
 
@@ -132,21 +202,10 @@ class Nest:
     def update_visuals(self, frame_length):
         if self.charge == 0 and self.visual_charge != 0:
             self.visual_charge *= 0.99 ** frame_length
-            print(self.visual_charge)
             if self.visual_charge < 1:
                 self.visual_charge = 0
         # self.visualCharge=self.charge
         self.glow += ((self.stage / self.max_stage * self.visual_charge / self.max_charge * 150) - self.glow) / 1500 * frame_length
-
-    def draw_gradient(self, surface, frame, offset_x=0, offset_y=0):
-        cam_x, cam_y, zoom = frame
-        img = self.resized_gradients[zoom]
-        if self.glow > 0:
-            # FIX 1: reuse pre-allocated gradient filter surface
-            filt = self._gradient_filter[zoom]
-            filt.fill((self.color[0], self.color[1], self.color[2], self.glow))
-            filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-            surface.blit(filt, ((self.left - cam_x) * zoom + offset_x, (self.top - cam_y) * zoom + offset_y))
 
     def draw(self, surface, frame, hitbox=False, offset_x=0, offset_y=0):
         cam_x, cam_y, zoom = frame

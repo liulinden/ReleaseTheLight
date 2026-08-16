@@ -287,16 +287,19 @@ class Player:
             n_split = 3
             while n_split > 0:
                 split_loss = loss / n_split
+                underflowed = False
                 for charge in self.charges:
                     if 0 < self.charges[charge] < split_loss:
                         loss -= self.charges[charge]
                         self.charges[charge] = 0
                         n_split -= 1
+                        underflowed = True
                         break
-                for charge in self.charges:
-                    if self.charges[charge] > 0:
-                        self.charges[charge] -= split_loss
-                n_split = 0
+                if not underflowed:
+                    for charge in self.charges:
+                        if self.charges[charge] > 0:
+                            self.charges[charge] -= split_loss
+                    break
         else:
             if loss < self.charges[self.filter_type]:
                 self.charges[self.filter_type] -= loss
@@ -309,7 +312,7 @@ class Player:
                     loss -= self.charges["white"]
                     self.charges["white"] = 0
                     self.filter_type = "white"
-                    self.lose_charge(loss)
+                    return self.lose_charge(loss)
 
         self.practical_charges = filter_charges(self.filter_type, self.charges)
         if sum(self.charges.values()) > 0:
@@ -458,6 +461,8 @@ class Player:
         for knockback_circle in _terrain.knockback_circles:
             dx = self.x - knockback_circle[1]
             dy = self.y - knockback_circle[2]
+            if dx == 0 and dy == 0:
+                dy = -1  # circle acts as if it's one pixel below
             distance = dist(dx, dy)
             knockback = knockback_circle[0]
 
@@ -541,10 +546,7 @@ class Player:
                 self.y -= 1
                 self.update_rect()
                 if not self.colliding_with_terrain(_terrain):
-                    if self.x_speed > 0:
-                        self.x_speed -= self.x_speed * i / slope_tolerance
-                    else:
-                        self.x_speed -= self.x_speed * i / slope_tolerance
+                    self.x_speed -= self.x_speed * i / slope_tolerance
                     return
             self.y += slope_tolerance
             self.x -= frame_length * self.x_speed

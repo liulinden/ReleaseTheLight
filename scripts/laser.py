@@ -73,7 +73,7 @@ class Laser:
                                         hit_nest = n
                                         break
                         for ly in range(t, b + 1):
-                            for ly in (l, r):
+                            for lx in (l, r):
                                 if 0 <= lx < int(n.size) and 0 <= ly < int(n.size):
                                     if n.resized_hitboxes[1].get_at((lx, ly))[3] > 128:
                                         hit_nest = n
@@ -88,7 +88,7 @@ class Laser:
                     hit_enemy = False
                     for n in terrain._nests_near(wx, wy, 500):
                         for enemy in n.enemies:
-                            if enemy.mode != "Spawn" and enemy.rect.collidepoint(wx, wy):
+                            if enemy.mode != "spawn" and enemy.rect.collidepoint(wx, wy):
                                 self.collision = [(wx, wy), "enemies"]
                                 self.laser_target = enemy
                                 hit_enemy = True
@@ -144,7 +144,6 @@ class Laser:
                             x, y = (point * math.cos(self.angle) * scale + wave_height * math.sin(self.angle), point * math.sin(self.angle) * scale - wave_height * math.cos(self.angle))
                         polygon_points.append(((x + self.start_x - left) * zoom + offset_x, (y + self.start_y - top) * zoom + offset_y))
                     else:
-                        print(self.length)
                         self.laser_points = self.get_laser_points(6)
                         self.laser_points2 = self.get_laser_points(6)
                         self.draw(surface, frame, color, hitboxes=hitboxes)

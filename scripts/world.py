@@ -6,6 +6,7 @@ import pygame
 
 import scripts.cells as cells
 import scripts.enemies._enemy as enemies
+import scripts.enemies._enemy_handling as enemy_handling
 import scripts.laser as laser
 import scripts.lighting as lighting
 import scripts.loading_screen as loading_screen
@@ -16,9 +17,12 @@ import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display
 from scripts.bloom import get_bloom
 from scripts.global_assets import get_asset
-from scripts.util import frame_random, rotate_and_get_offset, dist
+from scripts.util import dist, frame_random, rotate_and_get_offset
+
 
 class World:
+    BLOOM_UPDATE_INTERVAL = 2  # recompute bloom every Nth frame; reuse the cached surface in between
+
     def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=(0.1, 2), developing_mode=False, profiler=None):
         self.world_width = world_width
         self.world_height = world_height
@@ -47,11 +51,14 @@ class World:
         background_raw = get_asset("background_2")
         self.background_2 = pygame.transform.scale(background_raw, (3000, 3000))
         self.bg_width, self.bg_height = 3000, 3000
-        objects_loading_screen.put(0.9, "Creating foreground surface")
+        objects_loading_screen.put(0.85, "Creating foreground surface")
         foreground_raw = get_asset("foreground")
         self.foreground = pygame.transform.scale(foreground_raw, (10000, 10000))
         self.fg_width, self.fg_height = self.foreground.get_size()
-        objects_loading_screen.put(0.95, "Creating utility modules")
+        objects_loading_screen.put(0.92, "Pre-building enemy image cache")
+        enemy_handling.prewarm_cache(default_zooms)
+        objects_loading_screen.put(0.97, "Pre-building nest image cache")
+        nest.prewarm_cache(default_zooms)
         objects_loading_screen.put(1.0, "Object creation complete.")
 
         self._world_layer = None
@@ -60,6 +67,9 @@ class World:
         self.profiler = profiler
 
         self.foreground_alpha = 0
+
+        self._bloom_surface = None
+        self._bloom_frame_counter = 0
 
         self.generate_world(generate_loading_screen)
         self.terrain.start_streaming()
@@ -167,7 +177,7 @@ class World:
         y = (-top * 1.8 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background_2, (x, y))
 
-    def draw_foreground(self, layer:pygame.Surface, window_size, frame):
+    def draw_foreground(self, layer: pygame.Surface, window_size, frame):
         left, top, zoom = frame
         x = (-left * 6 * zoom) % self.fg_width / 2 - self.fg_width / 2
         y = ((-top * 6 + 500) * zoom) % self.fg_height / 2 - self.fg_height / 2
@@ -183,9 +193,8 @@ class World:
         if kind_visibility:
             layer.fill((200, 200, 200))
         else:
-            layer.fill((5,5,5))
-            #self.terrain.draw_depth_background(layer, frame, offset_x=offset_x, offset_y=offset_y)
-
+            layer.fill((5, 5, 5))
+            # self.terrain.draw_depth_background(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.light.draw_gradient(layer, frame, self.player.color, self.player.x, self.player.y, size=600, offset_x=offset_x, offset_y=offset_y)
         if self.player.laser:
@@ -193,9 +202,9 @@ class World:
                 cx, cy = self.player.laser.collision[0]
                 self.light.draw_gradient(layer, frame, self.player.color, cx, cy, offset_x=offset_x, offset_y=offset_y)
 
-        self.terrain.draw_nest_gradients(window_size, layer, frame, offset_x=offset_x, offset_y=offset_y)
+        self.terrain.draw_nest_gradients(window_size, layer, frame, self.light, offset_x=offset_x, offset_y=offset_y)
 
-        self.terrain.draw_enemy_gradients(window_size, layer, frame, offset_x=offset_x, offset_y=offset_y)
+        self.terrain.draw_enemy_gradients(window_size, layer, frame, self.light, offset_x=offset_x, offset_y=offset_y)
 
         self.draw_background(scratch_layer, window_size, frame)
 
@@ -207,15 +216,15 @@ class World:
 
         scratch_layer.fill(self.terrain.get_frame_color(layer, frame))
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
-        #layer.fill(self.terrain.get_frame_color(layer, frame), special_flags=pygame.BLEND_RGB_MULT)
+        # layer.fill(self.terrain.get_frame_color(layer, frame), special_flags=pygame.BLEND_RGB_MULT)
 
-        #time = pygame.time.get_ticks()
-        #FastFill.multiply(layer, self.terrain.get_frame_color(layer,frame))
-        #print(pygame.time.get_ticks()-time)
-        #time = pygame.time.get_ticks()
-        #layer.fill(self.terrain.get_frame_color(layer, frame), special_flags=pygame.BLEND_RGB_MULT)
-        #print(pygame.time.get_ticks()-time)
-        #if kind_visibility:
+        # time = pygame.time.get_ticks()
+        # FastFill.multiply(layer, self.terrain.get_frame_color(layer,frame))
+        # print(pygame.time.get_ticks()-time)
+        # time = pygame.time.get_ticks()
+        # layer.fill(self.terrain.get_frame_color(layer, frame), special_flags=pygame.BLEND_RGB_MULT)
+        # print(pygame.time.get_ticks()-time)
+        # if kind_visibility:
         #    layer.fill(self.terrain.get_frame_color(layer,frame))
 
         self.light.draw_effects(layer, frame, offset_x=offset_x, offset_y=offset_y)
@@ -241,7 +250,7 @@ class World:
         self.terrain.draw_interaction_displays(layer, frame, time, offset_x=offset_x, offset_y=offset_y)
 
         if not kind_visibility:
-            scratch_layer.fill((255,255,255))
+            scratch_layer.fill((255, 255, 255))
             self.draw_foreground(scratch_layer, window_size, frame)
             self.light.draw_thick_gradient(scratch_layer, frame, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
             if self.player.laser:
@@ -264,12 +273,15 @@ class World:
             pygame.draw.line(layer, (255, 0, 0), (real_window_size[0] // 2, real_window_size[1] // 2 - size), (real_window_size[0] // 2, real_window_size[1] // 2 + size), 2)
 
         self.profiler.enable()
-        time = pygame.time.get_ticks()
-        
-        bloom_surface = get_bloom(layer)
-        print(pygame.time.get_ticks()-time)
-        layer.blit(bloom_surface, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-        
+
+        # Bloom is a soft, slowly-changing glow -- recomputing it every
+        # single frame is wasted work. Recompute every BLOOM_UPDATE_INTERVAL
+        # frames and reuse the last result in between.
+        self._bloom_frame_counter += 1
+        if self._bloom_surface is None or self._bloom_frame_counter % self.BLOOM_UPDATE_INTERVAL == 0:
+            self._bloom_surface = get_bloom(layer)
+        layer.blit(self._bloom_surface, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+
         self.profiler.disable()
 
         return layer

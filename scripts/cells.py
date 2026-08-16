@@ -56,6 +56,8 @@ class Cell:
 
             dx = self.x - x
             dy = self.y - y
+            if dx == 0 and dy == 0:
+                dy = -1  # circle acts as if it's one pixel below
             d = dist(dx, dy)
             if player.laser:
                 if player.laser.laser_target is self:
@@ -135,7 +137,6 @@ class Cell:
         self.update_rect()
         collision = self.colliding_with_terrain(_terrain)
         if collision:
-            print("started stuck")
             return
 
         vx, vy = self.x_speed, self.y_speed
@@ -179,7 +180,6 @@ class Cell:
 
                     mag = dist(*normal)
                     if mag == 0:
-                        print("something's fishy")
                         return
                     nx, ny = normal[0] / mag, normal[1] / mag
 

@@ -33,7 +33,7 @@ def get_second_surface(size):
         scratch_second_surfaces[size] = pygame.Surface(size, pygame.SRCALPHA)
     return scratch_second_surfaces[size]
 
-def get_bloom(surface, threshold=30, downscale=30, blur_passes=2, intensity=0.8):
+def get_bloom(surface, threshold=30, downscale=30, blur_passes=2, intensity=0.5):
     """
     surface:     the pygame.Surface to extract bloom from (e.g. your full
                  rendered scene, or a specific layer).
@@ -63,8 +63,13 @@ def get_bloom(surface, threshold=30, downscale=30, blur_passes=2, intensity=0.8)
     # --- 1. Downscale FIRST — this is the key to speed. All the numpy
     #        pixel work below runs on a small image instead of the full
     #        resolution surface, which is what keeps this fast enough
-    #        for a real-time game loop. ---
-    pygame.transform.smoothscale(surface, small_size, small)
+    #        for a real-time game loop. Plain (nearest-neighbor) scale
+    #        instead of smoothscale here — this is the one step that has
+    #        to read every pixel of the full-res source, so its cost
+    #        dominates; the blur passes below smooth away any aliasing
+    #        it introduces, so the extra interpolation quality of
+    #        smoothscale buys nothing here. ---
+    pygame.transform.scale(surface, small_size, small)
 
     # --- 2. Extract bright pixels (per-pixel threshold via numpy) on the
     #        small image only. ---
@@ -88,17 +93,20 @@ def get_bloom(surface, threshold=30, downscale=30, blur_passes=2, intensity=0.8)
         pygame.transform.smoothscale(small, shrink_size, tiny)
         pygame.transform.smoothscale(tiny, small_size, small)
 
-    # --- 4. Upscale back to full size ---
-    pygame.transform.smoothscale(small, full_size, big)
-
-    # --- 5. Apply intensity ---
+    # --- 4. Apply intensity while still small. This used to run on the
+    #        full-size surface after upscaling (an extra full-resolution
+    #        blend pass); dimming/boosting commutes with scaling, so
+    #        doing it here is visually equivalent and much cheaper. ---
     if intensity > 1.0:
         for _ in range(int(intensity) - 1):
-            big.blit(big, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+            small.blit(small, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
     elif intensity < 1.0:
         shade = max(0, min(255, int(255 * intensity)))
-        dim = get_second_surface(full_size)
+        dim = get_second_surface(small_size)
         dim.fill((shade, shade, shade, 255))
-        big.blit(dim, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+        small.blit(dim, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+
+    # --- 5. Upscale back to full size ---
+    pygame.transform.smoothscale(small, full_size, big)
 
     return big

@@ -19,12 +19,25 @@ def init():
     light_gradient = get_asset("gradient_light")
     thick_gradient = get_asset("gradient_thick")
 
-def snap_color(color, snap=4):
+def snap_color(color, snap=8):
     return (color[0] // snap * snap, color[1] // snap * snap, color[2] // snap * snap)
+
+
+# General-purpose light-gradient sizing, used by every glow source (ambient
+# player light, laser impact, and — via draw_gradient — nests and enemies).
+# Sizes are snapped so the same handful of scaled base images get reused
+# regardless of an individual entity's exact (often randomized) size.
+_GRADIENT_SIZE_SNAP = 20
+
+
+def _snap_gradient_size(size):
+    return max(_GRADIENT_SIZE_SNAP, int(round(size / _GRADIENT_SIZE_SNAP) * _GRADIENT_SIZE_SNAP))
+
 
 class Lighting:
     def __init__(self, default_zooms=(0.1, 2)):
         self.particles = []
+        self.default_zooms = default_zooms
         self.resized_light_im_gs = {}
         self.resized_light_im_gs["particles_mist"] = []
         for light_img in mist_particle_im_gs:
@@ -33,10 +46,14 @@ class Lighting:
                 for zoom in default_zooms:
                     imgs[zoom] = pygame.transform.scale(light_img, (zoom * size, zoom * size))
                 self.resized_light_im_gs["particles_mist"].append(imgs)
-        for size in [400, 600, 800]:
-            self.resized_light_im_gs["gradient_" + str(size)] = {}
-            for zoom in default_zooms:
-                self.resized_light_im_gs["gradient_" + str(size)][zoom] = pygame.transform.smoothscale(light_gradient, (zoom * size, zoom * size))
+
+        # Lazily-built, size-bucketed cache of scaled light_gradient images,
+        # shared by every draw_gradient() caller (ambient light, laser
+        # impact, nests, enemies) regardless of the size they ask for.
+        self._gradient_size_cache = {}
+        for size in (400, 600, 800):  # pre-warm the sizes used every frame for ambient light
+            self._get_gradient_lookup(size)
+
         size = 300
         self.resized_light_im_gs["gradient_thick"] = {}
         for zoom in default_zooms:
@@ -45,6 +62,14 @@ class Lighting:
         # NOTE: _gradient_filters / _gradient_premul preallocation removed —
         # GradientCache now owns caching, keyed by color instead of being
         # rebuilt from scratch every draw_gradient call.
+
+    def _get_gradient_lookup(self, size):
+        size = _snap_gradient_size(size)
+        if size not in self._gradient_size_cache:
+            self._gradient_size_cache[size] = {
+                zoom: pygame.transform.smoothscale(light_gradient, (max(1, int(zoom * size)), max(1, int(zoom * size)))) for zoom in self.default_zooms
+            }
+        return self._gradient_size_cache[size]
 
     def add_mist_particle(self, x, y, color=(255, 255, 255)):
         mist_list = self.resized_light_im_gs["particles_mist"]
@@ -56,13 +81,12 @@ class Lighting:
             if self.particles[i].tick(frame_length) == "end":
                 del self.particles[i]
 
-    def draw_gradient(self, surface: pygame.Surface, frame, color, x, y, size=400, offset_x=0, offset_y=0):
+    def draw_gradient(self, surface: pygame.Surface, frame, color, x, y, size=400, darken=60 / 255, offset_x=0, offset_y=0):
         left, top, zoom = frame
 
-        img_lookup = self.resized_light_im_gs["gradient_" + str(size)]
+        img_lookup = self._get_gradient_lookup(size)
         dimensions = img_lookup[zoom].get_size()
 
-        darken = 60 / 255
         premul = GradientCache.get_premul(img_lookup, zoom, color, darken)
 
         surface.blit(
@@ -122,19 +146,28 @@ class MistParticle:
         )
 
 
+_DARKEN_SNAP_STEPS = 16
+
+
+def _snap_darken(darken):
+    darken = max(0.0, min(1.0, darken))
+    return round(darken * _DARKEN_SNAP_STEPS) / _DARKEN_SNAP_STEPS
+
+
 class GradientCache:
     """
     Global cache of premultiplied (tinted + alpha-folded) gradient surfaces.
     Keyed by color, LRU-capped so slowly-drifting colors don't grow unboundedly.
     """
 
-    MAX_COLORS = 20
+    MAX_COLORS = 64
 
     _cache: "OrderedDict[tuple, dict]" = OrderedDict()  # (source_id, color, darken) -> {zoom: surface}
 
     @classmethod
     def get_premul(cls, img_lookup: dict, zoom, color: tuple, darken: float) -> pygame.Surface:
         color = snap_color(color)
+        darken = _snap_darken(darken)
         cache_key = (id(img_lookup), color, darken)
         zoom_entry = cls._cache.get(cache_key)
         if zoom_entry is None:
