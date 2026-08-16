@@ -164,4 +164,13 @@ protected:
     // draw() runs every frame for every visible enemy.
     RenderTarget drawScratch_;
     int drawScratchW_ = -1, drawScratchH_ = -1;
+
+    // FIX (Tier 0 #1): same caching, now also for drawGradient -- this was
+    // previously allocating a brand-new GPU texture on every single call
+    // (every frame, for every glowing enemy), which is a genuinely
+    // expensive driver-level operation and the likely dominant cause of
+    // lag scaling with enemy count. gradient_light is a single fixed
+    // asset so this practically never needs to resize after first use.
+    RenderTarget gradientScratch_;
+    int gradientScratchW_ = -1, gradientScratchH_ = -1;
 };

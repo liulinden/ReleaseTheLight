@@ -179,6 +179,26 @@ bool Terrain::nestsCollideRect(const Rect& rect) {
 // visual-layer-sampling simplification.
 bool Terrain::laserCollidePoint(double x, double y) {
     if (sampleChunk(x, y)) return true;
+
+    // FIX (Tier 0 #2b): nests were never checked directly here -- the
+    // laser could only ever detect a nest if the surrounding TERRAIN
+    // happened to already read as solid at this exact point (nest-hit
+    // refinement in Laser::getLength only runs inside this function's
+    // true branch). Since terrain near a nest isn't guaranteed to be
+    // solid (cave carving can leave it open), the laser could pass
+    // straight through nests entirely. Checking the nest hitbox directly
+    // here guarantees detection regardless of surrounding terrain state.
+    for (Nest* nest : nestsNear(x, y, 5.0)) {
+        int variantId = nest->variantIdForCollision();
+        if (variantId < 0) continue; // Sun nest -- no hitbox asset
+        int lx = static_cast<int>(x - nest->left);
+        int ly = static_cast<int>(y - nest->top);
+        if (lx < 0 || ly < 0 || lx >= static_cast<int>(nest->size) || ly >= static_cast<int>(nest->size)) continue;
+        const Asset& hitboxAsset = GlobalAssets::getAsset("nest_" + std::to_string(variantId) + "_hitbox");
+        BitMask scaled = hitboxAsset.mask.scaledTo(static_cast<int>(nest->size), static_cast<int>(nest->size));
+        if (scaled.get(lx, ly)) return true;
+    }
+
     for (auto& enemy : enemies) {
         // was: enemy.mode != "Spawn" (capital S) -- Enemy's mode is always
         // lowercase ("spawn"/"walk"/"attack"), so this comparison NEVER
@@ -193,6 +213,31 @@ bool Terrain::laserCollidePoint(double x, double y) {
 }
 
 
+namespace {
+// FIX (Tier 0 #3): the real air-pocket hitbox mask, replacing the earlier
+// mathematical-circle approximation. Confirmed via user-provided
+// screenshots that the circle was wrong in TWO ways, not one: the real
+// hitbox art isn't circular, AND its opaque region is inset/smaller than
+// a circle filling the full canvas (so the old approximation was
+// systematically too large, not just the wrong shape). Uses the exact
+// same `side`/position math already used for the visual eraser/rim blits
+// (see carveVisual below) so hitbox stays aligned with whichever
+// eraser/rim variant was chosen for this pocket, matching how they're
+// authored (confirmed: identical canvas dimensions across the per-variant
+// eraser/rim art).
+//
+// CORRECTED: there is only ONE shared "air_pocket_hitbox" asset used for
+// every variant (not a per-variant "air_pocket_1_hitbox"/
+// "air_pocket_2_hitbox" pair as an earlier pass here mistakenly assumed
+// from a misreading of the screenshots) -- `pocket.imgIndex` is NOT used
+// here, since it only selects between eraser/rim art variants, not the
+// hitbox (which is shared across all of them).
+BitMask airPocketHitboxMask(int side) {
+    const Asset& hitboxAsset = GlobalAssets::getAsset("air_pocket_hitbox");
+    return hitboxAsset.mask.scaledTo(side, side);
+}
+} // namespace
+
 void Terrain::buildChunkHitboxOnly(Chunk& chunk) {
     std::lock_guard<std::recursive_mutex> lock(chunk.lock);
     if (chunk.built.load(std::memory_order_acquire)) return;
@@ -203,7 +248,9 @@ void Terrain::buildChunkHitboxOnly(Chunk& chunk) {
     double left = chunk.col * Config::CHUNK_SIZE;
     double top = chunk.row * Config::CHUNK_SIZE;
     for (auto& pocket : chunk.airPockets) {
-        newHitbox.subtractCircle(pocket.x - left, pocket.y - top, pocket.trueR);
+        int side = std::max(1, static_cast<int>(std::round(pocket.trueR * 2)));
+        BitMask mask = airPocketHitboxMask(side);
+        newHitbox.subtractFrom(mask, static_cast<int>(pocket.left - left), static_cast<int>(pocket.top - top));
     }
 
     chunk.hitbox = std::move(newHitbox);
@@ -214,7 +261,9 @@ void Terrain::carveChunkIncrementalHitboxOnly(Chunk& chunk, const AirPocket& poc
     std::lock_guard<std::recursive_mutex> lock(chunk.lock);
     double left = chunk.col * Config::CHUNK_SIZE;
     double top = chunk.row * Config::CHUNK_SIZE;
-    chunk.hitbox.subtractCircle(pocket.x - left, pocket.y - top, pocket.r);
+    int side = std::max(1, static_cast<int>(std::round(pocket.trueR * 2)));
+    BitMask mask = airPocketHitboxMask(side);
+    chunk.hitbox.subtractFrom(mask, static_cast<int>(pocket.left - left), static_cast<int>(pocket.top - top));
 }
 
 // def _sample_chunk(self, wx, wy):
@@ -309,24 +358,46 @@ std::pair<double, double> Terrain::getNormal(double x, double y) const {
 //         if sample(x,b): return (x,b)
 //         if sample(x,t): return (x,t)
 //     return False
-Terrain::CollisionResult Terrain::collideRect(const Rect& rect) const {
+Terrain::CollisionResult Terrain::collideRect(const Rect& rect) {
     double l = static_cast<double>(rect.left());
     double r = static_cast<double>(rect.right() - 1);
     double t = static_cast<double>(rect.top());
     double b = static_cast<double>(rect.bottom() - 1);
     int step = 1;
 
+    // FIX (Tier 0 #2a): nests were never solid to player/enemy/cell
+    // movement -- nestsCollideRect existed but was only ever called for a
+    // cosmetic "landed on a nest" particle choice, never real collision.
+    // Cheap early-out: nestsTouchingRect is a fast spatial lookup, so in
+    // the common case (no nests anywhere near this rect) this costs
+    // almost nothing; the more expensive per-point mask sampling below
+    // only runs when nests are actually nearby.
+    std::vector<Nest*> nearbyNests = nestsTouchingRect(rect);
+    auto nestHitAt = [&](double x, double y) -> bool {
+        for (Nest* nest : nearbyNests) {
+            int variantId = nest->variantIdForCollision();
+            if (variantId < 0) continue; // Sun nest -- no hitbox asset
+            int lx = static_cast<int>(x - nest->left);
+            int ly = static_cast<int>(y - nest->top);
+            if (lx < 0 || ly < 0 || lx >= static_cast<int>(nest->size) || ly >= static_cast<int>(nest->size)) continue;
+            const Asset& hitboxAsset = GlobalAssets::getAsset("nest_" + std::to_string(variantId) + "_hitbox");
+            BitMask scaled = hitboxAsset.mask.scaledTo(static_cast<int>(nest->size), static_cast<int>(nest->size));
+            if (scaled.get(lx, ly)) return true;
+        }
+        return false;
+    };
+
     int yIterations = static_cast<int>(std::floor(b - t));
     for (int i = 0; i < yIterations; ++i) {
         double y = t + step * i;
-        if (sampleChunk(l, y)) return { true, l, y };
-        if (sampleChunk(r, y)) return { true, r, y };
+        if (sampleChunk(l, y) || nestHitAt(l, y)) return { true, l, y };
+        if (sampleChunk(r, y) || nestHitAt(r, y)) return { true, r, y };
     }
     int xIterations = static_cast<int>(std::floor(r - l));
     for (int i = 0; i < xIterations; ++i) {
         double x = l + step * i;
-        if (sampleChunk(x, b)) return { true, x, b };
-        if (sampleChunk(x, t)) return { true, x, t };
+        if (sampleChunk(x, b) || nestHitAt(x, b)) return { true, x, b };
+        if (sampleChunk(x, t) || nestHitAt(x, t)) return { true, x, t };
     }
     return { false, 0.0, 0.0 };
 }
@@ -896,16 +967,18 @@ const std::vector<std::pair<double, Color>>& terrainPalette() {
 }
 } // namespace
 
-// def init(): loads air_pocket_1/_2, _rim, _explode, rocks, gradient_vignette.
-// NOTE: "air_pocket_hitbox" (loaded in the Python's init) is deliberately
-// NOT fetched here -- our hitbox collision uses a mathematical circle
-// approximation (see Terrain.h class note #2), so that asset is unused by
-// this port.
+// def init(): loads air_pocket_1/_2, _rim, _explode, hitbox, rocks, gradient_vignette.
 void Terrain::init(SDL_Renderer* /*renderer*/) {
     GlobalAssets::getAsset("air_pocket_1");
     GlobalAssets::getAsset("air_pocket_2");
     GlobalAssets::getAsset("air_pocket_1_rim");
     GlobalAssets::getAsset("air_pocket_1_explode");
+    // FIX (Tier 0 #3): one shared hitbox asset for every variant (NOT
+    // per-variant "air_pocket_1_hitbox"/"air_pocket_2_hitbox" -- an
+    // earlier pass here got this wrong from a misreading of asset
+    // screenshots; corrected directly by you). Previously not loaded at
+    // all, since carving used a mathematical circle approximation instead.
+    GlobalAssets::getAsset("air_pocket_hitbox");
     GlobalAssets::getAsset("rocks");
     GlobalAssets::getAsset("gradient_vignette");
 }

@@ -11,6 +11,12 @@ void resizeIfNeeded(RenderTarget& target, SDL_Renderer* renderer, int& curW, int
         target = RenderTarget(renderer, w, h);
         curW = w;
         curH = h;
+        // FIX (Tier 0 #5): without this, every SDL_RenderCopy scale
+        // operation on this texture (both the downscale and, critically,
+        // the final upscale back to full resolution) defaults to
+        // nearest-neighbor sampling, producing a blocky/pixelated bloom
+        // instead of a smooth one.
+        SDL_SetTextureScaleMode(target.texture(), SDL_ScaleModeLinear);
     }
 }
 } // namespace

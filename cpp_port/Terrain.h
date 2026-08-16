@@ -46,16 +46,18 @@
 //      CHUNK_SIZE bitmask per chunk is both the (only) collision source
 //      of truth and, later, the source for any debug overlay.
 //
-//   2. Air-pocket collision shape approximated as a mathematical circle
-//      (radius = trueR), not derived from the real "air_pocket_hitbox"
-//      art asset. FLAGGED DEVIATION: the Python scales that asset's
-//      pixels per-instance; using a perfect circle instead avoids this
-//      piece depending on loaded assets/SDL at all (pure, fully
-//      unit-testable logic), and should be visually near-identical given
-//      the pocket type is literally named "circle". If the real asset
-//      turns out to have a distinctly non-circular silhouette, swap this
-//      for an asset-derived BitMask later (carving call sites don't need
-//      to change, just what shape gets passed to them).
+//   2. RESOLVED (was: approximated as a mathematical circle). Originally
+//      used radius=trueR math instead of the real "air_pocket_hitbox" art,
+//      reasoning it would be visually near-identical given the pocket
+//      type is literally named "circle" -- confirmed WRONG via real asset
+//      screenshots: the hitbox art isn't circular AND its opaque region is
+//      inset/smaller than a circle filling the full canvas, so the old
+//      approximation was systematically oversized, not just the wrong
+//      shape. Now uses the real hitbox image directly (see
+//      airPocketHitboxMask() in Terrain.cpp), scaled/positioned with the
+//      exact same side/origin math already used for the visual eraser/rim
+//      blits. There is ONE shared "air_pocket_hitbox" asset used for
+//      every eraser/rim variant, not a per-variant hitbox image.
 //
 //   3. `Chunk` holds a std::recursive_mutex (matches the Python's
 //      threading.RLock(), used because _build_chunk's helpers re-lock the
@@ -255,7 +257,12 @@ public:
         double x, y;
     };
     // was: def collide_rect(self, rect) -- returns False or (x, y) in Python
-    CollisionResult collideRect(const Rect& rect) const;
+    // FIX (Tier 0 #2a): no longer `const` -- now also checks nest hitboxes
+    // (via nestsCollideRect, which isn't const-qualified), closing a real
+    // gap where nests were never solid to player/enemy/cell movement at
+    // all (only ever checked for a cosmetic "landed on a nest" particle
+    // choice, never for actual collision blocking).
+    CollisionResult collideRect(const Rect& rect);
 
     // was: def nests_collide_rect(self, rect) -- REAL implementation now
     // that Nest exists (was a stub returning false during the Enemy-only

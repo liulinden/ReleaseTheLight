@@ -152,15 +152,21 @@ void Nest::drawGradient(SDL_Renderer* renderer, const Frame& frame) {
     const Asset& gradientAsset = GlobalAssets::getAsset("gradient_light");
     double destSize = size * frame.zoom;
 
-    RenderTarget scratch(renderer, gradientAsset.width, gradientAsset.height);
-    scratch.renderTo(renderer, [&] {
+    // FIX (Tier 0 #1): cached, was allocating a fresh RenderTarget every call.
+    if (gradientScratchW_ != gradientAsset.width || gradientScratchH_ != gradientAsset.height) {
+        gradientScratch_ = RenderTarget(renderer, gradientAsset.width, gradientAsset.height);
+        gradientScratchW_ = gradientAsset.width;
+        gradientScratchH_ = gradientAsset.height;
+    }
+    gradientScratch_.renderTo(renderer, [&] {
+        gradientScratch_.clear({0, 0, 0, 0});
         Canvas::rectFilled(renderer, Rect{0, 0, gradientAsset.width, gradientAsset.height},
                             Color{color.r, color.g, color.b, static_cast<uint8_t>(std::clamp(glow, 0.0, 255.0))});
         Canvas::blit(renderer, gradientAsset.texture, 0, 0, gradientAsset.width, gradientAsset.height, BlendModes::rgbaMult());
     });
 
     Vec2 pos = frame.worldToScreen(left, top);
-    Canvas::blit(renderer, scratch.texture(), pos.x, pos.y, destSize, destSize);
+    Canvas::blit(renderer, gradientScratch_.texture(), pos.x, pos.y, destSize, destSize);
 }
 
 // def draw(self, surface, frame, hitbox=False, offset_x=0, offset_y=0): ...

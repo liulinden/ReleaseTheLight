@@ -48,9 +48,12 @@ public:
     }
 
     // Clears (subtractCircle) or sets (orCircle) every bit within radius
-    // `r` of (cx, cy), in this mask's own coordinate space. Used for
-    // air-pocket carving -- see Terrain.h for why a mathematical circle
-    // is used here instead of an irregular hitbox-image-derived mask.
+    // `r` of (cx, cy), in this mask's own coordinate space. General-purpose
+    // circle ops -- NOT used for air-pocket carving anymore (see
+    // Terrain.cpp's airPocketHitboxMask/subtractFrom, which use the real
+    // hitbox image instead; the circle approximation was confirmed both
+    // the wrong shape and systematically oversized). Kept here as they're
+    // still reasonable generic utilities.
     void subtractCircle(double cx, double cy, double r) {
         circleOp(cx, cy, r, false);
     }

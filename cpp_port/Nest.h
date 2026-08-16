@@ -124,4 +124,9 @@ private:
 
     RenderTarget drawScratch_;
     int drawScratchW_ = -1, drawScratchH_ = -1;
+
+    // FIX (Tier 0 #1): same caching pattern applied to Nest as Enemy --
+    // drawGradient was allocating a fresh GPU texture every call.
+    RenderTarget gradientScratch_;
+    int gradientScratchW_ = -1, gradientScratchH_ = -1;
 };
