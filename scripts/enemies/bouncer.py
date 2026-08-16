@@ -8,7 +8,7 @@ from scripts.util import dist, get_bounced_vector
 class Bouncer(Enemy):
     size_range = (20, 40)
     costume = "1"
-    health_factor = 0.2
+    health_factor = 0.05
 
     def __init__(self, default_zooms, color, size, nest_health, x, y):
         super().__init__(default_zooms, Bouncer.costume, color, x, y, size, nest_health * Bouncer.health_factor)

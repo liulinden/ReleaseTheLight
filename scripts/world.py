@@ -264,8 +264,8 @@ class World:
             pygame.draw.line(layer, (100, 100, 100, 0.3), (real_window_size[0] // 2, real_window_size[1] * 0.45), (real_window_size[0] // 2, real_window_size[1] * 0.55), 2)
 
         if tilt != 0:
-            layer, cx, cy = rotate_and_get_offset(layer, real_window_size[0] / 2, real_window_size[1] / 2, math.radians(tilt))
-            layer.blit(layer, (cx, cy))
+            rotated, cx, cy = rotate_and_get_offset(layer, real_window_size[0] / 2, real_window_size[1] / 2, math.radians(tilt))
+            layer.blit(rotated, (cx, cy))
 
         if crosshair:
             size = 10

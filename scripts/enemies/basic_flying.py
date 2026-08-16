@@ -6,7 +6,7 @@ from scripts.enemies._enemy import Enemy
 class BasicFlying(Enemy):
     size_range = (20, 50)
     costume = "1"
-    health_factor = 0.5
+    health_factor = 0.2
 
     def __init__(self, default_zooms, color, size, nest_health, x, y):
         super().__init__(default_zooms, BasicFlying.costume, color, x, y, size, nest_health * BasicFlying.health_factor)
