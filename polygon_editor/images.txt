@@ -1,0 +1,9 @@
+# Put one image path per line.
+# Relative paths are relative to the directory from which the program is run.
+# Examples:
+# assets/player.png
+# assets/rock.png
+
+assets/air_pocket_1.png
+assets/cell_basic_shell.png
+assets/nest_1_1.png

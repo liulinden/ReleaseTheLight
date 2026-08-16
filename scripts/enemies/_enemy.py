@@ -186,7 +186,6 @@ class Enemy:
         self.health_bar.draw(surface, self.color, ((self.rect.centerx - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y), self.health, time)
 
     def draw_attack_hitbox(self, surface, frame, offset_x=0, offset_y=0):
-        # never used
         cam_x, cam_y, zoom = frame
         surface.blit(self.resized_im_gs[zoom][self.facing]["attack_hitbox"], ((self.rect.centerx - self.size / 2 - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y))
 

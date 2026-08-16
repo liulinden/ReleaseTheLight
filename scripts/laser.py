@@ -73,7 +73,7 @@ class Laser:
                                         hit_nest = n
                                         break
                         for ly in range(t, b + 1):
-                            for ly in (l, r):
+                            for lx in (l, r):
                                 if 0 <= lx < int(n.size) and 0 <= ly < int(n.size):
                                     if n.resized_hitboxes[1].get_at((lx, ly))[3] > 128:
                                         hit_nest = n
