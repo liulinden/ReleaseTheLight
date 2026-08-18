@@ -250,6 +250,7 @@ class Terrain:
         self.new_knockback_circles = []
         self.player_damage_circles = []
         self.new_player_damage_circles = []
+        self.pending_shake = 0  # generic screen-shake request for events not tied to the player's own laser (e.g. cell explosions) -- consumed by the main loop
 
         self.display_manager = InteractionDisplayManager()
 
@@ -799,10 +800,12 @@ class Terrain:
                 if random.randint(1, 30) > 1:
                     break
 
-    def add_air_pocket_clump(self, x, y, radius, player_made=False, override=False, spreading=1 / 3):
+    def add_air_pocket_clump(self, x, y, radius, player_made=False, override=False, spreading=1 / 3, spawn_particles=False):
         spreading = radius * spreading
         for i in range(3):
             self.add_air_pocket(x + spreading * (random.random() * 2 - 1), y + spreading * (random.random() * 2 - 1), radius, player_made=player_made, override=override)
+        if spawn_particles:
+            self.particles.spawn_mining_particles(10, (0, 0, 0), radius * 1.5, x, y)
 
     def add_air_pocket(self, x, y, radius, recursions=0, player_made=False, override=False):
         radius = min(radius, max_air_pocket_radius)
@@ -857,12 +860,26 @@ class Terrain:
     def add_enemy(self, enemy):
         self.enemies.append(enemy)
 
-    def add_cell(self, coords, velocities=(1, 1)):
+    def add_cell(self, coords, velocities=(1, 1), charges=None, filter_type="white"):
         if validate_cell_coords(self, coords):
-            new_cell = Cell(self.default_zooms, coords, velocities)
+            new_cell = Cell(self.default_zooms, coords, velocities, charges=charges, filter_type=filter_type)
             row = math.floor(new_cell.y / CHUNK_SIZE)
             col = math.floor(new_cell.x / CHUNK_SIZE)
             self.get_or_create_chunk(row, col).cells.append(new_cell)
+
+    def remove_cell(self, cell):
+        # can't just recompute (row, col) from cell.x/y -- cells are never migrated between
+        # chunks as they move (only ever appended once, in add_cell), so a cell that's drifted
+        # since being thrown is still stored under its *original* chunk, not its current one.
+        # Explosions are rare enough events that a full scan here is fine.
+        self.remove_interaction_display(cell.interaction_display, True)
+        for chunk in self.chunks.values():
+            if cell in chunk.cells:
+                chunk.cells.remove(cell)
+                return
+
+    def add_screen_shake(self, amount):
+        self.pending_shake += amount
 
     def add_interaction_display(self, display):
         self.display_manager.display_in_range(display)

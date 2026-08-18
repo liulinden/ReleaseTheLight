@@ -115,7 +115,7 @@ class InteractionDisplay:
             self.key_released = False
 
         if self.post_active:
-            self.rise += (0.8 - self.rise) * frame_length / 100
+            self.rise += (1.2 - self.rise) * frame_length / 100
         else:
             self.rise += (0 - self.rise) * frame_length / 300
 

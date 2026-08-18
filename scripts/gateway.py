@@ -207,7 +207,6 @@ class EntryTile(GatewayTile):
         if new_stage != self.charge_stage:
             self.charge_stage = new_stage
             self._build_surfaces()
-        # print(self.charge, self.maxCharge)
         return self.charge >= self.max_charge
 
     def open(self):

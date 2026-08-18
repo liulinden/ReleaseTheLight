@@ -2,17 +2,41 @@ import math
 
 import pygame
 
+import random
+
 import scripts.laser as laser
 import scripts.laser_properties as laser_properties
 import scripts.terrain as terrain
 from scripts.global_assets import get_asset
 from scripts.UI.health_bar import HealthBar
-from scripts.util import channel_bound, charges_to_color, dist, rotate_and_get_offset
+from scripts.UI.load_bar import LoadBar
+from scripts.util import channel_bound, charges_to_color, dist, rotate_and_get_offset, frame_random
 
 SPRITE_WIDTH = 40
 SPRITE_HEIGHT = 40
 ARM_PIVOT_X = 20
 ARM_PIVOT_Y = 21
+
+COYOTE_TIME = 120  # ms — grace window to jump after walking off a ledge
+GROUND_ACCEL = 0.005
+GROUND_MAX_SPEED = 0.2
+AIR_ACCEL = 0.0015
+AIR_FRICTION = 0.993
+
+NOMINAL_FRAME_MS = 1000 / 60  # knockback circles are one-shot impulses, not continuous forces --
+# baked to a 60fps frame instead of scaling with actual frame_length, which made the "instant"
+# kick framerate-dependent and let it get crushed to near-zero during hit-stop
+
+HIT_STOP_DURATION = 50  # ms — freeze requested when an enemy lands a hit
+LASER_HIT_STOP_DURATION = 45  # ms — freeze on the first hit of each laser cast (not every ramp tick)
+
+CELL_CHARGE_COST = 25  # one cell's worth of charge -- matches charge_capacity's n_cells*25 and the charge display's own per-cell unit
+CELL_THROW_CHARGE_TIME = 500  # ms -- max hold duration before the throw speed caps out
+CELL_THROW_MIN_SPEED = 0.1  # speed on a bare tap
+CELL_THROW_MAX_SPEED = 0.8  # speed after holding for CELL_THROW_CHARGE_TIME
+
+CELL_CHARGE_BAR_LENGTH = 40  # px, unscaled by zoom -- same convention as HealthBar
+CELL_CHARGE_BAR_SIDE_OFFSET = 10  # px to the side of the player the bar sits, beyond SPRITE_WIDTH/2
 
 IMPACT_SIZE = 100  # world-space size in px — easy to change
 IMPACT_FPS = 24
@@ -129,6 +153,7 @@ class Player:
         self.width, self.height = dimensions
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
         self.on_ground = False
+        self.coyote_timer = 0
         self.color = (255, 0, 0)
         self.default_zooms = default_zooms
         self.facing = "right"
@@ -151,6 +176,9 @@ class Player:
         self.ability_timer = 0
         self.ability_cooldown = 800
 
+        self.cell_throw_hold_timer = 0  # ms right_mouse has been held this charge-up, capped at CELL_THROW_CHARGE_TIME
+        self.cell_charge_bar = LoadBar(CELL_CHARGE_BAR_LENGTH)
+
         self.n_cells = 15
         self.charge_capacity = self.n_cells * 25
         self.charges = {"white": 100, "blue": 0, "red": 0}
@@ -160,6 +188,10 @@ class Player:
         self.immunity_time = 500
         self.queued_damage = 0
         self.queued_drain_damage = 0
+        self.pending_hit_stop = 0  # ms of freeze requested by the last enemy hit; consumed by the main loop
+        self.pending_laser_flash = False  # set on the laser's first hit; consumed by the main loop
+        self.pending_laser_ramp_flash = False  # set on later damage frames of the same cast -- slighter than the first hit
+        self.pending_damage_flash = False  # set when an enemy lands a hit; consumed by the main loop
 
         self.player_im_gs = {}
         for zoom in self.default_zooms:
@@ -229,7 +261,10 @@ class Player:
             self.animation_frame = math.floor(self.animation_timer / (1000 / ANIMATION_FPS))
 
     def update_rect(self):
-        self.rect.x, self.rect.y = self.x - self.width / 2, self.y - self.height / 2
+        # pygame.Rect rounds float assignment to the nearest int rather than flooring it,
+        # which doesn't match terrain._sample_chunk's floor-based pixel grid -- floor
+        # explicitly so self.rect.x/y always lands on the same pixel grid collision uses.
+        self.rect.x, self.rect.y = math.floor(self.x - self.width / 2), math.floor(self.y - self.height / 2)
 
     def update_color(self):
         cw, cb, cr = self.practical_charges.values()
@@ -246,6 +281,22 @@ class Player:
 
         self.practical_charges = filter_charges(self.filter_type, self.charges)
 
+
+    def restore_charge(self, charges):
+        # returns a picked-up cell's stored charge exactly as-is -- unlike add_charge,
+        # this doesn't run it through filter_feeds' conversion rates, since it's not being
+        # fed in fresh through the current filter, it's the same charge the cell was holding
+        for color in self.charges:
+            self.charges[color] += charges[color]
+
+        total_charge = sum(self.charges.values())
+        overflow = 0
+        if total_charge > self.charge_capacity:
+            overflow = total_charge - self.charge_capacity
+
+        self.lose_charge(overflow)
+
+        self.practical_charges = filter_charges(self.filter_type, self.charges)
 
     def update_laser_stats(self):
         laser_properties.set_laser_attributes(self.laser_attributes, self.practical_charges, self.filter_type, self.max_charge)
@@ -320,8 +371,32 @@ class Player:
         self.reset_player()
         return True
 
+    def get_cell_throw_charges(self):
+        """Exact charge composition a thrown cell would take right now, or None if
+        the player can't currently afford one -- shared by the actual throw and by
+        the charge-up bar, so the bar never promises a throw the player can't make."""
+        if self.n_cells <= 1:
+            return None
+        if self.filter_type == "white":
+            # proportionate blend of current charges -- white does count toward itself here
+            total = sum(self.charges.values())
+            if total < CELL_CHARGE_COST:
+                return None
+            return {color: CELL_CHARGE_COST * self.charges[color] / total for color in self.charges}
+        # blue/red: exclusive to that color -- white does NOT count toward it
+        if self.charges[self.filter_type] < CELL_CHARGE_COST:
+            return None
+        cell_charges = {"white": 0, "blue": 0, "red": 0}
+        cell_charges[self.filter_type] = CELL_CHARGE_COST
+        return cell_charges
+
     def deal_damage(self, damage):
         self.queued_damage += damage
+
+    def take_enemy_hit(self, damage):
+        self.deal_damage(damage)
+        self.pending_hit_stop = HIT_STOP_DURATION
+        self.pending_damage_flash = True
 
     def drain_damage(self, damage):
         self.queued_drain_damage += damage
@@ -394,13 +469,31 @@ class Player:
             self.laser = None
 
         if events["right_mouse_up"]:
-            if self.n_cells > 1:
+            hold_time = self.cell_throw_hold_timer
+            self.cell_throw_hold_timer = 0
+
+            cell_charges = self.get_cell_throw_charges()
+            if cell_charges is not None:
+                for color in self.charges:
+                    self.charges[color] -= cell_charges[color]
+                self.practical_charges = filter_charges(self.filter_type, self.charges)
+
                 mx, my = mouse_pos
                 dx, dy = mx - self.x, my - self.y
                 d = dist(dx, dy)
-                _terrain.add_cell((self.x, self.y), (self.x_speed + dx / d / 3, self.y_speed + dy / d / 3))
+                hold_fraction = min(1, hold_time / CELL_THROW_CHARGE_TIME)
+                throw_speed = CELL_THROW_MIN_SPEED + (CELL_THROW_MAX_SPEED - CELL_THROW_MIN_SPEED) * hold_fraction
+                _terrain.add_cell((self.x, self.y), (self.x_speed + dx / d * throw_speed, self.y_speed + dy / d * throw_speed), charges=cell_charges, filter_type=self.filter_type)
                 self.n_cells -= 1
                 self.update_charge_capacity()
+        elif keys_down["right_mouse"]:
+            self.cell_throw_hold_timer = min(self.cell_throw_hold_timer + frame_length, CELL_THROW_CHARGE_TIME)
+        else:
+            self.cell_throw_hold_timer = 0
+
+        # bar only shows up if a throw would actually be affordable right now -- gated by
+        # the same check the real throw uses, so it never promises a throw the player can't make
+        self.cell_charge_bar.set_active(keys_down["right_mouse"] and self.get_cell_throw_charges() is not None)
 
         self.ability_timer -= frame_length
         self.ability_timer = max(0, self.ability_timer)
@@ -422,12 +515,16 @@ class Player:
                 if not locked:
                     self.laser_ramps = 0
                 if self.laser.collision:
+                    if self.laser_first_hit:
+                        self.pending_hit_stop = max(self.pending_hit_stop, LASER_HIT_STOP_DURATION)
+                        self.pending_laser_flash = True
+                    else:
+                        self.pending_laser_ramp_flash = True
                     point = self.laser.collision[0]
                     x, y = point
                     explosion_size = laser_properties.get_laser_expl(self.laser_attributes, self.laser_first_hit, self.laser_ramps)
-                    _terrain.add_air_pocket_clump(x, y, explosion_size, player_made=True, spreading=1 / 5)
+                    _terrain.add_air_pocket_clump(x, y, explosion_size, player_made=True, spreading=1 / 5, spawn_particles=self.laser.collision[1] == "ground")
                     if self.laser.collision[1] == "ground":
-                        _terrain.particles.spawn_mining_particles(10, (0, 0, 0), explosion_size * 1.5, x, y)
                         HealthBar.targeted = None
 
                     _terrain.new_knockback_circles.append(
@@ -466,8 +563,8 @@ class Player:
             distance = dist(dx, dy)
             knockback = knockback_circle[0]
 
-            self.x_speed += frame_length * dx / distance * knockback / 60
-            self.y_speed += frame_length * dy / distance * knockback / 60
+            self.x_speed += NOMINAL_FRAME_MS * dx / distance * knockback / 60
+            self.y_speed += NOMINAL_FRAME_MS * dy / distance * knockback / 60
 
         for nest in _terrain._nests_near(self.x, self.y, 400):
             if nest.stage == nest.max_stage and self.charge_capacity > self.charges[nest.nest_type] and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:
@@ -475,6 +572,7 @@ class Player:
                 if nest.interaction_display.active:
                     charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging)
                     nest.lose_charge(charge_gain)
+                    _terrain.particles.spawn_light_particles(frame_random(frame_length, 10), nest.color,random.randint(5,20),nest.x,nest.y,target=(self.x,self.y))
             else:
                 _terrain.remove_interaction_display(nest.interaction_display, nest.charge == 0 or self.charge_capacity == self.charges[nest.nest_type])
         for chunk in _terrain._chunks_near(self.x, self.y, 400, 0):
@@ -487,35 +585,48 @@ class Player:
                         _terrain.remove_interaction_display(cell.interaction_display, True)
                         cells.remove(cell)
                         self.n_cells += 1
+                        self.restore_charge(cell.charges)
                 else:
                     _terrain.remove_interaction_display(cell.interaction_display)
 
         self.update_charge_capacity()
         self.update_laser_stats()
 
+        if self.on_ground:
+            self.coyote_timer = COYOTE_TIME
+        else:
+            self.coyote_timer = max(0, self.coyote_timer - frame_length)
+
+        if keys_down[pygame.K_w] and self.coyote_timer > 0:
+            self.y_speed = -0.4
+            self.coyote_timer = 0
+
+        moving_left = keys_down[pygame.K_a]
+        moving_right = keys_down[pygame.K_d]
+
+        if self.on_ground:
+            # snappy ground control: instant turnaround and instant stop, no coasting
+            if moving_left and self.x_speed > 0:
+                self.x_speed = 0
+            if moving_right and self.x_speed < 0:
+                self.x_speed = 0
+            if moving_left:
+                self.x_speed = max(-GROUND_MAX_SPEED, self.x_speed - GROUND_ACCEL * frame_length)
+            if moving_right:
+                self.x_speed = min(GROUND_MAX_SPEED, self.x_speed + GROUND_ACCEL * frame_length)
+            if not (moving_left or moving_right):
+                self.x_speed = 0
+        else:
+            if moving_left:
+                self.x_speed -= AIR_ACCEL * frame_length
+            if moving_right:
+                self.x_speed += AIR_ACCEL * frame_length
+            self.x_speed *= AIR_FRICTION**frame_length
+
         if self.x < 50:
             self.x_speed += (50 - self.x) / 10000 * frame_length
         elif self.x > _terrain.world_width - 50:
             self.x_speed -= (self.x - _terrain.world_width + 50) / 10000 * frame_length
-
-        if keys_down[pygame.K_w] and self.on_ground:
-            self.y_speed = -0.4
-
-        if keys_down[pygame.K_a]:
-            if self.on_ground:
-                self.x_speed -= 0.005 * frame_length
-            else:
-                self.x_speed -= 0.0015 * frame_length
-        if keys_down[pygame.K_d]:
-            if self.on_ground:
-                self.x_speed += 0.005 * frame_length
-            else:
-                self.x_speed += 0.0015 * frame_length
-
-        if self.on_ground:
-            self.x_speed *= 0.98**frame_length
-        else:
-            self.x_speed *= 0.993**frame_length
 
         self.move_vertical(frame_length, _terrain)
         self.move_horizontal(frame_length, _terrain)
@@ -638,6 +749,13 @@ class Player:
             # draw impact animations — rendered after laser so they appear on top
             for impact in self.impacts:
                 impact.draw(surface, frame, boosted_color, zoom, offset_x=offset_x, offset_y=offset_y)
+
+    def draw_cell_charge_bar(self, surface, frame, offset_x=0, offset_y=0):
+        cam_x, cam_y, zoom = frame
+        side = 1 if self.facing == "right" else -1
+        bar_x = self.x + side * CELL_CHARGE_BAR_SIDE_OFFSET
+        hold_fraction = self.cell_throw_hold_timer / CELL_THROW_CHARGE_TIME
+        self.cell_charge_bar.draw(surface, self.color, ((bar_x - cam_x) * zoom + offset_x, (self.y - cam_y) * zoom + offset_y), hold_fraction)
 
     def colliding_with_terrain(self, _terrain):
         return _terrain.collide_rect(self.rect)

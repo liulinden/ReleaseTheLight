@@ -12,6 +12,15 @@ costume_dimensions = {"1": (3 / 8, 3 / 4)}
 
 animation_fps = 15
 
+TILT_MAX = 35  # degrees — well past the player's screen-tilt cap; sprite-only so it can be louder
+TILT_DECAY_RATE = 0.06  # degrees/ms — slower than the player's recovery so the lean lingers longer
+
+NOMINAL_FRAME_MS = 1000 / 60  # knockback circles are one-shot impulses, not continuous forces --
+# baked to a 60fps frame instead of scaling with actual frame_length, or the "instant" kick becomes
+# framerate-dependent and gets crushed to near-zero during hit-stop (see player.py for the full story)
+
+GLOW_DECAY_MS = 200  # ms for the hit-glow to linearly fall from full to zero -- punchy, not a lingering fade
+
 enemy_animations = {}
 
 
@@ -63,7 +72,7 @@ def _build_costume_images(costume_id, size, zoom, direction):
 
     resizedspawns = []
     for spawn_img in enemy_animations[costume_id]["spawn"]:
-        resized = pygame.transform.scale(spawn_img, (size * zoom, size * zoom))
+        resized = pygame.transform.smoothscale(spawn_img, (size * zoom, size * zoom))
         if direction == "left":
             resized = pygame.transform.flip(resized, True, False)
         resizedspawns.append(resized)
@@ -71,7 +80,7 @@ def _build_costume_images(costume_id, size, zoom, direction):
 
     resizedwalks = []
     for walk_img in enemy_animations[costume_id]["walk"]:
-        resized = pygame.transform.scale(walk_img, (size * zoom, size * zoom))
+        resized = pygame.transform.smoothscale(walk_img, (size * zoom, size * zoom))
         if direction == "left":
             resized = pygame.transform.flip(resized, True, False)
         resizedwalks.append(resized)
@@ -79,13 +88,13 @@ def _build_costume_images(costume_id, size, zoom, direction):
 
     resized_attacks = []
     for attack_img in enemy_animations[costume_id]["attack"]:
-        resized = pygame.transform.scale(attack_img, (size * zoom, size * zoom))
+        resized = pygame.transform.smoothscale(attack_img, (size * zoom, size * zoom))
         if direction == "left":
             resized = pygame.transform.flip(resized, True, False)
         resized_attacks.append(resized)
     imgs["attack"] = resized_attacks
 
-    resized = pygame.transform.scale(enemy_animations[costume_id]["attack_hitbox"], (size * zoom, size * zoom))
+    resized = pygame.transform.smoothscale(enemy_animations[costume_id]["attack_hitbox"], (size * zoom, size * zoom))
     if direction == "left":
         resized = pygame.transform.flip(resized, True, False)
     imgs["attack_hitbox"] = resized
@@ -116,11 +125,12 @@ def prewarm_size_range(costume_id, size_min, size_max, default_zooms):
 
 
 class Enemy:
-    def __init__(self, default_zooms, costume, color, x, y, size=50, health=500):
+    def __init__(self, default_zooms, nest, costume, color, x, y, size=50, health=500):
         self.costume_id = costume
         # snapped so live-spawned enemies reuse cached scaled images instead
         # of each triggering a fresh set of pygame.transform.scale calls
         self.size = _snap_enemy_size(size)
+        self.nest = nest
         self.width = self.size * costume_dimensions[self.costume_id][0]
         self.height = self.size * costume_dimensions[self.costume_id][1]
         self.max_health = health
@@ -144,12 +154,14 @@ class Enemy:
         self.facing = "right"
         self.mode = "spawn"
         self.glow = 0
+        self.tilt = 0  # sprite-only lean on taking a hit -- never affects the camera
         self.r = math.dist((0, 0), (self.width / 2, self.height / 2))
         self.rect = pygame.Rect(self.x - self.width / 2, self.y - self.height / 2, self.width, self.height)
         self.health_bar = HealthBar(self.max_health)
 
         self.resized_im_gs = {}
         self._draw_filter = {}
+        self._flash_surface = {}
 
         for zoom in default_zooms:
             zoom_set = {}
@@ -157,12 +169,28 @@ class Enemy:
                 zoom_set[direction] = _get_costume_images(self.costume_id, self.size, zoom, direction)
             self.resized_im_gs[zoom] = zoom_set
             self._draw_filter[zoom] = pygame.Surface((self.size * zoom, self.size * zoom), flags=pygame.SRCALPHA)
+            self._flash_surface[zoom] = pygame.Surface((self.size * zoom, self.size * zoom))
 
     def spawn_particles(self, _terrain):
-        _terrain.particles.spawn_mining_particles(15, self.color, self.size / 3, self.x, self.y)
+        _terrain.particles.spawn_light_particles(6, self.color, self.size / 3, self.nest.x, self.nest.y, target=(self.x, self.y))
+
+    def damage_particles(self, _terrain, direct):
+        if direct:
+            _terrain.particles.spawn_mining_particles(3, (0,0,0), self.size / 3, self.x, self.y)
+            _terrain.particles.spawn_mining_particles(5, self.color, self.size / 5, self.x, self.y)
+        else:
+            _terrain.particles.spawn_mining_particles(2, self.color, self.size / 5, self.x, self.y)
+
+    def nest_death_particles(self, _terrain):
+        _terrain.particles.spawn_mining_particles(10, (0,0,0), self.size / 2, self.x, self.y)
+        _terrain.particles.spawn_light_particles(15, self.color, self.size / 3, self.x, self.y, target=(self.nest.x, self.nest.y))
 
     def update_costume(self, frame_length, player):
-        self.glow += (0 - self.glow) / 500 * frame_length
+        self.glow = max(0, self.glow - 255 / GLOW_DECAY_MS * frame_length)
+        if self.tilt > 0:
+            self.tilt = max(0, self.tilt - TILT_DECAY_RATE * frame_length)
+        elif self.tilt < 0:
+            self.tilt = min(0, self.tilt + TILT_DECAY_RATE * frame_length)
         self.animation_timer = self.animation_timer + frame_length
         if self.mode == "spawn":
             if self.animation_timer >= self.animation_lengths["spawn"] * 1000 / animation_fps:
@@ -184,7 +212,10 @@ class Enemy:
         self.animation_frame = math.floor(self.animation_timer / (1000 / animation_fps))
 
     def update_rect(self):
-        self.rect.x, self.rect.y = self.x - self.width / 2, self.y - self.height / 2
+        # pygame.Rect rounds float assignment to the nearest int rather than flooring it,
+        # which doesn't match terrain._sample_chunk's floor-based pixel grid -- floor
+        # explicitly so self.rect.x/y always lands on the same pixel grid collision uses.
+        self.rect.x, self.rect.y = math.floor(self.x - self.width / 2), math.floor(self.y - self.height / 2)
 
     def draw(self, surface, frame, hitbox=False, offset_x=0, offset_y=0):
         cam_x, cam_y, zoom = frame
@@ -207,6 +238,16 @@ class Enemy:
             filt = self._draw_filter[zoom]
             filt.fill(self.color)
             filt.blit(self.resized_im_gs[zoom][self.facing][self.mode][self.animation_frame], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            if self.glow > 1:
+                # brighten toward the enemy's own color on hit -- BLEND_RGB_ADD only
+                # touches RGB, so it can't bleed outside the sprite's silhouette
+                # (those pixels stay alpha 0)
+                flash = self._flash_surface[zoom]
+                amt = self.glow / 255
+                flash.fill((int(self.color[0] * amt), int(self.color[1] * amt), int(self.color[2] * amt)))
+                filt.blit(flash, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+            if self.tilt != 0:
+                filt = pygame.transform.rotate(filt, self.tilt)
             surface.blit(filt, ((self.rect.centerx - self.size / 2 - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y))
 
     def draw_health_bar(self, surface, frame, time=None, offset_x=0, offset_y=0):
@@ -219,10 +260,17 @@ class Enemy:
         surface.blit(self.resized_im_gs[zoom][self.facing]["attack_hitbox"], ((self.rect.centerx - self.size / 2 - cam_x) * zoom + offset_x, (self.rect.bottom - self.size - cam_y + 5) * zoom + offset_y))
 
     def deal_damage(self, damage, direct=False):
-        self.glow = 255
+        if direct:
+            self.glow = 255
+        else:
+            self.glow = 100
         self.health -= damage
         if damage > 0:
             self.health_bar.trigger(direct)
+            new_tilt = min(TILT_MAX, math.sqrt(damage * 15) * 5)
+            new_tilt = math.copysign(new_tilt, -self.x_speed)
+            if abs(new_tilt) > abs(self.tilt):
+                self.tilt = new_tilt
         if self.health < 0:
             self.health = 0
             return True
@@ -239,14 +287,14 @@ class Enemy:
             d = math.sqrt(dx**2 + dy**2)
             if player.laser:
                 if player.laser.laser_target is self:
-                    self.x_speed += frame_length * dx / d / self.size * pow / self.knockback_resistance
-                    self.y_speed += frame_length * dy / d / self.size * pow / self.knockback_resistance
+                    self.x_speed += NOMINAL_FRAME_MS * dx / d / self.size * pow / self.knockback_resistance
+                    self.y_speed += NOMINAL_FRAME_MS * dy / d / self.size * pow / self.knockback_resistance
                 elif d < r + self.r:
-                    self.x_speed += frame_length * dx / d / self.size * pow * falloff / self.knockback_resistance
-                    self.y_speed += frame_length * dy / d / self.size * pow * falloff / self.knockback_resistance
+                    self.x_speed += NOMINAL_FRAME_MS * dx / d / self.size * pow * falloff / self.knockback_resistance
+                    self.y_speed += NOMINAL_FRAME_MS * dy / d / self.size * pow * falloff / self.knockback_resistance
             elif d < r + self.r:
-                self.x_speed += frame_length * dx / d / self.size * pow * falloff / self.knockback_resistance
-                self.y_speed += frame_length * dy / d / self.size * pow * falloff / self.knockback_resistance
+                self.x_speed += NOMINAL_FRAME_MS * dx / d / self.size * pow * falloff / self.knockback_resistance
+                self.y_speed += NOMINAL_FRAME_MS * dy / d / self.size * pow * falloff / self.knockback_resistance
 
         for damage_circle in _terrain.player_damage_circles:
             pow, x, y, r, falloff = damage_circle
@@ -256,17 +304,19 @@ class Enemy:
             d = math.sqrt(dx**2 + dy**2)
             if player.laser:
                 if player.laser.laser_target is self:
+                    self.damage_particles(_terrain, True)
                     _terrain.particles.spawn_mining_particles(10, self.color, self.size / 5, x, y)
                     if self.deal_damage(pow, True):
                         return True
                 else:
                     if d < r + self.r:
+                        self.damage_particles(_terrain, False)
                         _terrain.particles.spawn_mining_particles(5, self.color, self.size / 10, x, y)
                         if self.deal_damage(pow * falloff):
                             return True
             else:
                 if d < r + self.r:
-                    _terrain.particles.spawn_mining_particles(5, self.color, self.size / 10, x, y)
+                    self.damage_particles(_terrain, False)
                     if self.deal_damage(pow * falloff):
                         return True
 
@@ -314,7 +364,7 @@ class Enemy:
                 else:
                     player.x_speed = -self.knockback
                 player.y_speed = -self.knockback
-                player.deal_damage(self.damage)
+                player.take_enemy_hit(self.damage)
 
     def tick(self, frame_length, _terrain, player):
         if self.mode != "spawn":

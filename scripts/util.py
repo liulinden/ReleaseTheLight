@@ -24,12 +24,6 @@ def draw_rounded_line(surface, color, start, end, thickness):
     pygame.draw.circle(surface, color, end, thickness // 2)
 
 
-def draw_single_side_rounded_line(surface, color, start, end, thickness):
-    # thickness should be odd
-    pygame.draw.line(surface, color, start, end, thickness)
-    pygame.draw.circle(surface, color, end, thickness / 2)
-
-
 def safe_remove(list, item):
     if item in list:
         list.remove(item)
@@ -62,9 +56,9 @@ def normalize_1d(n):
         return 0
 
 
-def about_equal(a, b, threshold=0.01):
+def about_equal(a, b, frame_length=60, threshold=0.01):
     diff = a - b
-    return diff < threshold and diff > -threshold
+    return diff < threshold * frame_length/60 and diff > -threshold * frame_length/60
 
 
 def polar_to_rect(r, angle, center=(0, 0)):
@@ -73,27 +67,6 @@ def polar_to_rect(r, angle, center=(0, 0)):
 
 def multiply_tuple(tuple_, factor):
     return tuple(entry * factor for entry in tuple_)
-
-
-def get_bounced_vector(vector, normal, elasticity=1):
-    ax, ay = vector
-    bx, by = normal
-    factor = dist(bx, by)
-    if factor == 0:
-        return 0, 0
-    bx /= factor
-    by /= factor
-
-    s = bx**2 - by**2
-    p = 2 * bx * by
-
-    bounced_x = -ax * s - p * ay
-    bounced_y = ay * s - p * ax
-    # bounced x and y are now already equal to bounced vector assuming elasticity = 1
-
-    factor = (elasticity + 1) / 2
-
-    return bounced_x * factor + ax * (1 - factor), bounced_y * factor + ay * (1 - factor)
 
 
 def rotate_and_get_offset(surface, cx, cy, angle, degrees=False):

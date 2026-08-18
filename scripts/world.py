@@ -45,12 +45,14 @@ class World:
         self.player = player.Player(default_zooms, world_width / 2, -200 if developing_mode else -1200)
         objects_loading_screen.put(0.7, "Creating lighting object")
         self.light = lighting.Lighting(default_zooms=default_zooms)
-        objects_loading_screen.put(0.8, "Creating background surface")
+        objects_loading_screen.put(0.8, "Creating background surfaces")
         background_raw = get_asset("background_1")
         self.background_1 = pygame.transform.scale(background_raw, (3000, 3000))
         background_raw = get_asset("background_2")
         self.background_2 = pygame.transform.scale(background_raw, (3000, 3000))
         self.bg_width, self.bg_height = 3000, 3000
+        self.gradient_vertical_raw = get_asset("gradient_vertical")
+        self.gradient_vertical = None
         objects_loading_screen.put(0.85, "Creating foreground surface")
         foreground_raw = get_asset("foreground")
         self.foreground = pygame.transform.scale(foreground_raw, (10000, 10000))
@@ -128,6 +130,8 @@ class World:
 
         if frame_random(frame_length, 5) == 1:
             self.light.add_mist_particle(self.player.x, self.player.y, color=self.player.color)
+        if frame_random(frame_length, 4) == 1:
+            self.terrain.particles.spawn_light_particles(1, self.player.color, random.randint(5, 20), self.player.x, self.player.y)
         if self.player.laser:
             lase = self.player.laser
             if frame_random(frame_length, lase.length / 20):
@@ -139,7 +143,8 @@ class World:
             n.update_visuals(frame_length)
             if self.terrain.player_damage_circles:
                 for particle_coords in n.apply_damage_from_circles(self.terrain, self.player):
-                    self.terrain.particles.spawn_mining_particles(10, n.color, particle_coords[2], particle_coords[0], particle_coords[1])
+                    self.terrain.particles.spawn_mining_particles(3, (0,0,0), particle_coords[2], particle_coords[0], particle_coords[1])
+                    self.terrain.particles.spawn_mining_particles(5, n.color, particle_coords[2]/2, particle_coords[0], particle_coords[1])
 
             if n.stage != n.max_stage:
                 d = math.dist((n.x, n.y), (self.player.x, self.player.y))
@@ -154,9 +159,15 @@ class World:
                 if frame_random(frame_length, 8 if n.interaction_display.active else 2):
                     self.light.add_mist_particle(n.x, n.y, color=n.color)
 
-        for cell in self.terrain._cells_in_rect(screen_rect):
+        # dynamic objects cells can nudge away from -- scoped to what's on screen, same as
+        # the cells themselves, so this stays cheap regardless of total world population
+        visible_cells = self.terrain._cells_in_rect(screen_rect)
+        dynamic_objects = [(cell.x, cell.y, cell) for cell in visible_cells]
+
+        for cell in visible_cells:
             if cell.close(window_size, frame):
-                cell.tick(frame_length, self.terrain, self.player)
+                if cell.tick(frame_length, self.terrain, self.player, dynamic_objects):
+                    self.terrain.remove_cell(cell)
 
         self.terrain.display_manager.tick(frame_length, keys_down)
 
@@ -168,11 +179,17 @@ class World:
 
         return False
 
+    def draw_vertical_gradient(self, layer, window_size):
+        if not self.gradient_vertical or self.gradient_vertical.get_size() != window_size:
+            self.gradient_vertical = pygame.transform.smoothscale(self.gradient_vertical_raw, window_size)
+        layer.blit(self.gradient_vertical, (0,0))
+
     def draw_background(self, layer, window_size, frame):
         left, top, zoom = frame
         x = (-left * 1 * zoom) % self.bg_width / 2 - self.bg_width / 2
         y = (-top * 1 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background_1, (x, y))
+        #self.draw_vertical_gradient(layer, window_size)
         x = (-left * 1.8 * zoom) % self.bg_width / 2 - self.bg_width / 2
         y = (-top * 1.8 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background_2, (x, y))
@@ -216,20 +233,12 @@ class World:
 
         scratch_layer.fill(self.terrain.get_frame_color(layer, frame))
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
-        # layer.fill(self.terrain.get_frame_color(layer, frame), special_flags=pygame.BLEND_RGB_MULT)
-
-        # time = pygame.time.get_ticks()
-        # FastFill.multiply(layer, self.terrain.get_frame_color(layer,frame))
-        # print(pygame.time.get_ticks()-time)
-        # time = pygame.time.get_ticks()
-        # layer.fill(self.terrain.get_frame_color(layer, frame), special_flags=pygame.BLEND_RGB_MULT)
-        # print(pygame.time.get_ticks()-time)
-        # if kind_visibility:
-        #    layer.fill(self.terrain.get_frame_color(layer,frame))
 
         self.light.draw_effects(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.terrain.particles.draw_pulse_particles(layer, frame, offset_x=offset_x, offset_y=offset_y)
+
+        self.terrain.particles.draw_light_particles(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
         self.player.draw(layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y, tilt=tilt)
 
@@ -247,6 +256,7 @@ class World:
 
         time = pygame.time.get_ticks()
         self.terrain.draw_health_bars(window_size, layer, frame, time, offset_x=offset_x, offset_y=offset_y)
+        self.player.draw_cell_charge_bar(layer, frame, offset_x=offset_x, offset_y=offset_y)
         self.terrain.draw_interaction_displays(layer, frame, time, offset_x=offset_x, offset_y=offset_y)
 
         if not kind_visibility:

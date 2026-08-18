@@ -14,6 +14,12 @@ import cProfile
 
 profile = cProfile.Profile()
 
+FLASH_DURATION = 120  # ms -- held through hit-stop, then fades. shared by all screen-flash triggers below
+LASER_FIRST_HIT_FLASH_ALPHA = 10  # slight, not a full whiteout
+LASER_RAMP_FLASH_ALPHA = 5  # significantly slighter -- every later damage frame of the same cast, not just the first
+DAMAGE_FLASH_COLOR = (0, 0, 0)
+DAMAGE_FLASH_ALPHA = 90
+
 class Game:
     def __init__(self, window: pygame.Surface, fps=60, full_world=True, dev_mode=False, loading_screen: loading_screen.LoadingScreen = None):
 
@@ -105,6 +111,13 @@ class Game:
 
         self.shake = 0
         self.tilt = 0
+        self.hit_stop_timer = 0
+        self.frame_jitter = (0, 0)
+        self.flash_timer = 0
+        self.flash_color = (255, 255, 255)
+        self.flash_max_alpha = 0
+        self._flash_surface = None
+        self._flash_surface_size = None
 
         self.loading_screen.put(1.0, "Game setup complete.")
 
@@ -207,10 +220,53 @@ class Game:
                     if event.key in self.keys_down:
                         self.keys_down[event.key] = False
 
-            if self.game_world.tick(practical_fps, (self.window_width, self.window_height), [self.cam_x, self.cam_y, self.zoom], self.coords_window_to_world((mouse_x, mouse_y)), self.keys_down, self.events):
+            # while hit-stop is active, freeze world simulation (huge fps -> ~0 frame_length)
+            # but keep decrementing the timer on real elapsed time so the freeze still ends.
+            # captured before the tick so a hit landing *this* frame is treated as unfrozen --
+            # otherwise its own freeze (set below) would suppress its shake spike immediately.
+            frozen_this_frame = self.hit_stop_timer > 0
+            tick_fps = 100000 if frozen_this_frame else practical_fps
+
+            if self.game_world.tick(tick_fps, (self.window_width, self.window_height), [self.cam_x, self.cam_y, self.zoom], self.coords_window_to_world((mouse_x, mouse_y)), self.keys_down, self.events):
                 self.cam_x, self.cam_y = self.default_cam_coords
                 self.game_world.heal_nests()
                 self.game_world.remove_enemies()
+
+            if self.game_world.player.pending_hit_stop > 0:
+                self.hit_stop_timer = max(self.hit_stop_timer, self.game_world.player.pending_hit_stop)
+                self.game_world.player.pending_hit_stop = 0
+            elif self.hit_stop_timer > 0:
+                self.hit_stop_timer = max(0, self.hit_stop_timer - 1000 / practical_fps)
+
+            # each trigger unconditionally overwrites flash state, so whichever fired
+            # most recently wins -- checked in ascending priority, damage-taken last,
+            # so a same-frame collision (e.g. hit while your own laser also connects)
+            # resolves in favor of the more urgent "you got hit" signal
+            laser_ramp_flash = self.game_world.player.pending_laser_ramp_flash
+            laser_first_flash = self.game_world.player.pending_laser_flash
+            damage_flash = self.game_world.player.pending_damage_flash
+
+            if laser_ramp_flash:
+                self.flash_timer = FLASH_DURATION
+                self.flash_color = self.game_world.player.color
+                self.flash_max_alpha = LASER_RAMP_FLASH_ALPHA
+                self.game_world.player.pending_laser_ramp_flash = False
+            if laser_first_flash:
+                self.flash_timer = FLASH_DURATION
+                self.flash_color = self.game_world.player.color
+                self.flash_max_alpha = LASER_FIRST_HIT_FLASH_ALPHA
+                self.game_world.player.pending_laser_flash = False
+            if damage_flash:
+                self.flash_timer = FLASH_DURATION
+                self.flash_color = DAMAGE_FLASH_COLOR
+                self.flash_max_alpha = DAMAGE_FLASH_ALPHA
+                self.game_world.player.pending_damage_flash = False
+
+            if not (laser_ramp_flash or laser_first_flash or damage_flash) and self.flash_timer > 0:
+                # decays on real time regardless of hit-stop -- unlike the tilt, a full-screen
+                # flash held static through the whole freeze reads as much more intense than
+                # its alpha suggests, since there's nothing else on screen to compete with it
+                self.flash_timer = max(0, self.flash_timer - 1000 / practical_fps)
 
             self.charge_display.update(practical_fps, self.game_world.player)
             # self.minimap.update(self.game_world.player, self.game_world.terrain)
@@ -227,15 +283,24 @@ class Game:
             # clear window
             self.window.fill((255, 255, 255))
 
-            if self.game_world.player.laser:
-                if self.game_world.player.laser.damage_frame:
-                    self.shake = self.game_world.player.laser_attributes.base_xpl / 8
-                else:
-                    self.shake += self.game_world.player.laser_attributes.base_xpl / 450
+            # hold shake/jitter perfectly still during hit-stop -- otherwise the ongoing
+            # laser-fire camera shake keeps moving the screen and the freeze isn't felt
+            if not frozen_this_frame:
+                if self.game_world.player.laser:
+                    if self.game_world.player.laser.damage_frame:
+                        self.shake = self.game_world.player.laser_attributes.base_xpl / 8
+                    else:
+                        self.shake += self.game_world.player.laser_attributes.base_xpl / 450
 
-            self.shake *= 0.9
-            if self.shake < 0.02:
-                self.shake = 0
+                if self.game_world.terrain.pending_shake > 0:
+                    self.shake += self.game_world.terrain.pending_shake
+                    self.game_world.terrain.pending_shake = 0
+
+                self.shake *= 0.9
+                if self.shake < 0.02:
+                    self.shake = 0
+
+                self.frame_jitter = ((2 * random.random() - 1) * self.shake, (2 * random.random() - 1) * self.shake)
 
             if self.game_world.player.queued_damage > 0:
                 tilt = math.sqrt(self.game_world.player.queued_damage * 5) * 2
@@ -243,7 +308,8 @@ class Game:
                 tilt = math.copysign(tilt, self.game_world.player.queued_damage * -self.game_world.player.x_speed)
                 if abs(tilt) > abs(self.tilt):
                     self.tilt = tilt
-            else:
+            elif self.hit_stop_timer == 0:
+                # held at its peak for the duration of hit-stop, then eases back
                 delta = 1.8
                 if self.tilt > 0:
                     self.tilt = max(0, self.tilt - delta)
@@ -251,7 +317,7 @@ class Game:
                     self.tilt = min(0, self.tilt + delta)
 
             # display world layer
-            frame = [self.cam_x + (2 * random.random() - 1) * self.shake, self.cam_y + (2 * random.random() - 1) * self.shake, self.zoom]
+            frame = [self.cam_x + self.frame_jitter[0], self.cam_y + self.frame_jitter[1], self.zoom]
             # self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
             #profile.enable()
@@ -267,6 +333,16 @@ class Game:
                 crosshair=self.crosshair,
             )
             #profile.disable()
+
+            if self.flash_timer > 0:
+                window_size = self.window.get_size()
+                if window_size != self._flash_surface_size:
+                    self._flash_surface = pygame.Surface(window_size, pygame.SRCALPHA)
+                    self._flash_surface_size = window_size
+                alpha = int(self.flash_max_alpha * self.flash_timer / FLASH_DURATION)
+                r, g, b = self.flash_color[:3]
+                self._flash_surface.fill((int(r), int(g), int(b), alpha))
+                self.window.blit(self._flash_surface, (0, 0))
 
             """
             self.window.blit(

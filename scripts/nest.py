@@ -10,6 +10,9 @@ from scripts.UI.interaction_display import InteractionDisplay
 from scripts.util import charges_to_color
 
 
+HIT_FLASH_DECAY_MS = 200  # ms for the hit-flash to linearly fall from full to zero -- same punchy feel as enemies
+
+
 def load_nest_img_set(id, stages):
     imgs = []
     for i in range(stages):
@@ -61,7 +64,7 @@ def _snap_nest_size(size):
 def _build_nest_images(nest_type, variant_id, size, zoom):
     stage_im_gs = nest_im_gs[nest_type][variant_id]
     hitbox = nest_hitboxes[nest_type][variant_id]
-    imgs = [pygame.transform.scale(stage_img, (size * zoom, size * zoom)) for stage_img in stage_im_gs]
+    imgs = [pygame.transform.smoothscale(stage_img, (size * zoom, size * zoom)) for stage_img in stage_im_gs]
     hitbox_img = pygame.transform.scale(hitbox, (size * zoom, size * zoom))
     return imgs, hitbox_img
 
@@ -128,6 +131,7 @@ class Nest:
         # self.total_enemy_cap = min(max(3, int(size / 30)), 10)
         self.color = (255, 255, 255)
         self.glow = 0
+        self.hit_flash = 0  # sprite-only hit-flash, separate from the ambient charge glow -- only shown before max_stage
         self.stage = 0
         self.max_stage = len(stage_im_gs) - 1
 
@@ -140,18 +144,22 @@ class Nest:
 
         # FIX 1: pre-allocate filter surfaces for draw() per zoom
         self._draw_filter = {}
+        self._flash_surface = {}
 
         for zoom in default_zooms:
             imgs, hitbox_img = _get_nest_images(nest_type, variant_id, size, zoom)
             self.resized_im_gs[zoom] = imgs
             self.resized_hitboxes[zoom] = hitbox_img
             self._draw_filter[zoom] = pygame.Surface((size * zoom, size * zoom), flags=pygame.SRCALPHA)
+            self._flash_surface[zoom] = pygame.Surface((size * zoom, size * zoom))
 
         _, hitbox_img_1 = _get_nest_images(nest_type, variant_id, size, 1)
         self.resized_hitboxes[1] = hitbox_img_1
         self.hitbox_mask = _get_nest_hitbox_mask(nest_type, variant_id, size, 1)
         if 1 not in self._draw_filter:
             self._draw_filter[1] = pygame.Surface((size, size), flags=pygame.SRCALPHA)
+        if 1 not in self._flash_surface:
+            self._flash_surface[1] = pygame.Surface((size, size))
 
         self.max_health = self.y * 200 * (random.random() + 0.5) / world_height
         if self.nest_type == "white":
@@ -200,6 +208,7 @@ class Nest:
             ...
 
     def update_visuals(self, frame_length):
+        self.hit_flash = max(0, self.hit_flash - 255 / HIT_FLASH_DECAY_MS * frame_length)
         if self.charge == 0 and self.visual_charge != 0:
             self.visual_charge *= 0.99 ** frame_length
             if self.visual_charge < 1:
@@ -218,6 +227,13 @@ class Nest:
         filt = self._draw_filter[zoom]
         filt.fill(self.color)
         filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        if self.hit_flash > 1 and self.stage != self.max_stage:
+            # same punchy hit-flash as enemies -- only shown while still being damaged,
+            # not once the nest has fully opened (max_stage becomes a resource, not a target)
+            flash = self._flash_surface[zoom]
+            amt = self.hit_flash / 255
+            flash.fill((int(self.color[0] * amt), int(self.color[1] * amt), int(self.color[2] * amt)))
+            filt.blit(flash, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
         surface.blit(filt, ((self.left - cam_x) * zoom + offset_x, (self.top - cam_y) * zoom + offset_y))
 
     def draw_health_bar(self, surface, frame, time=None, offset_x=0, offset_y=0):
@@ -227,7 +243,7 @@ class Nest:
 
     def add_enemy(self, c_terrain, player):
         if len(self.enemies) < self.basic_enemy_cap:
-            new_enemy = _enemy_handling.get_enemy(c_terrain, player, self.nest_type, self.color, self.max_health, self.x, self.y, self.size)
+            new_enemy = _enemy_handling.get_enemy(c_terrain, player, self)
             if new_enemy:
                 self.glow = 200
                 self.enemies.append(new_enemy)
@@ -245,18 +261,20 @@ class Nest:
                     # direct hit: full damage; splash: reduced damage
                     direct_hit = (player.laser.laser_target is self) if player.laser else False
                     damage = pow if direct_hit else pow * falloff
-                    self.deal_damage(damage, c_terrain, player)
+                    self.deal_damage(damage, c_terrain, player, direct_hit)
                     new_particles.append([x, y, self.size / (5 if direct_hit else 10)])
                     self.health_bar.trigger(direct_hit)
         return new_particles
 
-    def deal_damage(self, damage, c_terrain, player):
+    def deal_damage(self, damage, c_terrain, player, direct=False):
         self.glow = 200
+        if self.stage != self.max_stage:
+            self.hit_flash = 255 if direct else 100
         self.health -= damage
         if self.health < 0:
             self.health = 0
             for enemy in self.enemies:
-                enemy.spawn_particles(c_terrain)
+                enemy.nest_death_particles(c_terrain)
                 c_terrain.enemies.remove(enemy)
             self.enemies = []
         # elif random.randint(1, 5) == 1:

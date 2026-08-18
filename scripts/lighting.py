@@ -44,7 +44,7 @@ class Lighting:
             for size in [110, 130, 150]:
                 imgs = {}
                 for zoom in default_zooms:
-                    imgs[zoom] = pygame.transform.scale(light_img, (zoom * size, zoom * size))
+                    imgs[zoom] = pygame.transform.smoothscale(light_img, (zoom * size, zoom * size))
                 self.resized_light_im_gs["particles_mist"].append(imgs)
 
         # Lazily-built, size-bucketed cache of scaled light_gradient images,
@@ -185,8 +185,6 @@ class GradientCache:
 
             filt = pygame.Surface(dimensions, flags=pygame.SRCALPHA)
             filt.fill((color[0] * darken, color[1] * darken, color[2] * darken, 255))
-            #filt.fill((100,100, 100,255))
-            #print((color[0] * darken, color[1] * darken, color[2] * darken, 255))
             filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
             premul = pygame.Surface(dimensions)
