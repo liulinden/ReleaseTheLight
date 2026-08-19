@@ -36,8 +36,28 @@ class Element:
     draw_front / draw_hitbox are no-ops for any hook that returns None,
     so callers never need to special-case a missing layer. Hitbox images
     are assumed to be opaque white on a fully transparent background,
-    same convention as nest/structure hitbox images.
+    same convention as nest/structure hitbox images. A subclass that draws
+    something other than a static image (e.g. Vine's simulated, drawn-as-
+    lines sway) can just override draw_back/draw_front directly instead of
+    the get_*_surface hooks -- nothing about placement, anchoring, or
+    destruction depends on the layers being plain images.
+
+    Two independent, optional reactions to the rest of the world round out
+    the class: on_touch (a one-shot response to the player physically
+    touching this element, e.g. Spike's damage) and tick (continuous
+    per-frame simulation, e.g. Vine's sway) -- see their own docstrings
+    below for exactly when/how each is called.
+
+    SPAWN_SIDE ("bottom" or "top") is a class attribute a subclass sets to
+    use attempt_place_element_adjacent_to_air_pocket: "bottom" anchors to
+    the pocket's bottom edge with the element poking UP into it (e.g.
+    Spike, rooted in the floor); "top" anchors to the pocket's top edge
+    with the element hanging DOWN into it (e.g. UpsideDownSpike, Vine,
+    rooted in the ceiling). None (the default) means the subclass isn't
+    meant to be placed that way at all.
     """
+
+    SPAWN_SIDE = None
 
     def __init__(self, default_zooms, x, y, width, height, anchor_left, anchor_top, anchor_width, anchor_height):
         self.x = x
@@ -146,17 +166,21 @@ class Element:
     # Drawing
     # ------------------------------------------------------------------
 
-    def draw_back(self, surface, frame, offset_x=0, offset_y=0):
+    def _footprint_screen_pos(self, frame, offset_x=0, offset_y=0):
+        """World->screen conversion for the footprint's own top-left --
+        shared by draw_back/draw_front so they don't each repeat it."""
         cam_x, cam_y, zoom = frame
-        img = self.get_back_surface(zoom)
+        return (self.left - cam_x) * zoom + offset_x, (self.top - cam_y) * zoom + offset_y
+
+    def draw_back(self, surface, frame, offset_x=0, offset_y=0):
+        img = self.get_back_surface(frame[2])
         if img:
-            surface.blit(img, ((self.left - cam_x) * zoom + offset_x, (self.top - cam_y) * zoom + offset_y))
+            surface.blit(img, self._footprint_screen_pos(frame, offset_x, offset_y))
 
     def draw_front(self, surface, frame, offset_x=0, offset_y=0):
-        cam_x, cam_y, zoom = frame
-        img = self.get_front_surface(zoom)
+        img = self.get_front_surface(frame[2])
         if img:
-            surface.blit(img, ((self.left - cam_x) * zoom + offset_x, (self.top - cam_y) * zoom + offset_y))
+            surface.blit(img, self._footprint_screen_pos(frame, offset_x, offset_y))
 
     def draw_hitbox(self, surface, frame, offset_x=0, offset_y=0):
         """Dev debug view: collide_hitbox is drawn first (its own white),
@@ -175,14 +199,25 @@ class Element:
             surface.blit(tinted, dest)
 
     # ------------------------------------------------------------------
-    # Touch reaction -- no-op by default. Overridden by elements that need
-    # to react to the player physically touching them (e.g. Spike's touch
-    # damage). Called from Player.move_vertical once a broad-phase rect
-    # check AND a precise interaction_hitbox mask check both hit -- see
-    # player.py.
+    # Reactions -- both no-ops by default, independent of each other and
+    # of which layers a subclass uses.
     # ------------------------------------------------------------------
 
     def on_touch(self, player, _terrain):
+        """One-shot reaction to the player physically touching this
+        element (e.g. Spike's touch damage). Called from
+        Player.move_vertical once a broad-phase rect check AND a precise
+        interaction_hitbox mask check both hit -- see player.py. Elements
+        with no interaction_hitbox (get_interaction_hitbox_surface stays
+        None) never reach this, no matter what they override it to."""
+        pass
+
+    def tick(self, frame_length, _terrain, player, enemies):
+        """Continuous per-frame simulation (e.g. Vine's sway). Called once
+        per frame from World.tick for every element whose footprint+anchor
+        touches the current screen rect -- see Terrain._elements_touching_rect
+        and World.tick. Cheap to leave as a no-op: elements that don't
+        override it just cost one empty call per visible instance per frame."""
         pass
 
 
@@ -231,10 +266,11 @@ def attempt_place_element(_terrain, element_cls, x, y, *args, **kwargs):
 
     # reject placements that overlap an already-placed element's footprint --
     # without this, many candidates funneling to the same grounded spot (e.g.
-    # attempt_place_element_below_air_pocket's recursive descent bottoming
-    # out at the same local floor from several different starting pockets)
-    # would silently stack duplicates on top of each other instead of
-    # occupying the space once, same as generate_nest rejects overlapping nests.
+    # attempt_place_element_adjacent_to_air_pocket's recursive descend/ascend
+    # walk bottoming out at the same local floor/ceiling from several
+    # different starting pockets) would silently stack duplicates on top of
+    # each other instead of occupying the space once, same as generate_nest
+    # rejects overlapping nests.
     for existing in _terrain._elements_touching_rect(footprint_rect):
         if footprint_rect.colliderect(existing.get_footprint_rect()):
             return False
@@ -262,20 +298,33 @@ def attempt_place_element(_terrain, element_cls, x, y, *args, **kwargs):
 # clearance keeps it unambiguously outside even after truncation.
 _ANCHOR_CLEARANCE = 20.0
 
+# Once a candidate position clears the pocket (see below), it's nudged this
+# far at a time back toward the pocket -- shrinking the clearance above --
+# for as long as it stays clear, so the element ends up sitting right at
+# the edge of solid rock instead of buried _ANCHOR_CLEARANCE-plus deep in
+# it for no reason. Coarse on purpose; this is a "good enough" hugging of
+# the surface, not a binary-search-for-the-exact-boundary.
+_PUSH_STEP = 10.0
+
 
 def _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_pocket, side, *args, max_steps=8, **kwargs):
-    """Shared implementation for attempt_place_element_below_air_pocket and
-    attempt_place_element_above_air_pocket. side=1 solves for the anchor's
-    top edge just clearing the pocket's bottom (element pokes UP into the
-    pocket, e.g. a spike); side=-1 solves for the anchor's bottom edge just
-    clearing the pocket's top (element hangs DOWN into the pocket, e.g. a
-    vine). Both walk through whichever pocket blocks the candidate and
-    retry from there -- descending for side=1, ascending for side=-1 --
-    until they find an actual boundary (or max_steps is hit). Every step is
-    solved purely from element_cls.get_placement_geometry, so nothing is
-    constructed unless a placement finally succeeds."""
+    """Shared implementation behind attempt_place_element_adjacent_to_air_pocket.
+    side=1 solves for the anchor's top edge just clearing the pocket's
+    bottom (element pokes UP into the pocket, e.g. a spike); side=-1 solves
+    for the anchor's bottom edge just clearing the pocket's top (element
+    hangs DOWN into the pocket, e.g. a vine). Both walk through whichever
+    pocket blocks the candidate and retry from there -- descending for
+    side=1, ascending for side=-1 -- until they find an actual boundary (or
+    max_steps is hit), then push the result back toward the pocket in
+    _PUSH_STEP increments for as long as it stays clear (see _PUSH_STEP).
+    Every step is solved purely from element_cls.get_placement_geometry, so
+    nothing is constructed unless a placement finally succeeds."""
     width, height, anchor_left, anchor_top, anchor_width, anchor_height = element_cls.get_placement_geometry(*args, **kwargs)
     search_radius = _anchor_search_radius(anchor_width, anchor_height)
+
+    def find_blocker(x, y):
+        rect = pygame.Rect(x - width / 2 + anchor_left, y - height / 2 + anchor_top, anchor_width, anchor_height)
+        return _find_blocking_air_pocket(_terrain, rect, x, y, search_radius)
 
     for _ in range(max_steps + 1):
         x = air_pocket.x + width / 2 - anchor_left - anchor_width / 2
@@ -283,33 +332,35 @@ def _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_poc
             y = air_pocket.y + air_pocket.r + _ANCHOR_CLEARANCE + height / 2 - anchor_top
         else:
             y = air_pocket.y - air_pocket.r - _ANCHOR_CLEARANCE + height / 2 - anchor_top - anchor_height
-        rect = pygame.Rect(x - width / 2 + anchor_left, y - height / 2 + anchor_top, anchor_width, anchor_height)
 
-        blocker = _find_blocking_air_pocket(_terrain, rect, x, y, search_radius)
+        blocker = find_blocker(x, y)
         if blocker is None:
+            # grounded -- now push it back toward the pocket (i.e. toward
+            # the open space it's rooted against) in _PUSH_STEP increments
+            # for as long as it stays clear, so it ends up right at the
+            # edge of solid rock instead of sitting on the untouched
+            # _ANCHOR_CLEARANCE buffer.
+            push_dy = -_PUSH_STEP if side > 0 else _PUSH_STEP
+            while find_blocker(x, y + push_dy) is None:
+                y += push_dy
             return attempt_place_element(_terrain, element_cls, x, y, *args, **kwargs)
         air_pocket = blocker
 
     return False
 
 
-def attempt_place_element_below_air_pocket(_terrain, element_cls, air_pocket, *args, max_descend=8, **kwargs):
-    """Places element_cls so its anchor rect is horizontally centered under
-    air_pocket and just clears its bottom edge, so the bulk of the element
-    above the anchor pokes up into the pocket's open space (e.g. a spike
-    growing up off the floor). See _attempt_place_element_adjacent_to_air_pocket
-    for the shared descend/ascend walk."""
-    return _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_pocket, 1, *args, max_steps=max_descend, **kwargs)
-
-
-def attempt_place_element_above_air_pocket(_terrain, element_cls, air_pocket, *args, max_ascend=8, **kwargs):
-    """Mirror of attempt_place_element_below_air_pocket: places element_cls
-    so its anchor rect is horizontally centered above air_pocket and just
-    clears its top edge, so the bulk of the element below the anchor hangs
-    down into the pocket's open space (e.g. a vine dangling off a
-    ceiling). Walks UP through whichever pocket blocks the candidate,
-    instead of down."""
-    return _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_pocket, -1, *args, max_steps=max_ascend, **kwargs)
+def attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_pocket, *args, max_steps=8, **kwargs):
+    """Places element_cls anchored to whichever edge of air_pocket
+    element_cls.SPAWN_SIDE names ("bottom" or "top" -- see Element's own
+    docstring), then pushes it as far back toward the pocket as it'll go
+    while staying grounded (see _PUSH_STEP). Use this instead of calling
+    attempt_place_element directly whenever an element is meant to grow
+    out of an air pocket's edge, e.g. Spike ("bottom"), UpsideDownSpike/
+    Vine ("top")."""
+    side = {"bottom": 1, "top": -1}.get(element_cls.SPAWN_SIDE)
+    if side is None:
+        raise ValueError(f"{element_cls.__name__}.SPAWN_SIDE must be 'bottom' or 'top' to use attempt_place_element_adjacent_to_air_pocket, got {element_cls.SPAWN_SIDE!r}")
+    return _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_pocket, side, *args, max_steps=max_steps, **kwargs)
 
 
 def attempt_place_neighbors(_terrain, element, spacing=None, count=2, *args, randomize_kwargs=None, **kwargs):

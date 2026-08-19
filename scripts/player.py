@@ -414,7 +414,7 @@ class Player:
         self.deal_damage(damage)
         self.pending_hit_stop = HIT_STOP_DURATION
         self.pending_damage_flash = True
-        _terrain.particles.spawn_light_particles(10, self.color, damage, self.x, self.y)
+        _terrain.particles.spawn_light_particles(int(damage/4), self.color, 20, self.x, self.y)
 
     def drain_damage(self, damage):
         self.queued_drain_damage += damage

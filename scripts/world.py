@@ -126,21 +126,25 @@ class World:
             for _ in range(poisson_count(SPIKES_PER_CHUNK)):
                 air_pocket = random.choice(chunk.air_pockets)
                 size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
-                placed = elements.attempt_place_element_below_air_pocket(self.terrain, spike.Spike, air_pocket, size=size)
+                placed = elements.attempt_place_element_adjacent_to_air_pocket(self.terrain, spike.Spike, air_pocket, size=size)
                 if placed:
                     elements.attempt_place_neighbors(self.terrain, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
             for _ in range(poisson_count(SPIKES_PER_CHUNK)):
                 air_pocket = random.choice(chunk.air_pockets)
                 size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
-                placed = elements.attempt_place_element_above_air_pocket(self.terrain, spike.UpsideDownSpike, air_pocket, size=size)
+                placed = elements.attempt_place_element_adjacent_to_air_pocket(self.terrain, spike.UpsideDownSpike, air_pocket, size=size)
                 if placed:
                     elements.attempt_place_neighbors(self.terrain, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
             for _ in range(poisson_count(VINES_PER_CHUNK)):
                 air_pocket = random.choice(chunk.air_pockets)
                 size = random.randint(vine.SIZE_MIN, vine.SIZE_MAX)
-                placed = elements.attempt_place_element_above_air_pocket(self.terrain, vine.Vine, air_pocket, size=size)
+                slack_factor = random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)
+                placed = elements.attempt_place_element_adjacent_to_air_pocket(self.terrain, vine.Vine, air_pocket, size=size, slack_factor=slack_factor)
                 if placed:
-                    elements.attempt_place_neighbors(self.terrain, placed, placed.width / 4, count=5, size=size, randomize_kwargs=lambda: {"size": random.randint(vine.SIZE_MIN, vine.SIZE_MAX)})
+                    elements.attempt_place_neighbors(
+                        self.terrain, placed, placed.width / 4, count=5, size=size, slack_factor=slack_factor,
+                        randomize_kwargs=lambda: {"size": random.randint(vine.SIZE_MIN, vine.SIZE_MAX), "slack_factor": random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)},
+                    )
             if loading_screen is not None:
                 loading_screen.put((i + 1) / len(chunks), f"Generating elements ({i + 1}/{len(chunks)} chunks)")
 
@@ -223,6 +227,11 @@ class World:
             else:
                 if frame_random(frame_length, 8 if n.interaction_display.active else 2):
                     self.light.add_mist_particle(n.x, n.y, color=n.color)
+
+        # elements (e.g. Vine's sway) -- scoped to what's on screen, same
+        # reasoning as the cells loop just below
+        for e in self.terrain._elements_touching_rect(screen_rect):
+            e.tick(frame_length, self.terrain, self.player, self.terrain.enemies)
 
         # dynamic objects cells can nudge away from -- scoped to what's on screen, same as
         # the cells themselves, so this stays cheap regardless of total world population
@@ -316,6 +325,14 @@ class World:
 
         self.terrain.draw_nests(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
+        # elements-front has to come BEFORE draw_terrain: an element's
+        # anchor -- and often much of its body, e.g. a vine's full-width top
+        # anchor -- is deliberately embedded in solid rock, and that's meant
+        # to look embedded, not floating in front of it. draw_terrain's
+        # final blit fully overwrites solid-rock pixels (only carved/open
+        # areas let what's underneath show through), so drawing here first
+        # lets terrain naturally occlude the buried parts of the element and
+        # only show whatever actually hangs out into open/carved space.
         self.terrain.draw_elements_front(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
         self.terrain.draw_terrain(window_size, layer, frame, hitboxes=hitboxes, real_window_size=real_window_size, offset_x=offset_x, offset_y=offset_y)

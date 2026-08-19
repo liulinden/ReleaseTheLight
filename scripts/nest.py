@@ -273,8 +273,8 @@ class Nest:
 
     def deal_damage(self, damage, c_terrain, player, direct=False):
         self.glow = 200
-        if self.stage != self.max_stage:
-            self.hit_flash = 255 if direct else 100
+        if self.stage != self.max_stage and direct:
+            self.hit_flash = 255
         self.health -= damage
         if self.health < 0:
             self.health = 0

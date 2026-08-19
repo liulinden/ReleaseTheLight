@@ -129,6 +129,8 @@ class Spike(elements.Element):
     variant, only on size, so this is always safe to leave random even for
     the cheap pre-construction check in get_placement_geometry."""
 
+    SPAWN_SIDE = "bottom"  # rooted in the floor, pokes up into the pocket above it
+
     def __init__(self, default_zooms, x, y, variant=None, size=DEFAULT_SIZE):
         if variant is None:
             variant = random.choice(VARIANTS)
@@ -176,11 +178,12 @@ class UpsideDownSpike(Spike):
     """Mirror of Spike, both visually and logically: same spike_N.png art
     and hitbox, just flipped vertically, rooted into a ceiling instead of a
     floor (anchor strip at the top instead of the bottom -- see
-    UPSIDE_DOWN_ANCHOR_TOP_FRAC), placed via
-    attempt_place_element_above_air_pocket instead of ..._below_..., and
+    UPSIDE_DOWN_ANCHOR_TOP_FRAC, SPAWN_SIDE="top" instead of "bottom"), and
     hurts the player on a fast enough UPWARD hit (jumping into it) instead
     of a downward one. Everything else -- size range, hitbox convention,
     variant randomization, damage formula -- is identical to Spike."""
+
+    SPAWN_SIDE = "top"  # rooted in the ceiling, hangs down into the pocket below it
 
     def __init__(self, default_zooms, x, y, variant=None, size=DEFAULT_SIZE):
         if variant is None:
