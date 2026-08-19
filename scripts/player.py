@@ -1,8 +1,7 @@
 import math
+import random
 
 import pygame
-
-import random
 
 import scripts.laser as laser
 import scripts.laser_properties as laser_properties
@@ -10,7 +9,7 @@ import scripts.terrain as terrain
 from scripts.global_assets import get_asset
 from scripts.UI.health_bar import HealthBar
 from scripts.UI.load_bar import LoadBar
-from scripts.util import channel_bound, charges_to_color, dist, rotate_and_get_offset, frame_random
+from scripts.util import channel_bound, charges_to_color, dist, frame_random, rotate_and_get_offset
 
 SPRITE_WIDTH = 40
 SPRITE_HEIGHT = 40
@@ -300,7 +299,6 @@ class Player:
 
         self.practical_charges = filter_charges(self.filter_type, self.charges)
 
-
     def restore_charge(self, charges):
         # returns a picked-up cell's stored charge exactly as-is -- unlike add_charge,
         # this doesn't run it through filter_feeds' conversion rates, since it's not being
@@ -412,10 +410,11 @@ class Player:
     def deal_damage(self, damage):
         self.queued_damage += damage
 
-    def take_enemy_hit(self, damage):
+    def take_enemy_hit(self, damage, _terrain):
         self.deal_damage(damage)
         self.pending_hit_stop = HIT_STOP_DURATION
         self.pending_damage_flash = True
+        _terrain.particles.spawn_light_particles(10, self.color, damage, self.x, self.y)
 
     def drain_damage(self, damage):
         self.queued_drain_damage += damage
@@ -426,7 +425,7 @@ class Player:
         self.queued_damage = 0
         self.queued_drain_damage = 0
 
-        self.y_speed = min(2, self.y_speed + 0.0015 * frame_length)
+        self.y_speed = min(1.5, self.y_speed + 0.0015 * frame_length)
         if self.immunity_timer > 0:
             self.immunity_timer -= frame_length
             if self.immunity_timer < 0:
@@ -591,7 +590,7 @@ class Player:
                 if nest.interaction_display.active:
                     charge_gain = self.add_charge(nest.charge_rate * frame_length, nest.charging)
                     nest.lose_charge(charge_gain)
-                    _terrain.particles.spawn_light_particles(frame_random(frame_length, 10), nest.color,random.randint(5,20),nest.x,nest.y,target=(self.x,self.y))
+                    _terrain.particles.spawn_light_particles(frame_random(frame_length, 30), nest.color, random.randint(5, 20), nest.x, nest.y, target=(self.x, self.y))
             else:
                 _terrain.remove_interaction_display(nest.interaction_display, nest.charge == 0 or self.charge_capacity == self.charges[nest.nest_type])
         for chunk in _terrain._chunks_near(self.x, self.y, 400, 0):
@@ -702,9 +701,6 @@ class Player:
                     _terrain.particles.spawn_mining_particles(
                         int(abs((abs(max(0.005 * frame_length, abs(self.x_speed)) - 0.005 * frame_length) + 3 * (self.y_speed - 0.0015 * frame_length)) * 12)), (0, 0, 0), 20, self.x, self.y + self.height / 2
                     )
-                if self.y_speed >= 0.7:
-                    self.deal_damage((self.y_speed - 0.5) ** 2 * 100)
-                    _terrain.particles.spawn_spark_particles(5, self.color, 20 * self.y_speed, self.x, self.y + self.height / 2)
             if self.y_speed < 0:
                 slope_tolerance = math.ceil(abs(0.5 * frame_length * self.y_speed))
                 for i in range(slope_tolerance):

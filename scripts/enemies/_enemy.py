@@ -360,7 +360,7 @@ class Enemy:
     def check_despawn(self, player):
         return math.dist((self.x, self.y), (player.x, player.y)) > 500
 
-    def handle_attack(self, player):
+    def handle_attack(self, player, _terrain):
         if player.immunity_timer == 0 and self.mode == "attack" and self.animation_frame in self.attack_frames:
             if self.attack_collide_rect(player.rect):
                 player.immunity_timer = player.immunity_time
@@ -369,7 +369,7 @@ class Enemy:
                 else:
                     player.x_speed = -self.knockback
                 player.y_speed = -self.knockback
-                player.take_enemy_hit(self.damage)
+                player.take_enemy_hit(self.damage, _terrain)
 
     def tick(self, frame_length, _terrain, player):
         if self.mode != "spawn":
@@ -378,7 +378,7 @@ class Enemy:
                 return True
             self.tick_enemy_behavior(frame_length, player)
             self.attempt_movement(frame_length, _terrain)
-            self.handle_attack(player)
+            self.handle_attack(player, _terrain)
             if self.check_despawn(player):
                 return True
         self.update_costume(frame_length, player)

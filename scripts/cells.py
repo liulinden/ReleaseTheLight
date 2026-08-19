@@ -9,7 +9,7 @@ from scripts.util import ImageCache, about_equal, charges_to_color, dist, normal
 
 CELL_CHARGE_CAPACITY = 25  # matches player.CELL_CHARGE_COST -- a thrown cell always holds exactly this much
 
-CELL_EXPLODE_NORMAL_SPEED = 0.15  # world units/ms -- normal-component impact speed needed to detonate a cell
+CELL_EXPLODE_SPEED = 0.15  # world units/ms -- total impact speed needed to detonate a cell
 
 cell_imgs = None
 animation_fps = 12
@@ -223,6 +223,11 @@ class Cell:
                     self.x, self.y = ox, oy
 
                     collide_x, collide_y = collision
+
+                    if dist(vx, vy) > CELL_EXPLODE_SPEED:
+                        self.explode(_terrain, collide_x, collide_y)
+                        return True
+
                     normal = _terrain.get_normal(collide_x - normalize_1d(dx), collide_y - normalize_1d(dy))
 
                     mag = dist(*normal)
@@ -231,10 +236,6 @@ class Cell:
                     nx, ny = normal[0] / mag, normal[1] / mag
 
                     scalar = nx * vx + ny * vy
-
-                    if -scalar > CELL_EXPLODE_NORMAL_SPEED:
-                        self.explode(_terrain, collide_x, collide_y)
-                        return True
 
                     vx -= scalar * nx
                     vy -= scalar * ny

@@ -2,7 +2,7 @@ import random
 
 import pygame
 
-import scripts.elements as elements
+import scripts.elements.elements as elements
 from scripts.global_assets import get_asset
 
 # world-space width/height range every spike variant is drawn into -- source
@@ -156,6 +156,6 @@ class Spike(elements.Element):
         # Called by Player.move_vertical only after both a broad-phase
         # rect check and a precise interaction_hitbox mask overlap already
         # passed -- this just decides whether that contact hurts.
-        if player.immunity_timer == 0 and abs(player.y_speed) >= MIN_DAMAGE_Y_SPEED:
+        if player.immunity_timer == 0 and (player.y_speed) >= MIN_DAMAGE_Y_SPEED:
             player.immunity_timer = player.immunity_time
-            player.take_enemy_hit(DAMAGE)
+            player.take_enemy_hit(DAMAGE * (2+(abs(player.y_speed)-MIN_DAMAGE_Y_SPEED)), _terrain)

@@ -9,7 +9,6 @@ from scripts.UI.health_bar import HealthBar
 from scripts.UI.interaction_display import InteractionDisplay
 from scripts.util import charges_to_color
 
-
 HIT_FLASH_DECAY_MS = 200  # ms for the hit-flash to linearly fall from full to zero -- same punchy feel as enemies
 
 
@@ -216,7 +215,7 @@ class Nest:
     def update_visuals(self, frame_length):
         self.hit_flash = max(0, self.hit_flash - 255 / HIT_FLASH_DECAY_MS * frame_length)
         if self.charge == 0 and self.visual_charge != 0:
-            self.visual_charge *= 0.99 ** frame_length
+            self.visual_charge *= 0.99**frame_length
             if self.visual_charge < 1:
                 self.visual_charge = 0
         # self.visualCharge=self.charge

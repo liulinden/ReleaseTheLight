@@ -5,7 +5,7 @@ import random
 import pygame
 
 import scripts.cells as cells
-import scripts.elements as elements
+import scripts.elements.elements as elements
 import scripts.enemies._enemy as enemies
 import scripts.enemies._enemy_handling as enemy_handling
 import scripts.laser as laser
@@ -14,7 +14,7 @@ import scripts.loading_screen as loading_screen
 import scripts.nest as nest
 import scripts.particles as particles
 import scripts.player as player
-import scripts.spike as spike
+import scripts.elements.spike as spike
 import scripts.terrain as terrain
 import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display

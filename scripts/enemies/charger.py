@@ -132,15 +132,15 @@ class Charger(Enemy):
             _terrain.add_air_pocket_clump(self.x, self.y, self.carve_radius, player_made=True, spreading=1 / 10, spawn_particles=True)
             self._carve_cooldown = Charger.CARVE_INTERVAL
 
-    def handle_attack(self, player):
+    def handle_attack(self, player, _terrain):
         if self.mode == "charge_attack":
             if player.immunity_timer == 0 and self.rect.colliderect(player.rect):
                 player.immunity_timer = player.immunity_time
                 player.x_speed = self.charge_direction * self.knockback
                 player.y_speed = -self.knockback
-                player.take_enemy_hit(self.damage)
+                player.take_enemy_hit(self.damage, _terrain)
             return
-        super().handle_attack(player)  # handles standard "attack" (melee) itself
+        super().handle_attack(player, _terrain)  # handles standard "attack" (melee) itself
 
     def update_costume(self, frame_length, player):
         # Overridden (rather than relying on Enemy.update_costume) because

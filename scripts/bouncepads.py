@@ -1,4 +1,4 @@
-from scripts.elements import Element
+from scripts.elements.elements import Element
 
 
 class BouncePad(Element):
