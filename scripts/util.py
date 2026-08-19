@@ -47,6 +47,14 @@ def frame_random(frame_length, expected_per_second):
     return random.random() < min(1, frame_length / 1000 * expected_per_second)
 
 
+def poisson_count(expected):
+    """Random non-negative integer count whose long-run average, across
+    many calls with the same `expected`, converges to `expected` -- e.g. a
+    per-chunk spawn count that should vary chunk-to-chunk but average out
+    over the whole world."""
+    return int(np.random.poisson(expected))
+
+
 def normalize_1d(n):
     if n > 0:
         return 1

@@ -168,6 +168,7 @@ class Chunk:
         "nests",
         "cells",
         "structures",
+        "elements",
         "visuals",
         "mask",
         "built",
@@ -183,6 +184,7 @@ class Chunk:
         self.nests = []
         self.cells = []
         self.structures = []  # future: generic solid structures (was gateway tiles)
+        self.elements = []  # breakable elements (spikes, fire, vines, decorative terrain, ...)
         self.visuals = {}  # dict[zoom] -> Surface, populated once built
         self.mask = None  # single native-resolution pygame.mask.Mask, collision truth, populated once built
         self.built = False
@@ -292,6 +294,7 @@ class Terrain:
         self._stream_lock = threading.Lock()
         self._stream_thread = None
         self._stream_seq = 0  # tie-breaker so PriorityQueue never compares Chunks/tuples of equal priority incorrectly
+        self._last_evict_time = 0.0
 
     # ------------------------------------------------------------------
     # Chunk lookup / creation
@@ -357,6 +360,29 @@ class Terrain:
                     result.append(n)
         return result
 
+    def _elements_touching_rect(self, rect):
+        seen = set()
+        result = []
+        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=0):
+            chunk = self.chunks.get((row, col))
+            if chunk is None:
+                continue
+            for e in chunk.elements:
+                if id(e) not in seen:
+                    seen.add(id(e))
+                    result.append(e)
+        return result
+
+    def _elements_touching_chunks(self, chunks):
+        seen = set()
+        result = []
+        for chunk in chunks:
+            for e in chunk.elements:
+                if id(e) not in seen:
+                    seen.add(id(e))
+                    result.append(e)
+        return result
+
     def _cells_in_rect(self, rect):
         seen = set()
         result = []
@@ -415,6 +441,11 @@ class Terrain:
             if hitbox_surf:
                 offset = (int(structure.left - left), int(structure.top - top))
                 chunk.mask.draw(pygame.mask.from_surface(hitbox_surf), offset)
+        for element in chunk.elements:
+            collide_mask = element.get_collide_hitbox_mask()
+            if collide_mask is not None:
+                offset = (int(element.left - left), int(element.top - top))
+                chunk.mask.draw(collide_mask, offset)
 
     # ------------------------------------------------------------------
     # Surface helpers
@@ -586,6 +617,24 @@ class Terrain:
         mask.blit(rim, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         surf.blit(mask, (l, t))
 
+    def _rebuild_chunk_mask(self, chunk):
+        """Recomputes chunk.mask from truth data alone (solid rock, minus
+        every air pocket, plus nests/structures/elements drawn back on top)
+        -- visuals untouched. Needed when removing a solid-adding feature
+        (e.g. remove_element): a targeted mask.erase of just that feature's
+        own hitbox shape would also erase any independently-solid terrain
+        that happened to coincide with the same pixels (e.g. a spike's
+        footprint mostly sitting on top of genuinely solid rock), leaving a
+        spike-shaped hole in the terrain behind it. A full rebuild has no
+        such ambiguity."""
+        if not chunk.built or chunk.mask is None:
+            return
+        with chunk.lock:
+            chunk.mask = pygame.mask.Mask((CHUNK_SIZE, CHUNK_SIZE), fill=True)
+            for pocket in chunk.air_pockets:
+                self._carve_hitbox(chunk, pocket)
+            self._reblit_solid_structures_on_chunk(chunk)
+
     def _carve_chunk_incremental(self, chunk, air_pocket):
         """Patch a single already-built chunk with one new air pocket,
         without a full rebuild."""
@@ -644,10 +693,16 @@ class Terrain:
                 self._stream_seq += 1
                 self._stream_queue.put((priority, self._stream_seq, key))
 
-    def evict_far_chunks(self, player_x, player_y, keep_radius_chunks=20):
+    def evict_far_chunks(self, player_x, player_y, keep_radius_chunks=20, min_interval=5.0):
         """Drops cached surfaces for chunks far from the player. Truth
         data (air_pockets/nests/cells/biome) is retained, so re-entering
-        the area rebuilds identically."""
+        the area rebuilds identically. Scans self.chunks (O(n)), so this
+        throttles itself to run at most once per min_interval seconds
+        regardless of how often it's called."""
+        now = time.time()
+        if now - self._last_evict_time < min_interval:
+            return
+        self._last_evict_time = now
         pr = int(math.floor(player_y / CHUNK_SIZE))
         pc = int(math.floor(player_x / CHUNK_SIZE))
         for key, chunk in list(self.chunks.items()):
@@ -848,6 +903,15 @@ class Terrain:
             touched_chunks.append(chunk)
 
         if player_made:
+            # player_made is only ever set for post-generation air carving
+            # (player mining, laser splash, enemy carving) -- world-gen cave
+            # carving never sets it. That's exactly what counts as an
+            # "explosion" for element anchors, so check it here rather than
+            # threading a separate flag through.
+            for element in self._elements_touching_chunks(touched_chunks):
+                if element.anchor_destroyed(new_air_pocket.x, new_air_pocket.y, new_air_pocket.r):
+                    self.remove_element(element)
+
             # Truth data is updated above regardless. Only patch surfaces
             # for chunks that are already built; unbuilt chunks will pick
             # this pocket up naturally whenever they're eventually built.
@@ -856,6 +920,23 @@ class Terrain:
                     self._carve_chunk_incremental(chunk, new_air_pocket)
 
         return True
+
+    def remove_element(self, element):
+        """Drops the element from every chunk's truth data, rebuilding each
+        built chunk's mask from truth (not a targeted erase -- see
+        _rebuild_chunk_mask) so terrain the element happened to overlap is
+        left untouched. Called when an explosion overlaps the element's
+        anchor (see add_air_pocket). Spawns mining particles once at the
+        element's own position."""
+        rect = element.get_registration_rect()
+        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=1):
+            chunk = self.chunks.get((row, col))
+            if chunk is None or element not in chunk.elements:
+                continue
+            chunk.elements.remove(element)
+            self._rebuild_chunk_mask(chunk)
+
+        self.particles.spawn_mining_particles(10, (0, 0, 0), element.width / 2, element.x, element.y)
 
     def add_enemy(self, enemy):
         self.enemies.append(enemy)
@@ -1037,6 +1118,23 @@ class Terrain:
         for n in self._nests_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
             if n.close(left + w_width / zoom / 2, top + w_width / zoom / 2, dist(w_width, w_height) / zoom / 2):
                 n.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
+
+    def draw_elements_back(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
+        left, top, zoom = frame
+        w_width, w_height = window_size
+        for e in self._elements_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
+            if hitboxes:
+                e.draw_hitbox(surface, frame, offset_x=offset_x, offset_y=offset_y)
+            else:
+                e.draw_back(surface, frame, offset_x=offset_x, offset_y=offset_y)
+
+    def draw_elements_front(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
+        if hitboxes:
+            return  # already drawn by draw_elements_back -- avoid drawing hitboxes twice
+        left, top, zoom = frame
+        w_width, w_height = window_size
+        for e in self._elements_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
+            e.draw_front(surface, frame, offset_x=offset_x, offset_y=offset_y)
 
     def draw_health_bars(self, window_size, surface, frame, time=None, offset_x=0, offset_y=0):
         left, top, zoom = frame

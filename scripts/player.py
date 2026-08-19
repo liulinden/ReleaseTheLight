@@ -105,6 +105,10 @@ class LaserImpact:
         self.source_laser = source_laser  # reference to spawning Laser; set to None when gone
         self.scaled_im_gs = scaled_im_gs  # pre-scaled images for all zooms
         self.timer = 0.0
+        # reused draw scratch surfaces -- resized if the image size changes (e.g. zoom change)
+        self._tinted_surface = None
+        self._color_surf = None
+        self._scratch_size = None
 
     def tick(self, frame_length, active_laser):
         # update position if source laser is still active
@@ -126,8 +130,14 @@ class LaserImpact:
         img = self.scaled_im_gs[zoom][frame_index]
 
         size = img.get_size()
-        tinted = img.copy()
-        color_surf = pygame.Surface(size, pygame.SRCALPHA)
+        if self._scratch_size != size:
+            self._tinted_surface = pygame.Surface(size, pygame.SRCALPHA)
+            self._color_surf = pygame.Surface(size, pygame.SRCALPHA)
+            self._scratch_size = size
+        tinted = self._tinted_surface
+        tinted.fill((0, 0, 0, 0))
+        tinted.blit(img, (0, 0))
+        color_surf = self._color_surf
         color_surf.fill((color[0], color[1], color[2], 255))
         tinted.blit(color_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
@@ -207,6 +217,15 @@ class Player:
                         direction_set[animation_type].append(resized_img)
                 zoom_img_sets[direction] = direction_set
             self.player_im_gs[zoom] = zoom_img_sets
+
+        # reuse pre-allocated draw surfaces every frame instead of allocating in draw()
+        self._player_draw_surface = {}
+        for zoom in self.default_zooms:
+            self._player_draw_surface[zoom] = pygame.Surface((SPRITE_WIDTH * zoom, SPRITE_HEIGHT * zoom), flags=pygame.SRCALPHA)
+        # arm's rotated bounding box size changes every frame with arm_angle, so it can't
+        # be pre-sized per zoom -- resize-if-needed instead of allocating fresh each frame
+        self._arm_draw_surface = None
+        self._arm_draw_surface_size = None
 
         # pre-scale impact images for each zoom — done here since defaultZooms is available
         self._impact_im_gs = {}
@@ -676,6 +695,7 @@ class Player:
         self.y += frame_length * self.y_speed
         self.update_rect()
         if self.colliding_with_terrain(_terrain):
+            self.check_element_touch(_terrain)
             if self.y_speed > 0:
                 self.on_ground = True
                 if not _terrain.nests_collide_rect(self.rect):
@@ -726,7 +746,7 @@ class Player:
                 self.laser.draw(surface, frame, self.color, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
         else:
             boosted_color = (channel_bound(self.color[0] + 30), channel_bound(self.color[1] + 30), channel_bound(self.color[2] + 30))
-            player_surface = pygame.Surface((SPRITE_WIDTH * zoom, SPRITE_HEIGHT * zoom), flags=pygame.SRCALPHA)
+            player_surface = self._player_draw_surface[zoom]
             player_surface.fill((boosted_color[0], boosted_color[1], boosted_color[2], 255))
             player_surface.blit(self.player_im_gs[zoom][self.facing][self.animation_type][self.animation_frame], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
@@ -738,7 +758,10 @@ class Player:
                 adjusted_arm_angle += math.pi
             arm, arm_offset_x, arm_offset_y = rotate_and_get_offset(self.player_im_gs[zoom][self.facing]["arm"][0], zoom * ARM_PIVOT_X, zoom * ARM_PIVOT_Y, adjusted_arm_angle)
             width, height = arm.get_size()
-            arm_surface = pygame.Surface((width, height), flags=pygame.SRCALPHA)
+            if self._arm_draw_surface_size != (width, height):
+                self._arm_draw_surface = pygame.Surface((width, height), flags=pygame.SRCALPHA)
+                self._arm_draw_surface_size = (width, height)
+            arm_surface = self._arm_draw_surface
             arm_surface.fill((boosted_color[0], boosted_color[1], boosted_color[2], 255))
             arm_surface.blit(arm, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
 
@@ -759,3 +782,22 @@ class Player:
 
     def colliding_with_terrain(self, _terrain):
         return _terrain.collide_rect(self.rect)
+
+    def check_element_touch(self, _terrain):
+        """Broad-phase: elements near self.rect via chunk lookup, filtered
+        down by an AABB check against each candidate's own (bigger) footprint
+        rect. Narrow-phase: a precise pixel mask overlap against the
+        element's interaction_hitbox -- needed because e.g. Spike's hitbox
+        art is a few thin, jagged peaks inside a mostly-empty square
+        footprint, so the AABB alone would fire touch reactions from a
+        player nowhere near the actual art."""
+        for e in _terrain._elements_touching_rect(self.rect):
+            if not self.rect.colliderect(e.get_footprint_rect()):
+                continue
+            interaction_mask = e.get_interaction_hitbox_mask()
+            if interaction_mask is None:
+                continue
+            player_mask = pygame.mask.Mask((self.rect.width, self.rect.height), fill=True)
+            offset = (int(self.rect.left - e.left), int(self.rect.top - e.top))
+            if interaction_mask.overlap(player_mask, offset) is not None:
+                e.on_touch(self, _terrain)

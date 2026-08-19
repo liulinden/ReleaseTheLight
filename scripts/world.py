@@ -5,6 +5,7 @@ import random
 import pygame
 
 import scripts.cells as cells
+import scripts.elements as elements
 import scripts.enemies._enemy as enemies
 import scripts.enemies._enemy_handling as enemy_handling
 import scripts.laser as laser
@@ -12,12 +13,15 @@ import scripts.lighting as lighting
 import scripts.loading_screen as loading_screen
 import scripts.nest as nest
 import scripts.player as player
+import scripts.spike as spike
 import scripts.terrain as terrain
 import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display
 from scripts.bloom import get_bloom
 from scripts.global_assets import get_asset
-from scripts.util import dist, frame_random, rotate_and_get_offset
+from scripts.util import dist, frame_random, poisson_count, rotate_and_get_offset
+
+SPIKES_PER_CHUNK = 15  # expected number of spike-placement attempts per chunk that has any air pockets
 
 
 class World:
@@ -31,7 +35,7 @@ class World:
 
         init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.05, 0.12)
 
-        inits = [lighting.init, cells.init, enemies.init, nest.init, terrain.init, player.init, laser.init, interaction_display.init, charge_display.init]
+        inits = [lighting.init, cells.init, enemies.init, nest.init, spike.init, terrain.init, player.init, laser.init, interaction_display.init, charge_display.init]
 
         for i, init in enumerate(inits):
             init_loading_screen.put((i + 1) / len(inits), f"{init.__module__}.{init.__name__}()")
@@ -61,6 +65,8 @@ class World:
         enemy_handling.prewarm_cache(default_zooms)
         objects_loading_screen.put(0.97, "Pre-building nest image cache")
         nest.prewarm_cache(default_zooms)
+        objects_loading_screen.put(0.99, "Pre-building element image cache")
+        spike.prewarm_cache(default_zooms)
         objects_loading_screen.put(1.0, "Object creation complete.")
 
         self._world_layer = None
@@ -74,10 +80,30 @@ class World:
         self._bloom_frame_counter = 0
 
         self.generate_world(generate_loading_screen)
+        self.generate_elements()
         self.terrain.start_streaming()
 
     def generate_world(self, loading_screen):
         self.terrain.generate_world(loading_screen)
+
+    def generate_elements(self):
+        """Runs once, after cave/nest truth generation is complete. For
+        each chunk that has any air pockets, attempts to place a handful of
+        spikes (count varies per chunk but averages SPIKES_PER_CHUNK over
+        the whole world) hanging below a randomly-picked air pocket in it.
+        Each successful spawn also tries to grow into a short row by
+        attempting one more spike directly to its left and right."""
+        # attempt_place_element can create new chunks (get_or_create_chunk)
+        # as a side effect, so snapshot before iterating
+        for chunk in list(self.terrain.chunks.values()):
+            if not chunk.air_pockets:
+                continue
+            for _ in range(poisson_count(SPIKES_PER_CHUNK)):
+                air_pocket = random.choice(chunk.air_pockets)
+                size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
+                placed = elements.attempt_place_element_below_air_pocket(self.terrain, spike.Spike, air_pocket, size=size)
+                if placed:
+                    elements.attempt_place_neighbors(self.terrain, placed, size=size)
 
     # def generate_next_layer(self):
     #    self.terrain.generate_layer(1)
@@ -115,7 +141,7 @@ class World:
 
         # update world gen
         self.terrain.update_streaming(self.player.x, self.player.y)
-        # still need to add evictions
+        self.terrain.evict_far_chunks(self.player.x, self.player.y)
 
         self.terrain.new_knockback_circles = []
         self.terrain.new_player_damage_circles = []
@@ -226,6 +252,7 @@ class World:
         self.draw_background(scratch_layer, window_size, frame)
 
         # struct back elements (behind terrain)
+        self.terrain.draw_elements_back(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
 
@@ -250,9 +277,9 @@ class World:
 
         self.terrain.draw_nests(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
-        self.terrain.draw_terrain(window_size, layer, frame, hitboxes=hitboxes, real_window_size=real_window_size, offset_x=offset_x, offset_y=offset_y)
+        self.terrain.draw_elements_front(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
-        # structure front
+        self.terrain.draw_terrain(window_size, layer, frame, hitboxes=hitboxes, real_window_size=real_window_size, offset_x=offset_x, offset_y=offset_y)
 
         time = pygame.time.get_ticks()
         self.terrain.draw_health_bars(window_size, layer, frame, time, offset_x=offset_x, offset_y=offset_y)
