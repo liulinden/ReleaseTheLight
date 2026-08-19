@@ -260,28 +260,29 @@ def attempt_place_element(_terrain, element_cls, x, y, *args, **kwargs):
 # get truncated back onto the wrong side of that boundary and register as
 # overlapping the very pocket it was solved to clear. A little explicit
 # clearance keeps it unambiguously outside even after truncation.
-_ANCHOR_CLEARANCE = 1.0
+_ANCHOR_CLEARANCE = 20.0
 
 
-def attempt_place_element_below_air_pocket(_terrain, element_cls, air_pocket, *args, max_descend=8, **kwargs):
-    """Solves for the (x, y) that puts the candidate's anchor rect
-    horizontally centered under air_pocket and just clearing its bottom
-    edge, so the bulk of the element above the anchor pokes up into the
-    pocket's open space.
-
-    Caves are dense, overlapping chains of pockets, so that spot is very
-    often still blocked by some other nearby pocket. Rather than give up,
-    re-anchor below whichever pocket blocked it and try again -- walking
-    down the local chain of overlapping pockets until it finds an actual
-    bottom (or max_descend is hit). Every step is solved purely from
-    element_cls.get_placement_geometry, so nothing is constructed unless a
-    placement finally succeeds."""
+def _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_pocket, side, *args, max_steps=8, **kwargs):
+    """Shared implementation for attempt_place_element_below_air_pocket and
+    attempt_place_element_above_air_pocket. side=1 solves for the anchor's
+    top edge just clearing the pocket's bottom (element pokes UP into the
+    pocket, e.g. a spike); side=-1 solves for the anchor's bottom edge just
+    clearing the pocket's top (element hangs DOWN into the pocket, e.g. a
+    vine). Both walk through whichever pocket blocks the candidate and
+    retry from there -- descending for side=1, ascending for side=-1 --
+    until they find an actual boundary (or max_steps is hit). Every step is
+    solved purely from element_cls.get_placement_geometry, so nothing is
+    constructed unless a placement finally succeeds."""
     width, height, anchor_left, anchor_top, anchor_width, anchor_height = element_cls.get_placement_geometry(*args, **kwargs)
     search_radius = _anchor_search_radius(anchor_width, anchor_height)
 
-    for _ in range(max_descend + 1):
+    for _ in range(max_steps + 1):
         x = air_pocket.x + width / 2 - anchor_left - anchor_width / 2
-        y = air_pocket.y + air_pocket.r + _ANCHOR_CLEARANCE + height / 2 - anchor_top
+        if side > 0:
+            y = air_pocket.y + air_pocket.r + _ANCHOR_CLEARANCE + height / 2 - anchor_top
+        else:
+            y = air_pocket.y - air_pocket.r - _ANCHOR_CLEARANCE + height / 2 - anchor_top - anchor_height
         rect = pygame.Rect(x - width / 2 + anchor_left, y - height / 2 + anchor_top, anchor_width, anchor_height)
 
         blocker = _find_blocking_air_pocket(_terrain, rect, x, y, search_radius)
@@ -292,22 +293,50 @@ def attempt_place_element_below_air_pocket(_terrain, element_cls, air_pocket, *a
     return False
 
 
-def attempt_place_neighbors(_terrain, element, spacing=None, *args, **kwargs):
-    """Given an already-placed element, try one more placement directly to
-    its left and one to its right, at the same y -- e.g. to grow a lone
-    grounded spike into a short row along the floor it landed on. Each side
-    is a single plain attempt_place_element call (same grounded + no-overlap
-    checks as any other placement, no recursive descent) -- so a side that
-    isn't grounded there, or would overlap something else, just doesn't
-    spawn, no retrying. *args/**kwargs are forwarded to element_cls the same
-    way they were for the original placement (so neighbors match variant/
-    size/etc), and should normally just be the original call's own args.
-    Returns the list of newly placed neighbors (0, 1, or 2 elements)."""
+def attempt_place_element_below_air_pocket(_terrain, element_cls, air_pocket, *args, max_descend=8, **kwargs):
+    """Places element_cls so its anchor rect is horizontally centered under
+    air_pocket and just clears its bottom edge, so the bulk of the element
+    above the anchor pokes up into the pocket's open space (e.g. a spike
+    growing up off the floor). See _attempt_place_element_adjacent_to_air_pocket
+    for the shared descend/ascend walk."""
+    return _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_pocket, 1, *args, max_steps=max_descend, **kwargs)
+
+
+def attempt_place_element_above_air_pocket(_terrain, element_cls, air_pocket, *args, max_ascend=8, **kwargs):
+    """Mirror of attempt_place_element_below_air_pocket: places element_cls
+    so its anchor rect is horizontally centered above air_pocket and just
+    clears its top edge, so the bulk of the element below the anchor hangs
+    down into the pocket's open space (e.g. a vine dangling off a
+    ceiling). Walks UP through whichever pocket blocks the candidate,
+    instead of down."""
+    return _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_pocket, -1, *args, max_steps=max_ascend, **kwargs)
+
+
+def attempt_place_neighbors(_terrain, element, spacing=None, count=2, *args, randomize_kwargs=None, **kwargs):
+    """Given an already-placed element, try count more placements on each
+    side of it (so 2*count attempts total) at increasing multiples of
+    spacing, same y -- e.g. to grow a lone grounded spike into a short row
+    along the floor it landed on. Each attempt is a single plain
+    attempt_place_element call (same grounded + no-overlap checks as any
+    other placement, no recursive descent) -- so a side that isn't grounded
+    there, or would overlap something else, just doesn't spawn, no retrying.
+
+    *args/**kwargs are forwarded to element_cls the same way they were for
+    the original placement, and should normally just be the original call's
+    own args -- except randomize_kwargs, if given: a zero-arg callable
+    invoked fresh for every single neighbor attempt, whose returned dict is
+    merged over kwargs for that attempt only. Use it to re-roll anything
+    that shouldn't be identical across the row (e.g. size), while leaving
+    everything else (variant pool, etc) matching the original call.
+
+    Returns the list of newly placed neighbors (0 to 2*count elements)."""
     if spacing is None:
         spacing = element.width * 2 / 3
     placed = []
-    for dx in (-spacing, spacing, -spacing * 2, spacing * 2, -spacing * 3, spacing * 3):
-        neighbor = attempt_place_element(_terrain, type(element), element.x + dx, element.y, *args, **kwargs)
-        if neighbor:
-            placed.append(neighbor)
+    for i in range(1, count + 1):
+        for dx in (-spacing * i, spacing * i):
+            call_kwargs = {**kwargs, **randomize_kwargs()} if randomize_kwargs is not None else kwargs
+            neighbor = attempt_place_element(_terrain, type(element), element.x + dx, element.y, *args, **call_kwargs)
+            if neighbor:
+                placed.append(neighbor)
     return placed

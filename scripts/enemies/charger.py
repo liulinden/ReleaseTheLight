@@ -48,7 +48,7 @@ class Charger(Enemy):
     COOLDOWN_DURATION = 900  # ms spent recovering after a charge, no active movement
 
     def __init__(self, default_zooms, nest, color, size, nest_health, x, y):
-        super().__init__(default_zooms, nest, Charger.costume, color, x, y, size, nest_health * Charger.health_factor)
+        super().__init__(default_zooms, nest, Charger.costume, color, x, y, size, nest_health * Charger.health_factor * size / Charger.size_range[1])
         self.knockback = 0.25
         self.speed = 1.2
 

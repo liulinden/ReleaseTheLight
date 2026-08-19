@@ -15,6 +15,7 @@ import scripts.nest as nest
 import scripts.particles as particles
 import scripts.player as player
 import scripts.elements.spike as spike
+import scripts.elements.vine as vine
 import scripts.terrain as terrain
 import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display
@@ -22,7 +23,8 @@ from scripts.bloom import get_bloom
 from scripts.global_assets import get_asset
 from scripts.util import dist, frame_random, poisson_count, rotate_and_get_offset
 
-SPIKES_PER_CHUNK = 15  # expected number of spike-placement attempts per chunk that has any air pockets
+SPIKES_PER_CHUNK = 5  # expected number of spike-placement attempts per chunk that has any air pockets
+VINES_PER_CHUNK = 30  # expected number of vine-placement attempts per chunk that has any air pockets
 
 
 class World:
@@ -41,7 +43,7 @@ class World:
         # racing through cheap steps and stalling on expensive ones.
         init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.05, 0.45)
 
-        inits = [lighting.init, cells.init, enemies.init, nest.init, spike.init, particles.init, terrain.init, player.init, laser.init, interaction_display.init, charge_display.init]
+        inits = [lighting.init, cells.init, enemies.init, nest.init, spike.init, vine.init, particles.init, terrain.init, player.init, laser.init, interaction_display.init, charge_display.init]
 
         for i, init in enumerate(inits):
             init_loading_screen.put((i + 1) / len(inits), f"{init.__module__}.{init.__name__}()")
@@ -53,7 +55,7 @@ class World:
         # calls are where almost all the real time in this phase goes, so
         # they get the bulk of the range and report their own progress
         # internally instead of jumping straight from start to finish.
-        creation_loading_screen, enemy_prewarm_screen, nest_prewarm_screen, spike_prewarm_screen = objects_loading_screen.subsections(0, 0.05, 0.43, 0.98)
+        creation_loading_screen, enemy_prewarm_screen, nest_prewarm_screen, spike_prewarm_screen, vine_prewarm_screen = objects_loading_screen.subsections(0, 0.05, 0.43, 0.97, 0.99)
 
         creation_loading_screen.put(1 / 6, "Creating terrain object")
         self.terrain = terrain.Terrain(world_width, world_height, default_zooms=default_zooms)
@@ -79,8 +81,10 @@ class World:
         enemy_handling.prewarm_cache(default_zooms, loading_screen=enemy_prewarm_screen)
         nest_prewarm_screen.put(0.0, "Pre-building nest image cache")
         nest.prewarm_cache(default_zooms, loading_screen=nest_prewarm_screen)
-        spike_prewarm_screen.put(0.0, "Pre-building element image cache")
+        spike_prewarm_screen.put(0.0, "Pre-building spike image cache")
         spike.prewarm_cache(default_zooms, loading_screen=spike_prewarm_screen)
+        vine_prewarm_screen.put(0.0, "Pre-building vine image cache")
+        vine.prewarm_cache(default_zooms, loading_screen=vine_prewarm_screen)
         objects_loading_screen.put(1.0, "Object creation complete.")
 
         self._world_layer = None
@@ -108,9 +112,11 @@ class World:
         """Runs once, after cave/nest truth generation is complete. For
         each chunk that has any air pockets, attempts to place a handful of
         spikes (count varies per chunk but averages SPIKES_PER_CHUNK over
-        the whole world) hanging below a randomly-picked air pocket in it.
-        Each successful spawn also tries to grow into a short row by
-        attempting one more spike directly to its left and right."""
+        the whole world) hanging below a randomly-picked air pocket in it,
+        the same number of upside-down spikes hanging above one, and a
+        handful of vines (VINES_PER_CHUNK) hanging above one. Each
+        successful spawn also tries to grow into a short row by attempting
+        one more of the same element directly to its left and right."""
         # attempt_place_element can create new chunks (get_or_create_chunk)
         # as a side effect, so snapshot before iterating
         chunks = [chunk for chunk in list(self.terrain.chunks.values()) if chunk.air_pockets]
@@ -122,7 +128,19 @@ class World:
                 size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
                 placed = elements.attempt_place_element_below_air_pocket(self.terrain, spike.Spike, air_pocket, size=size)
                 if placed:
-                    elements.attempt_place_neighbors(self.terrain, placed, size=size)
+                    elements.attempt_place_neighbors(self.terrain, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
+            for _ in range(poisson_count(SPIKES_PER_CHUNK)):
+                air_pocket = random.choice(chunk.air_pockets)
+                size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
+                placed = elements.attempt_place_element_above_air_pocket(self.terrain, spike.UpsideDownSpike, air_pocket, size=size)
+                if placed:
+                    elements.attempt_place_neighbors(self.terrain, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
+            for _ in range(poisson_count(VINES_PER_CHUNK)):
+                air_pocket = random.choice(chunk.air_pockets)
+                size = random.randint(vine.SIZE_MIN, vine.SIZE_MAX)
+                placed = elements.attempt_place_element_above_air_pocket(self.terrain, vine.Vine, air_pocket, size=size)
+                if placed:
+                    elements.attempt_place_neighbors(self.terrain, placed, placed.width / 4, count=5, size=size, randomize_kwargs=lambda: {"size": random.randint(vine.SIZE_MIN, vine.SIZE_MAX)})
             if loading_screen is not None:
                 loading_screen.put((i + 1) / len(chunks), f"Generating elements ({i + 1}/{len(chunks)} chunks)")
 

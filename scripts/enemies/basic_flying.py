@@ -9,7 +9,7 @@ class BasicFlying(Enemy):
     health_factor = 0.2
 
     def __init__(self, default_zooms, nest, color, size, nest_health, x, y):
-        super().__init__(default_zooms, nest, BasicFlying.costume, color, x, y, size, nest_health * BasicFlying.health_factor)
+        super().__init__(default_zooms, nest, BasicFlying.costume, color, x, y, size, nest_health * BasicFlying.health_factor * size / BasicFlying.size_range[1])
         self.knockback = 0.1
         self.speed = 1.5
         self.knockback_resistance = 0.8

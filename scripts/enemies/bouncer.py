@@ -11,7 +11,7 @@ class Bouncer(Enemy):
     health_factor = 0.05
 
     def __init__(self, default_zooms, nest, color, size, nest_health, x, y):
-        super().__init__(default_zooms, nest, Bouncer.costume, color, x, y, size, nest_health * Bouncer.health_factor)
+        super().__init__(default_zooms, nest, Bouncer.costume, color, x, y, size, nest_health * Bouncer.health_factor * size / Bouncer.size_range[1])
         self.knockback = 0.3
         self.damage = nest_health * 0.5
         self.knockback_resistance = 0.5
