@@ -9,7 +9,7 @@ from scripts.util import ImageCache, about_equal, charges_to_color, dist, normal
 
 CELL_CHARGE_CAPACITY = 25  # matches player.CELL_CHARGE_COST -- a thrown cell always holds exactly this much
 
-CELL_EXPLODE_SPEED = 0.15  # world units/ms -- total impact speed needed to detonate a cell
+CELL_EXPLODE_SPEED = 0.3  # world units/ms -- total impact speed needed to detonate a cell
 
 cell_imgs = None
 animation_fps = 12
