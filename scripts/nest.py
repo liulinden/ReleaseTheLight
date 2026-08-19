@@ -91,23 +91,29 @@ def _get_nest_hitbox_mask(nest_type, variant_id, size, zoom):
     return cached
 
 
-def prewarm_cache(default_zooms):
+def prewarm_cache(default_zooms, loading_screen=None):
     """Builds and caches every (nest_type, variant, snapped size, zoom)
     image set that can occur, so live nest generation never scales images
     on the main thread. Collision masks are only ever needed at native
     (zoom=1) resolution -- zoom only matters for rendering."""
+    size_min, size_max = _snap_nest_size(_NEST_SIZE_MIN), _snap_nest_size(_NEST_SIZE_MAX)
+    steps_per_variant = (size_max - size_min) // _SIZE_SNAP + 1
+    total_steps = sum(len(variants) * steps_per_variant for variants in nest_im_gs.values() if variants)
+    done = 0
     for nest_type, variants in nest_im_gs.items():
         if not variants:
             continue  # e.g. "sun" nests are defined but never generated
         for variant_id in range(len(variants)):
-            size = _snap_nest_size(_NEST_SIZE_MIN)
-            max_snapped = _snap_nest_size(_NEST_SIZE_MAX)
-            while size <= max_snapped:
+            size = size_min
+            while size <= size_max:
                 for zoom in default_zooms:
                     _get_nest_images(nest_type, variant_id, size, zoom)
                 _get_nest_images(nest_type, variant_id, size, 1)  # zoom=1 image always needed for the hitbox-debug draw
                 _get_nest_hitbox_mask(nest_type, variant_id, size, 1)
                 size += _SIZE_SNAP
+                done += 1
+                if loading_screen is not None:
+                    loading_screen.put(done / total_steps, f"Pre-building nest cache ({nest_type})")
 
 
 class Nest:

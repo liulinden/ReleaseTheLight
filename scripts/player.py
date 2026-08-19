@@ -704,7 +704,7 @@ class Player:
                     )
                 if self.y_speed >= 0.7:
                     self.deal_damage((self.y_speed - 0.5) ** 2 * 100)
-                    _terrain.particles.spawn_mining_particles(5, self.color, 20 * self.y_speed, self.x, self.y + self.height / 2)
+                    _terrain.particles.spawn_spark_particles(5, self.color, 20 * self.y_speed, self.x, self.y + self.height / 2)
             if self.y_speed < 0:
                 slope_tolerance = math.ceil(abs(0.5 * frame_length * self.y_speed))
                 for i in range(slope_tolerance):

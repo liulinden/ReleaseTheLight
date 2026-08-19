@@ -17,13 +17,14 @@ for enemy in enemies:
 eligible_enemies = {"white": [basic_enemy.BasicEnemy], "blue": [basic_enemy.BasicEnemy, basic_flying.BasicFlying], "red": [basic_enemy.BasicEnemy, charger.Charger]}
 
 
-def prewarm_cache(default_zooms):
+def prewarm_cache(default_zooms, loading_screen=None):
     """Pre-builds every enemy costume's resized image cache across all
     reachable size buckets, so the first live enemy spawn of the game
     doesn't have to build any images itself."""
-    for enemy_cls in enemies:
+    sub_screens = loading_screen.subsections(*[i / len(enemies) for i in range(len(enemies))]) if loading_screen is not None else [None] * len(enemies)
+    for enemy_cls, sub_screen in zip(enemies, sub_screens):
         size_min, size_max = enemy_sizes[enemy_cls]
-        prewarm_size_range(enemy_costumes[enemy_cls], size_min, size_max, default_zooms)
+        prewarm_size_range(enemy_costumes[enemy_cls], size_min, size_max, default_zooms, loading_screen=sub_screen)
 
 
 def get_enemy(_terrain, player, nest):

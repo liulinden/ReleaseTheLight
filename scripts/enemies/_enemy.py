@@ -111,17 +111,22 @@ def _get_costume_images(costume_id, size, zoom, direction):
     return cached
 
 
-def prewarm_size_range(costume_id, size_min, size_max, default_zooms):
+def prewarm_size_range(costume_id, size_min, size_max, default_zooms, loading_screen=None):
     """Builds and caches every (snapped size x zoom x direction) image set
     an enemy of this costume could ever need, so live spawns never pay the
     pygame.transform.scale cost during gameplay."""
     size = _snap_enemy_size(size_min)
     max_snapped = _snap_enemy_size(size_max)
+    total_steps = max(1, (max_snapped - size) // _SIZE_SNAP + 1)
+    step = 0
     while size <= max_snapped:
         for zoom in default_zooms:
             for direction in ("left", "right"):
                 _get_costume_images(costume_id, size, zoom, direction)
         size += _SIZE_SNAP
+        step += 1
+        if loading_screen is not None:
+            loading_screen.put(step / total_steps, f"Pre-building {costume_id} cache (size {size})")
 
 
 class Enemy:
@@ -177,9 +182,9 @@ class Enemy:
     def damage_particles(self, _terrain, direct):
         if direct:
             _terrain.particles.spawn_mining_particles(3, (0,0,0), self.size / 3, self.x, self.y)
-            _terrain.particles.spawn_mining_particles(5, self.color, self.size / 5, self.x, self.y)
+            _terrain.particles.spawn_spark_particles(5, self.color, self.size / 5, self.x, self.y)
         else:
-            _terrain.particles.spawn_mining_particles(2, self.color, self.size / 5, self.x, self.y)
+            _terrain.particles.spawn_spark_particles(2, self.color, self.size / 5, self.x, self.y)
 
     def nest_death_particles(self, _terrain):
         _terrain.particles.spawn_mining_particles(10, (0,0,0), self.size / 2, self.x, self.y)
@@ -305,13 +310,13 @@ class Enemy:
             if player.laser:
                 if player.laser.laser_target is self:
                     self.damage_particles(_terrain, True)
-                    _terrain.particles.spawn_mining_particles(10, self.color, self.size / 5, x, y)
+                    _terrain.particles.spawn_spark_particles(10, self.color, self.size / 5, x, y)
                     if self.deal_damage(pow, True):
                         return True
                 else:
                     if d < r + self.r:
                         self.damage_particles(_terrain, False)
-                        _terrain.particles.spawn_mining_particles(5, self.color, self.size / 10, x, y)
+                        _terrain.particles.spawn_spark_particles(5, self.color, self.size / 10, x, y)
                         if self.deal_damage(pow * falloff):
                             return True
             else:

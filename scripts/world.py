@@ -12,6 +12,7 @@ import scripts.laser as laser
 import scripts.lighting as lighting
 import scripts.loading_screen as loading_screen
 import scripts.nest as nest
+import scripts.particles as particles
 import scripts.player as player
 import scripts.spike as spike
 import scripts.terrain as terrain
@@ -33,9 +34,14 @@ class World:
         self.default_zooms = default_zooms
         self.developing_mode = developing_mode
 
-        init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.05, 0.12)
+        # Split points below are sized from measured wall-clock proportions
+        # (asset-heavy prewarm steps dominate; object creation and init()
+        # calls are near-instant) rather than being evenly spaced, so the
+        # bar advances at roughly the same rate throughout instead of
+        # racing through cheap steps and stalling on expensive ones.
+        init_loading_screen, objects_loading_screen, generate_loading_screen = loading_screen.subsections(0, 0.05, 0.45)
 
-        inits = [lighting.init, cells.init, enemies.init, nest.init, spike.init, terrain.init, player.init, laser.init, interaction_display.init, charge_display.init]
+        inits = [lighting.init, cells.init, enemies.init, nest.init, spike.init, particles.init, terrain.init, player.init, laser.init, interaction_display.init, charge_display.init]
 
         for i, init in enumerate(inits):
             init_loading_screen.put((i + 1) / len(inits), f"{init.__module__}.{init.__name__}()")
@@ -43,13 +49,19 @@ class World:
 
         self.decorations = []
 
-        objects_loading_screen.put(0.5, "Creating terrain object")
+        # object creation itself is near-instant; the three prewarm_cache
+        # calls are where almost all the real time in this phase goes, so
+        # they get the bulk of the range and report their own progress
+        # internally instead of jumping straight from start to finish.
+        creation_loading_screen, enemy_prewarm_screen, nest_prewarm_screen, spike_prewarm_screen = objects_loading_screen.subsections(0, 0.05, 0.43, 0.98)
+
+        creation_loading_screen.put(1 / 6, "Creating terrain object")
         self.terrain = terrain.Terrain(world_width, world_height, default_zooms=default_zooms)
-        objects_loading_screen.put(0.6, "Creating player object")
+        creation_loading_screen.put(2 / 6, "Creating player object")
         self.player = player.Player(default_zooms, world_width / 2, -200 if developing_mode else -1200)
-        objects_loading_screen.put(0.7, "Creating lighting object")
+        creation_loading_screen.put(3 / 6, "Creating lighting object")
         self.light = lighting.Lighting(default_zooms=default_zooms)
-        objects_loading_screen.put(0.8, "Creating background surfaces")
+        creation_loading_screen.put(4 / 6, "Creating background surfaces")
         background_raw = get_asset("background_1")
         self.background_1 = pygame.transform.scale(background_raw, (3000, 3000))
         background_raw = get_asset("background_2")
@@ -57,16 +69,18 @@ class World:
         self.bg_width, self.bg_height = 3000, 3000
         self.gradient_vertical_raw = get_asset("gradient_vertical")
         self.gradient_vertical = None
-        objects_loading_screen.put(0.85, "Creating foreground surface")
+        creation_loading_screen.put(5 / 6, "Creating foreground surface")
         foreground_raw = get_asset("foreground")
         self.foreground = pygame.transform.scale(foreground_raw, (10000, 10000))
         self.fg_width, self.fg_height = self.foreground.get_size()
-        objects_loading_screen.put(0.92, "Pre-building enemy image cache")
-        enemy_handling.prewarm_cache(default_zooms)
-        objects_loading_screen.put(0.97, "Pre-building nest image cache")
-        nest.prewarm_cache(default_zooms)
-        objects_loading_screen.put(0.99, "Pre-building element image cache")
-        spike.prewarm_cache(default_zooms)
+        creation_loading_screen.put(1.0, "Object creation complete")
+
+        enemy_prewarm_screen.put(0.0, "Pre-building enemy image cache")
+        enemy_handling.prewarm_cache(default_zooms, loading_screen=enemy_prewarm_screen)
+        nest_prewarm_screen.put(0.0, "Pre-building nest image cache")
+        nest.prewarm_cache(default_zooms, loading_screen=nest_prewarm_screen)
+        spike_prewarm_screen.put(0.0, "Pre-building element image cache")
+        spike.prewarm_cache(default_zooms, loading_screen=spike_prewarm_screen)
         objects_loading_screen.put(1.0, "Object creation complete.")
 
         self._world_layer = None
@@ -79,14 +93,18 @@ class World:
         self._bloom_surface = None
         self._bloom_frame_counter = 0
 
-        self.generate_world(generate_loading_screen)
-        self.generate_elements()
+        # generate_elements takes roughly 9x as long as generate_world
+        # (many small placement attempts vs. a bounded number of cave/nest
+        # carves), hence the lopsided split.
+        world_gen_screen, elements_gen_screen = generate_loading_screen.subsections(0, 0.1)
+        self.generate_world(world_gen_screen)
+        self.generate_elements(elements_gen_screen)
         self.terrain.start_streaming()
 
     def generate_world(self, loading_screen):
         self.terrain.generate_world(loading_screen)
 
-    def generate_elements(self):
+    def generate_elements(self, loading_screen=None):
         """Runs once, after cave/nest truth generation is complete. For
         each chunk that has any air pockets, attempts to place a handful of
         spikes (count varies per chunk but averages SPIKES_PER_CHUNK over
@@ -95,15 +113,18 @@ class World:
         attempting one more spike directly to its left and right."""
         # attempt_place_element can create new chunks (get_or_create_chunk)
         # as a side effect, so snapshot before iterating
-        for chunk in list(self.terrain.chunks.values()):
-            if not chunk.air_pockets:
-                continue
+        chunks = [chunk for chunk in list(self.terrain.chunks.values()) if chunk.air_pockets]
+        if not chunks:
+            return
+        for i, chunk in enumerate(chunks):
             for _ in range(poisson_count(SPIKES_PER_CHUNK)):
                 air_pocket = random.choice(chunk.air_pockets)
                 size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
                 placed = elements.attempt_place_element_below_air_pocket(self.terrain, spike.Spike, air_pocket, size=size)
                 if placed:
                     elements.attempt_place_neighbors(self.terrain, placed, size=size)
+            if loading_screen is not None:
+                loading_screen.put((i + 1) / len(chunks), f"Generating elements ({i + 1}/{len(chunks)} chunks)")
 
     # def generate_next_layer(self):
     #    self.terrain.generate_layer(1)
@@ -170,7 +191,7 @@ class World:
             if self.terrain.player_damage_circles:
                 for particle_coords in n.apply_damage_from_circles(self.terrain, self.player):
                     self.terrain.particles.spawn_mining_particles(3, (0,0,0), particle_coords[2], particle_coords[0], particle_coords[1])
-                    self.terrain.particles.spawn_mining_particles(5, n.color, particle_coords[2]/2, particle_coords[0], particle_coords[1])
+                    self.terrain.particles.spawn_spark_particles(5, n.color, particle_coords[2]/2, particle_coords[0], particle_coords[1])
 
             if n.stage != n.max_stage:
                 d = math.dist((n.x, n.y), (self.player.x, self.player.y))

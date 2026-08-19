@@ -860,7 +860,9 @@ class Terrain:
         for i in range(3):
             self.add_air_pocket(x + spreading * (random.random() * 2 - 1), y + spreading * (random.random() * 2 - 1), radius, player_made=player_made, override=override)
         if spawn_particles:
-            self.particles.spawn_mining_particles(10, (0, 0, 0), radius * 1.5, x, y)
+            # matches the surrounding rock instead of plain black, since this
+            # path is specifically terrain being carved away (mining)
+            self.particles.spawn_mining_particles(10, self._depth_color(x, y), radius * 1.5, x, y)
 
     def add_air_pocket(self, x, y, radius, recursions=0, player_made=False, override=False):
         radius = min(radius, max_air_pocket_radius)

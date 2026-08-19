@@ -1,3 +1,5 @@
+import random
+
 import pygame
 
 import scripts.elements as elements
@@ -8,8 +10,8 @@ from scripts.global_assets import get_asset
 # snapped to _SIZE_SNAP buckets so live-generated spikes reuse cached scaled
 # images/masks instead of each triggering a fresh pygame.transform.scale --
 # same approach as nest.py's _snap_nest_size.
-SIZE_MIN = 90
-SIZE_MAX = 220
+SIZE_MIN = 30
+SIZE_MAX = 150
 DEFAULT_SIZE = 150
 _SIZE_SNAP = 10
 
@@ -18,15 +20,15 @@ _SIZE_SNAP = 10
 # standing on. Deliberately unrelated to the hitbox art's actual shape
 # (see Element's anchor-vs-footprint split in elements.py). Given as
 # fractions of size so it scales with whatever size a given spike gets.
-ANCHOR_LEFT_FRAC = 0
-ANCHOR_TOP_FRAC = 4 / 5
-ANCHOR_WIDTH_FRAC = 1
-ANCHOR_HEIGHT_FRAC = 1 / 5
+ANCHOR_LEFT_FRAC = 1 / 4
+ANCHOR_TOP_FRAC = 7 / 8
+ANCHOR_WIDTH_FRAC = 1 / 2
+ANCHOR_HEIGHT_FRAC = 1 / 8
 
 MIN_DAMAGE_Y_SPEED = 0.3  # abs(player.y_speed) must be at least this fast to take spike damage
 DAMAGE = 40
 
-VARIANTS = ["1"]  # future: "2", "3", ...
+VARIANTS = ["1", "2", "3", "4"]
 
 _raw_front_imgs = {}
 _raw_hitbox_imgs = {}
@@ -41,8 +43,8 @@ def init():
     _raw_front_imgs = {}
     _raw_hitbox_imgs = {}
     for variant in VARIANTS:
-        _raw_front_imgs[variant] = get_asset("element_spike_" + variant)
-        _raw_hitbox_imgs[variant] = get_asset("element_spike_" + variant + "_hitbox")
+        _raw_front_imgs[variant] = get_asset("spike_" + variant)
+        _raw_hitbox_imgs[variant] = get_asset("spike_" + variant + "_hitbox")
 
 
 def _snap_size(size):
@@ -82,29 +84,43 @@ def _get_hitbox_mask(variant, size):
     return cached
 
 
-def prewarm_cache(default_zooms):
+def prewarm_cache(default_zooms, loading_screen=None):
     """Pre-builds every (variant, size bucket, zoom) image/mask combo so
     live placement never scales an image on the main thread."""
+    size_min, size_max = _snap_size(SIZE_MIN), _snap_size(SIZE_MAX)
+    steps_per_variant = (size_max - size_min) // _SIZE_SNAP + 1
+    total_steps = len(VARIANTS) * steps_per_variant
+    done = 0
     for variant in VARIANTS:
-        size = _snap_size(SIZE_MIN)
-        max_snapped = _snap_size(SIZE_MAX)
-        while size <= max_snapped:
+        size = size_min
+        while size <= size_max:
             for zoom in default_zooms:
                 _get_scaled_front(variant, size, zoom)
                 _get_scaled_hitbox(variant, size, zoom)
             _get_scaled_hitbox(variant, size, 1)  # zoom=1 always needed for the hitbox mask
             _get_hitbox_mask(variant, size)
             size += _SIZE_SNAP
+            done += 1
+            if loading_screen is not None:
+                loading_screen.put(done / total_steps, f"Pre-building spike cache (size {size})")
 
 
 class Spike(elements.Element):
     """Solid hazard: blocks movement like terrain, and deals damage on
     touch if the player is moving fast enough vertically. Front-only
-    visual (element_spike_N.png); element_spike_N_hitbox.png doubles as
-    both the collide and interaction hitbox -- unrelated to the anchor,
-    which is just the bottom strip of the image (see module docstring)."""
+    visual (spike_N.png); spike_N_hitbox.png doubles as both the collide
+    and interaction hitbox -- unrelated to the anchor, which is just the
+    bottom strip of the image (see module docstring).
 
-    def __init__(self, default_zooms, x, y, variant="1", size=DEFAULT_SIZE):
+    variant picks which of spike_1..spike_4's art/hitbox to use; leave it
+    None to pick uniformly at random (same convention as Nest randomizing
+    its own variant_id internally). Anchor geometry never depends on
+    variant, only on size, so this is always safe to leave random even for
+    the cheap pre-construction check in get_placement_geometry."""
+
+    def __init__(self, default_zooms, x, y, variant=None, size=DEFAULT_SIZE):
+        if variant is None:
+            variant = random.choice(VARIANTS)
         size = _snap_size(size)
         anchor_left, anchor_top, anchor_width, anchor_height = _anchor_geometry(size)
         super().__init__(default_zooms, x, y, size, size, anchor_left, anchor_top, anchor_width, anchor_height)
@@ -112,7 +128,9 @@ class Spike(elements.Element):
         self.size = size
 
     @classmethod
-    def get_placement_geometry(cls, variant="1", size=DEFAULT_SIZE):
+    def get_placement_geometry(cls, variant=None, size=DEFAULT_SIZE):
+        # variant is accepted only for signature symmetry with __init__ --
+        # geometry never depends on it, so there's nothing to resolve here.
         size = _snap_size(size)
         anchor_left, anchor_top, anchor_width, anchor_height = _anchor_geometry(size)
         return size, size, anchor_left, anchor_top, anchor_width, anchor_height

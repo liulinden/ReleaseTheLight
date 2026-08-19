@@ -192,6 +192,7 @@ class Element:
 # enemies._enemy_handling.get_enemy spawns against terrain truth data.
 # ------------------------------------------------------------------
 
+
 def _anchor_search_radius(anchor_width, anchor_height):
     # generous enough to catch every air pocket that could possibly reach
     # the anchor, regardless of which chunk(s) its truth data lives in
@@ -303,9 +304,9 @@ def attempt_place_neighbors(_terrain, element, spacing=None, *args, **kwargs):
     size/etc), and should normally just be the original call's own args.
     Returns the list of newly placed neighbors (0, 1, or 2 elements)."""
     if spacing is None:
-        spacing = element.width
+        spacing = element.width * 2 / 3
     placed = []
-    for dx in (-spacing, spacing):
+    for dx in (-spacing, spacing, -spacing * 2, spacing * 2, -spacing * 3, spacing * 3):
         neighbor = attempt_place_element(_terrain, type(element), element.x + dx, element.y, *args, **kwargs)
         if neighbor:
             placed.append(neighbor)
