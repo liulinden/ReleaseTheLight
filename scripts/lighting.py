@@ -8,16 +8,18 @@ from scripts.global_assets import get_asset
 # FIX 2: images loaded in init() after display exists
 mist_particle_im_gs = []
 light_gradient = None
-thick_gradient = None
 
 
 def init():
-    global mist_particle_im_gs, light_gradient, thick_gradient
+    global mist_particle_im_gs, light_gradient
     mist_particle_im_gs = []
     for i in range(5):
         mist_particle_im_gs.append(get_asset("particles_mist_" + str(i + 1)))
     light_gradient = get_asset("gradient_light")
-    thick_gradient = get_asset("gradient_thick")
+    # gradient_thick ("thick gradient") used to be loaded here too, for
+    # Lighting.draw_thick_gradient -- that effect now runs on the GPU
+    # instead (see gl_present.py's load_static_textures/present), which
+    # loads its own copy of the asset directly.
 
 def snap_color(color, snap=8):
     return (color[0] // snap * snap, color[1] // snap * snap, color[2] // snap * snap)
@@ -54,11 +56,6 @@ class Lighting:
         for size in (400, 600, 800):  # pre-warm the sizes used every frame for ambient light
             self._get_gradient_lookup(size)
 
-        size = 300
-        self.resized_light_im_gs["gradient_thick"] = {}
-        for zoom in default_zooms:
-            self.resized_light_im_gs["gradient_thick"][zoom] = pygame.transform.smoothscale(thick_gradient, (zoom * size, zoom * size))
-
         # NOTE: _gradient_filters / _gradient_premul preallocation removed —
         # GradientCache now owns caching, keyed by color instead of being
         # rebuilt from scratch every draw_gradient call.
@@ -94,13 +91,6 @@ class Lighting:
             ((x - left) * zoom - dimensions[0] / 2 + offset_x, (y - top) * zoom - dimensions[1] / 2 + offset_y),
             special_flags=pygame.BLEND_ADD,
         )
-
-    def draw_thick_gradient(self, surface: pygame.Surface, frame, x, y, offset_x=0, offset_y=0):
-        left, top, zoom = frame
-
-        img = self.resized_light_im_gs["gradient_thick"][zoom]
-        dimensions = img.get_size()
-        surface.blit(img, ((x - left) * zoom - dimensions[0] / 2 + offset_x, (y - top) * zoom - dimensions[1] / 2 + offset_y))
 
     def draw_effects(self, surface: pygame.Surface, frame, offset_x=0, offset_y=0):
         for particle in self.particles:

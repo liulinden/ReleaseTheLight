@@ -19,7 +19,6 @@ import scripts.elements.vine as vine
 import scripts.terrain as terrain
 import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display
-from scripts.bloom import get_bloom
 from scripts.global_assets import get_asset
 from scripts.util import dist, frame_random, poisson_count, rotate_and_get_offset
 
@@ -28,7 +27,6 @@ VINES_PER_CHUNK = 10  # expected number of vine-placement attempts per chunk tha
 
 
 class World:
-    BLOOM_UPDATE_INTERVAL = 2  # recompute bloom every Nth frame; reuse the cached surface in between
 
     def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=(0.1, 2), developing_mode=False, profiler=None):
         self.world_width = world_width
@@ -76,10 +74,6 @@ class World:
         self.bg_width, self.bg_height = 3000, 3000
         self.gradient_vertical_raw = get_asset("gradient_vertical")
         self.gradient_vertical = None
-        creation_loading_screen.put(5 / 6, "Creating foreground surface")
-        foreground_raw = get_asset("foreground")
-        self.foreground = pygame.transform.scale(foreground_raw, (10000, 10000))
-        self.fg_width, self.fg_height = self.foreground.get_size()
         creation_loading_screen.put(1.0, "Object creation complete")
 
         enemy_prewarm_screen.put(0.0, "Pre-building enemy image cache")
@@ -98,9 +92,6 @@ class World:
         self.profiler = profiler
 
         self.foreground_alpha = 0
-
-        self._bloom_surface = None
-        self._bloom_frame_counter = 0
 
         # generate_elements takes roughly 9x as long as generate_world
         # (many small placement attempts vs. a bounded number of cave/nest
@@ -199,8 +190,9 @@ class World:
 
         player_speed = dist(self.player.x_speed, self.player.y_speed)
         alpha_target = max(0, 255 - 600 * player_speed)
+        # no longer applied to a CPU surface (see gl_present.py) -- this
+        # value is read directly by Game.run() and passed to gl_present.present()
         self.foreground_alpha += (alpha_target - self.foreground_alpha) * frame_length / (100 if alpha_target < self.foreground_alpha else 1500)
-        self.foreground.set_alpha(self.foreground_alpha)
 
         if frame_random(frame_length, 5) == 1:
             self.light.add_mist_particle(self.player.x, self.player.y, color=self.player.color)
@@ -273,12 +265,6 @@ class World:
         y = (-top * 1.8 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background_2, (x, y))
 
-    def draw_foreground(self, layer: pygame.Surface, window_size, frame):
-        left, top, zoom = frame
-        x = (-left * 6 * zoom) % self.fg_width / 2 - self.fg_width / 2
-        y = ((-top * 6 + 500) * zoom) % self.fg_height / 2 - self.fg_height / 2
-        layer.blit(self.foreground, (x, y))
-
     def draw_world(self, window, window_size, frame, hitboxes=False, kind_visibility=False, real_window_size=None, offset_x=0, offset_y=0, tilt=0, crosshair=False):
         if real_window_size is None:
             real_window_size = window_size
@@ -347,15 +333,15 @@ class World:
         self.player.draw_cell_charge_bar(layer, frame, offset_x=offset_x, offset_y=offset_y)
         self.terrain.draw_interaction_displays(layer, frame, time, offset_x=offset_x, offset_y=offset_y)
 
-        if not kind_visibility:
-            scratch_layer.fill((255, 255, 255))
-            self.draw_foreground(scratch_layer, window_size, frame)
-            self.light.draw_thick_gradient(scratch_layer, frame, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
-            if self.player.laser:
-                if self.player.laser.collision:
-                    cx, cy = self.player.laser.collision[0]
-                    self.light.draw_thick_gradient(scratch_layer, frame, cx, cy, offset_x=offset_x, offset_y=offset_y)
-            layer.blit(self.scratch_layer, (0, 0), special_flags=pygame.BLEND_MULT)
+        # Foreground darkening + its thick-gradient "clear zone" around the
+        # player/laser used to be applied here (see World.draw_foreground /
+        # Lighting.draw_thick_gradient) as a scratch-surface multiply blit --
+        # it's now computed on the GPU instead, as part of
+        # gl_present.present() (called on this same, still-unmultiplied
+        # layer right after draw_world returns), for the same reason bloom
+        # moved there: it's a clean final pass over the finished frame, and
+        # the GPU does two full-window blits + a multiply far cheaper than
+        # CPU blits can. See gl_present.py.
 
         if crosshair:
             pygame.draw.line(layer, (100, 100, 100, 0.3), (real_window_size[0] * 0.45, real_window_size[1] // 2), (real_window_size[0] * 0.55, real_window_size[1] // 2), 2)
@@ -370,16 +356,13 @@ class World:
             pygame.draw.line(layer, (255, 0, 0), (real_window_size[0] // 2 - size, real_window_size[1] // 2), (real_window_size[0] // 2 + size, real_window_size[1] // 2), 2)
             pygame.draw.line(layer, (255, 0, 0), (real_window_size[0] // 2, real_window_size[1] // 2 - size), (real_window_size[0] // 2, real_window_size[1] // 2 + size), 2)
 
-        self.profiler.enable()
-
-        # Bloom is a soft, slowly-changing glow -- recomputing it every
-        # single frame is wasted work. Recompute every BLOOM_UPDATE_INTERVAL
-        # frames and reuse the last result in between.
-        self._bloom_frame_counter += 1
-        if self._bloom_surface is None or self._bloom_frame_counter % self.BLOOM_UPDATE_INTERVAL == 0:
-            self._bloom_surface = get_bloom(layer)
-        layer.blit(self._bloom_surface, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-
-        self.profiler.disable()
+        # Bloom used to be computed here (see bloom.py) and additively
+        # blitted onto layer as the very last step -- it's now computed on
+        # the GPU instead, as part of gl_present.present() (called on this
+        # same, still-pre-bloom layer right after draw_world returns), for
+        # exactly the same reason bloom.py's own docstring gives for
+        # downscaling before the CPU pixel work: the full-resolution pass is
+        # what dominates the cost, and the GPU does that pass far cheaper
+        # than a numpy round-trip can. See gl_present.py.
 
         return layer

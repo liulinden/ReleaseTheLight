@@ -4,6 +4,7 @@ import random
 
 import pygame
 
+import scripts.gl_present as gl_present
 import scripts.loading_screen as loading_screen
 import scripts.world as world
 from config import CHUNK_SIZE
@@ -51,8 +52,30 @@ class Game:
         self.loading_screen = loading_screen
 
     def set_window(self, window: pygame.Surface):
+        # window is now an OpenGL-context handle (see main.py), which can no
+        # longer be blitted onto directly -- everything draws onto
+        # render_surface instead, an ordinary off-screen Surface matching
+        # the window's size, and gl_present.present() uploads/shows it as
+        # the very last step of each frame (see run()).
         self.window = window
         self.window_width, self.window_height = window.get_size()
+        # opaque (.convert(), not .convert_alpha()): render_surface is the
+        # FINAL frame, nothing ever composites it against anything else, so
+        # it doesn't need its own alpha channel -- and giving it one made
+        # every blit draw_world does into it (there are hundreds per frame)
+        # pay for alpha-channel bookkeeping on the destination for no
+        # reason, which measured as a much bigger cost than the whole
+        # gl_present step was ever going to save. Source images with real
+        # alpha (sprites, particles, the flash overlay, etc.) still
+        # composite correctly onto an opaque destination -- the source's
+        # own alpha is what controls blending either way.
+        self.render_surface = pygame.Surface(window.get_size()).convert()
+        # UI (charge_display, flash overlay, debug rect, fps text) draws
+        # onto this SEPARATE, transparent surface instead of render_surface
+        # -- gl_present.present() alpha-blends it on TOP of the foreground/
+        # thick-gradient-multiplied + bloomed scene, so UI never gets
+        # darkened by an effect that's meant to apply only to the world.
+        self.ui_surface = pygame.Surface(window.get_size(), pygame.SRCALPHA).convert_alpha()
 
     def coords_window_to_world(self, coords: list[int]):
         return self.cam_x + (coords[0] - self.offset_x) / self.zoom, self.cam_y + (coords[1] - self.offset_y) / self.zoom
@@ -280,8 +303,9 @@ class Game:
             #    self.gameWorld.player.x+=self.WORLD_WIDTH
             #    self.camX+=self.WORLD_WIDTH
 
-            # clear window
-            self.window.fill((255, 255, 255))
+            # clear window -- render_surface, not self.window; see set_window
+            self.render_surface.fill((255, 255, 255))
+            self.ui_surface.fill((0, 0, 0, 0))
 
             # hold shake/jitter perfectly still during hit-stop -- otherwise the ongoing
             # laser-fire camera shake keeps moving the screen and the freeze isn't felt
@@ -321,7 +345,7 @@ class Game:
             # self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
             #profile.enable()
-            self.game_world.draw_world(self.window,
+            self.game_world.draw_world(self.render_surface,
                 (self.window_width, self.window_height),
                 frame,
                 hitboxes=self.visible_hitboxes,
@@ -342,7 +366,7 @@ class Game:
                 alpha = int(self.flash_max_alpha * self.flash_timer / FLASH_DURATION)
                 r, g, b = self.flash_color[:3]
                 self._flash_surface.fill((int(r), int(g), int(b), alpha))
-                self.window.blit(self._flash_surface, (0, 0))
+                self.ui_surface.blit(self._flash_surface, (0, 0))
 
             """
             self.window.blit(
@@ -361,11 +385,11 @@ class Game:
             )"""
 
             # display UI stuff
-            self.charge_display.draw(self.window)
-            # self.minimap.draw(self.window, self.charge_display.color)
+            self.charge_display.draw(self.ui_surface)
+            # self.minimap.draw(self.ui_surface, self.charge_display.color)
 
             if self.loading_debug:
-                pygame.draw.rect(self.window, (0, 255, 0), pygame.Rect(self.offset_x, self.offset_y, self.window_width, self.window_height), 1)
+                pygame.draw.rect(self.ui_surface, (0, 255, 0), pygame.Rect(self.offset_x, self.offset_y, self.window_width, self.window_height), 1)
 
             practical_fps = max(1, round(1000 / (pygame.time.get_ticks() - previous_time)))
             practical_fps = max(30, practical_fps)
@@ -373,10 +397,25 @@ class Game:
 
             if self.show_fps:
                 text_surf = self.font.render(f"FPS: {self.clock.get_fps():.0f}", True, (255, 255, 255))
-                self.window.blit(text_surf, (self.window_width - 10 - text_surf.get_width(), 10))
+                self.ui_surface.blit(text_surf, (self.window_width - 10 - text_surf.get_width(), 10))
 
-            # update window
-            pygame.display.flip()
+            # update window -- uploads render_surface + ui_surface to the
+            # GPU, computes bloom + the foreground/thick-gradient darkening
+            # and alpha-blends the UI on top, and presents -- replacing the
+            # old plain pygame.display.flip() (see gl_present.py for why/how)
+            laser_pos = None
+            if self.game_world.player.laser and self.game_world.player.laser.collision:
+                laser_pos = self.game_world.player.laser.collision[0]
+            gl_present.present(
+                self.render_surface,
+                self.ui_surface,
+                frame,
+                (self.offset_x, self.offset_y),
+                (self.game_world.player.x, self.game_world.player.y),
+                laser_pos,
+                self.kind_visibility,
+                self.game_world.foreground_alpha,
+            )
 
             # tick game
             self.clock.tick(self.fps)
