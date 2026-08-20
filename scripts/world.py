@@ -24,7 +24,7 @@ from scripts.global_assets import get_asset
 from scripts.util import dist, frame_random, poisson_count, rotate_and_get_offset
 
 SPIKES_PER_CHUNK = 5  # expected number of spike-placement attempts per chunk that has any air pockets
-VINES_PER_CHUNK = 30  # expected number of vine-placement attempts per chunk that has any air pockets
+VINES_PER_CHUNK = 10  # expected number of vine-placement attempts per chunk that has any air pockets
 
 
 class World:
@@ -65,7 +65,12 @@ class World:
         self.light = lighting.Lighting(default_zooms=default_zooms)
         creation_loading_screen.put(4 / 6, "Creating background surfaces")
         background_raw = get_asset("background_1")
-        self.background_1 = pygame.transform.scale(background_raw, (3000, 3000))
+        # no transparency in this layer -- .convert() drops the alpha channel
+        # get_asset's own .convert_alpha() left it with, so every blit is a
+        # straight opaque copy instead of paying for alpha compositing.
+        # background_2/foreground keep their alpha (see draw_background/
+        # draw_foreground -- they're genuinely translucent layers).
+        self.background_1 = pygame.transform.scale(background_raw, (3000, 3000)).convert()
         background_raw = get_asset("background_2")
         self.background_2 = pygame.transform.scale(background_raw, (3000, 3000))
         self.bg_width, self.bg_height = 3000, 3000

@@ -14,7 +14,7 @@ for enemy in enemies:
     enemy_sizes[enemy] = enemy.size_range
     enemy_costumes[enemy] = enemy.costume
 
-eligible_enemies = {"white": [basic_enemy.BasicEnemy], "blue": [basic_enemy.BasicEnemy, basic_flying.BasicFlying], "red": [basic_enemy.BasicEnemy, charger.Charger]}
+eligible_enemies = {"white": [basic_enemy.BasicEnemy], "blue": [basic_enemy.BasicEnemy, basic_flying.BasicFlying, bouncer.Bouncer], "red": [basic_enemy.BasicEnemy, charger.Charger]}
 
 
 def prewarm_cache(default_zooms, loading_screen=None):

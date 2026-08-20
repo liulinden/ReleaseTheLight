@@ -84,6 +84,7 @@ class Cell:
         laser_properties.set_laser_attributes(attrs, normalized_charges, self.filter_type, 500)
         attrs.area_dmg_falloff = 1.0
         attrs.area_kb_falloff = 1.0
+        attrs.base_dmg *= 3
 
         damage = laser_properties.get_laser_dmg(attrs, False, 0)
         knockback = laser_properties.get_laser_kb(attrs, False, 0)
