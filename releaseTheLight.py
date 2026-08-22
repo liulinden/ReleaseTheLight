@@ -1,4 +1,5 @@
 # imports
+import cProfile
 import math
 import random
 
@@ -10,7 +11,7 @@ import scripts.world as world
 from config import CHUNK_SIZE
 from scripts.global_assets import load_assets
 from scripts.UI.charge_display import ChargeDisplay
-import cProfile
+
 # from scripts.UI.minimap import Minimap
 
 profile = cProfile.Profile()
@@ -20,6 +21,7 @@ LASER_FIRST_HIT_FLASH_ALPHA = 10  # slight, not a full whiteout
 LASER_RAMP_FLASH_ALPHA = 5  # significantly slighter -- every later damage frame of the same cast, not just the first
 DAMAGE_FLASH_COLOR = (0, 0, 0)
 DAMAGE_FLASH_ALPHA = 90
+
 
 class Game:
     def __init__(self, window: pygame.Surface, fps=60, full_world=True, dev_mode=False, loading_screen: loading_screen.LoadingScreen = None):
@@ -118,7 +120,7 @@ class Game:
 
         load_assets(asset_loading)
 
-        self.game_world = world.World(self.WORLD_WIDTH, self.WORLD_HEIGHT, loading_screen=world_loading, default_zooms=self.DEFAULT_ZOOMS, developing_mode=self.developing_mode, profiler = profile)
+        self.game_world = world.World(self.WORLD_WIDTH, self.WORLD_HEIGHT, loading_screen=world_loading, default_zooms=self.DEFAULT_ZOOMS, developing_mode=self.developing_mode, profiler=profile)
 
         self.charge_display = ChargeDisplay()
         # self.minimap = Minimap(self.WORLD_WIDTH, self.WORLD_HEIGHT)
@@ -159,7 +161,6 @@ class Game:
         self.show_fps = self.developing_mode
 
         while running:
-
             # get mouse pos
             mouse_x, mouse_y = pygame.mouse.get_pos()
 
@@ -344,8 +345,9 @@ class Game:
             frame = [self.cam_x + self.frame_jitter[0], self.cam_y + self.frame_jitter[1], self.zoom]
             # self.window.blit(self.gameWorld.getSurface((self.window_width,self.window_height),frame,hitboxes=self.visibleHitboxes,kindVisibility=self.kindVisibility),(0,0))
 
-            #profile.enable()
-            self.game_world.draw_world(self.render_surface,
+            # profile.enable()
+            self.game_world.draw_world(
+                self.render_surface,
                 (self.window_width, self.window_height),
                 frame,
                 hitboxes=self.visible_hitboxes,
@@ -356,7 +358,7 @@ class Game:
                 tilt=self.tilt,
                 crosshair=self.crosshair,
             )
-            #profile.disable()
+            # profile.disable()
 
             if self.flash_timer > 0:
                 window_size = self.window.get_size()
@@ -420,5 +422,3 @@ class Game:
 
             # tick game
             self.clock.tick(self.fps)
-
-        

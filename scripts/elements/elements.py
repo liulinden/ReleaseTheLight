@@ -342,7 +342,9 @@ def _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_poc
     pocket blocks the candidate and retry from there -- descending for
     side=1, ascending for side=-1 -- until they find an actual boundary (or
     max_steps is hit), then push the result back toward the pocket in
-    _PUSH_STEP increments for as long as it stays clear (see _PUSH_STEP).
+    _PUSH_STEP increments for as long as it stays clear (see _PUSH_STEP),
+    canceling instead if that push runs its full _MAX_PUSH_STEPS budget
+    without ever finding a blocker (never got near the pocket's edge).
     Every step is solved purely from element_cls.get_placement_geometry, so
     nothing is constructed unless a placement finally succeeds."""
     width, height, anchor_left, anchor_top, anchor_width, anchor_height = element_cls.get_placement_geometry(*args, **kwargs)
@@ -354,10 +356,7 @@ def _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_poc
 
     for _ in range(max_steps + 1):
         x = air_pocket.x + width / 2 - anchor_left - anchor_width / 2
-        if side > 0:
-            y = air_pocket.y + air_pocket.r + _ANCHOR_CLEARANCE + height / 2 - anchor_top
-        else:
-            y = air_pocket.y - air_pocket.r - _ANCHOR_CLEARANCE + height / 2 - anchor_top - anchor_height
+        y = air_pocket.y + air_pocket.r + _ANCHOR_CLEARANCE + height / 2 - anchor_top if side > 0 else air_pocket.y - air_pocket.r - _ANCHOR_CLEARANCE + height / 2 - anchor_top - anchor_height
 
         blocker = find_blocker(x, y)
         if blocker is None:
@@ -365,12 +364,18 @@ def _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_poc
             # the open space it's rooted against) in _PUSH_STEP increments,
             # up to _MAX_PUSH_STEPS of them, for as long as it stays clear,
             # so it ends up close to the edge of solid rock instead of
-            # sitting on the untouched _ANCHOR_CLEARANCE buffer.
+            # sitting on the untouched _ANCHOR_CLEARANCE buffer. Running the
+            # full budget without ever finding a blocker means the push
+            # never got anywhere near the pocket's edge -- this spot doesn't
+            # actually read as adjacent to it, so cancel instead of placing
+            # something sitting _MAX_PUSH_STEPS * _PUSH_STEP deep in rock.
             push_dy = -_PUSH_STEP if side > 0 else _PUSH_STEP
             for _ in range(_MAX_PUSH_STEPS):
                 if find_blocker(x, y + push_dy) is not None:
                     break
                 y += push_dy
+            else:
+                return False
             return attempt_place_element(_terrain, element_cls, x, y, *args, **kwargs)
         air_pocket = blocker
 

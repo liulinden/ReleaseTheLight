@@ -71,8 +71,6 @@ of the scene+bloom+foreground composite as a separate final draw, with GL
 blending enabled just for that one draw call.
 """
 
-import math
-
 import moderngl
 import numpy as np
 import pygame
@@ -80,9 +78,9 @@ import pygame
 _ctx = None
 _vao = None
 
-_prog_upload = None     # samples a per-frame raw (BGRA) upload, plain passthrough -- used for both the scene-only debug path and the final UI blend
+_prog_upload = None  # samples a per-frame raw (BGRA) upload, plain passthrough -- used for both the scene-only debug path and the final UI blend
 _prog_threshold = None  # samples the uploaded (BGRA) scene texture, luminance-thresholds it
-_prog_blur = None       # separable Gaussian blur, one direction (horizontal or vertical) per draw
+_prog_blur = None  # separable Gaussian blur, one direction (horizontal or vertical) per draw
 _prog_composite = None  # scene + bloom + foreground/thick-gradient multiply
 
 _scene_tex = None
@@ -102,7 +100,7 @@ _bloom_fbos = {}
 _bloom_frame_counter = 0
 
 # -- bloom tuning --
-BLOOM_THRESHOLD = 80 / 255  # normalized (bloom.py's was 0-255)
+BLOOM_THRESHOLD = 150 / 255  # normalized (bloom.py's was 0-255)
 BLOOM_DOWNSCALE = 10
 BLOOM_BLUR_PASSES = 5
 BLOOM_INTENSITY = 0.8
@@ -124,22 +122,22 @@ TG_WORLD_SIZE = 300  # was `size = 300` in Lighting.__init__
 # cropped from a 4096x4096 source (empty top half trimmed off), so it's
 # not square -- see sample_fog's vertical math in the composite shader.
 FOG_TEX_HALF = 2048.0
-FOG_SCROLL_SPEED = 40.0  # texels/sec it pans right at
-FOG_ALPHA = 0.5  # 0..1, overall strength of the fog tint
+FOG_SCROLL_SPEED = 90.0  # texels/sec it pans right at
+FOG_ALPHA = 0.4  # 0..1, overall strength of the fog tint
 FOG_PARALLAX = 1.8  # vs. foreground_tex's fixed 6 (see fg_x) -- fog reads as farther from
 # the camera than foreground, so it should drift by less for the same camera movement
 
 # second fog layer -- same texture, panned the opposite way (negative speed
 # and parallax) for a cheap two-layer drifting-clouds look; independently
 # tunable in case the second layer should read as a different depth/pace
-FOG2_SCROLL_SPEED = -60
+FOG2_SCROLL_SPEED = -30
 FOG2_ALPHA = FOG_ALPHA
 FOG2_PARALLAX = 1.2
 
 # how strongly Terrain's screen-edge vignette darkens the fog layers -- 0
 # leaves fog untouched by it, 1 is the same full-strength darkening the
 # terrain layer gets (see FOG_VIGNETTE_STRENGTH's use in the composite shader)
-FOG_VIGNETTE_STRENGTH = 0.4
+FOG_VIGNETTE_STRENGTH = 0.8
 
 _VERTEX_SHADER = """
 #version 330
@@ -354,10 +352,7 @@ def init():
     # one VAO per program -- moderngl ties a vertex_array to a specific
     # program's attribute locations, so each program needs its own even
     # though they all share the same vertex layout/buffer
-    _vao = {
-        prog: _ctx.vertex_array(prog, [(vbo, "2f 2f", "in_pos", "in_uv")])
-        for prog in (_prog_upload, _prog_threshold, _prog_blur, _prog_composite)
-    }
+    _vao = {prog: _ctx.vertex_array(prog, [(vbo, "2f 2f", "in_pos", "in_uv")]) for prog in (_prog_upload, _prog_threshold, _prog_blur, _prog_composite)}
 
 
 def load_static_textures():

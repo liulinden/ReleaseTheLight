@@ -47,23 +47,23 @@ rocks_world_span = 2 * CHUNK_SIZE
 
 
 PALETTE = [
-    (0.000, (255, 200, 60)),   # golden yellow
-    (0.060, (255, 110, 40)),   # bright orange
-    (0.120, (255, 60, 90)),    # hot pink-red
-    (0.180, (230, 40, 180)),   # magenta
-    (0.240, (170, 50, 240)),   # violet
-    (0.300, (100, 70, 255)),   # indigo
-    (0.360, (60, 120, 255)),   # bright blue
-    (0.420, (40, 190, 255)),   # cyan-blue
-    (0.480, (40, 230, 210)),   # turquoise
-    (0.540, (60, 230, 120)),   # spring green
-    (0.600, (170, 230, 60)),   # lime
-    (0.660, (255, 230, 50)),   # bright yellow
-    (0.720, (255, 160, 40)),   # amber
-    (0.780, (255, 90, 60)),    # coral red
-    (0.840, (230, 50, 130)),   # rose
-    (0.900, (150, 60, 255)),   # purple
-    (1.000, (80, 200, 255)),   # sky blue
+    (0.000, (255, 200, 60)),  # golden yellow
+    (0.060, (255, 110, 40)),  # bright orange
+    (0.120, (255, 60, 90)),  # hot pink-red
+    (0.180, (230, 40, 180)),  # magenta
+    (0.240, (170, 50, 240)),  # violet
+    (0.300, (100, 70, 255)),  # indigo
+    (0.360, (60, 120, 255)),  # bright blue
+    (0.420, (40, 190, 255)),  # cyan-blue
+    (0.480, (40, 230, 210)),  # turquoise
+    (0.540, (60, 230, 120)),  # spring green
+    (0.600, (170, 230, 60)),  # lime
+    (0.660, (255, 230, 50)),  # bright yellow
+    (0.720, (255, 160, 40)),  # amber
+    (0.780, (255, 90, 60)),  # coral red
+    (0.840, (230, 50, 130)),  # rose
+    (0.900, (150, 60, 255)),  # purple
+    (1.000, (80, 200, 255)),  # sky blue
 ]
 
 # ------------------------------------------------------------------
@@ -1080,12 +1080,12 @@ class Terrain:
         cx = left + w / zoom / 2
         cy = top + h / zoom / 2
 
-        return(self._depth_color(cx, cy))
+        return self._depth_color(cx, cy)
 
         # def darken(c):
         #    return (int(c[0] * 0.05), int(c[1] * 0.05), int(c[2] * 0.05))
         #
-        #surface.fill(darken(self._depth_color(cx, cy)))
+        # surface.fill(darken(self._depth_color(cx, cy)))
 
     def draw_collision_debug(self, surface, rect, frame, color=(255, 0, 0), offset_x=0, offset_y=0):
         left, top, zoom = frame

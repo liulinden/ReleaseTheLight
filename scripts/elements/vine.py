@@ -55,7 +55,7 @@ CONSTRAINT_ITERATIONS = 3
 # own, so there's no separate impulse/force bookkeeping needed):
 #   - proximity to the player/any enemy (continuous while overlapping)
 PUSH_RADIUS = 20  # world units
-PUSH_STRENGTH = 0.01
+PUSH_STRENGTH = 0.03
 #   - terrain.knockback_circles (the same one-shot impulse circles cells
 #     and enemies react to -- see Cell.tick_knockback) -- pow*falloff is
 #     already the circle's own effective strength, so this is just a unit

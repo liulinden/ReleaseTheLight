@@ -6,6 +6,8 @@ import pygame
 
 import scripts.cells as cells
 import scripts.elements.elements as elements
+import scripts.elements.spike as spike
+import scripts.elements.vine as vine
 import scripts.enemies._enemy as enemies
 import scripts.enemies._enemy_handling as enemy_handling
 import scripts.laser as laser
@@ -14,8 +16,6 @@ import scripts.loading_screen as loading_screen
 import scripts.nest as nest
 import scripts.particles as particles
 import scripts.player as player
-import scripts.elements.spike as spike
-import scripts.elements.vine as vine
 import scripts.terrain as terrain
 import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display
@@ -27,7 +27,6 @@ VINES_PER_CHUNK = 10  # expected number of vine-placement attempts per chunk tha
 
 
 class World:
-
     def __init__(self, world_width, world_height, loading_screen: loading_screen.LoadingScreen, default_zooms=(0.1, 2), developing_mode=False, profiler=None):
         self.world_width = world_width
         self.world_height = world_height
@@ -140,7 +139,12 @@ class World:
                 placed = elements.attempt_place_element_adjacent_to_air_pocket(self.terrain, vine.Vine, air_pocket, size=size, slack_factor=slack_factor)
                 if placed:
                     elements.attempt_place_neighbors(
-                        self.terrain, placed, placed.width / 4, count=5, size=size, slack_factor=slack_factor,
+                        self.terrain,
+                        placed,
+                        placed.width / 4,
+                        count=5,
+                        size=size,
+                        slack_factor=slack_factor,
                         randomize_kwargs=lambda: {"size": random.randint(vine.SIZE_MIN, vine.SIZE_MAX), "slack_factor": random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)},
                     )
             if loading_screen is not None:
@@ -199,7 +203,7 @@ class World:
         self.ambient_tint = (
             self.ambient_tint[0] + (frame_tint[0] - self.ambient_tint[0]) * frame_length / 100,
             self.ambient_tint[1] + (frame_tint[1] - self.ambient_tint[1]) * frame_length / 100,
-            self.ambient_tint[0] + (frame_tint[2] - self.ambient_tint[2]) * frame_length / 100
+            self.ambient_tint[0] + (frame_tint[2] - self.ambient_tint[2]) * frame_length / 100,
         )
         self.ambient_tint_int = (int(self.ambient_tint[0]), int(self.ambient_tint[1]), int(self.ambient_tint[2]))
 
@@ -218,8 +222,8 @@ class World:
             n.update_visuals(frame_length)
             if self.terrain.player_damage_circles:
                 for particle_coords in n.apply_damage_from_circles(self.terrain, self.player):
-                    self.terrain.particles.spawn_mining_particles(3, (0,0,0), particle_coords[2], particle_coords[0], particle_coords[1])
-                    self.terrain.particles.spawn_spark_particles(5, n.color, particle_coords[2]/2, particle_coords[0], particle_coords[1])
+                    self.terrain.particles.spawn_mining_particles(3, (0, 0, 0), particle_coords[2], particle_coords[0], particle_coords[1])
+                    self.terrain.particles.spawn_spark_particles(5, n.color, particle_coords[2] / 2, particle_coords[0], particle_coords[1])
 
             if n.stage != n.max_stage:
                 d = math.dist((n.x, n.y), (self.player.x, self.player.y))
@@ -262,14 +266,14 @@ class World:
     def draw_vertical_gradient(self, layer, window_size):
         if not self.gradient_vertical or self.gradient_vertical.get_size() != window_size:
             self.gradient_vertical = pygame.transform.smoothscale(self.gradient_vertical_raw, window_size)
-        layer.blit(self.gradient_vertical, (0,0))
+        layer.blit(self.gradient_vertical, (0, 0))
 
     def draw_background(self, layer, window_size, frame):
         left, top, zoom = frame
         x = (-left * 1 * zoom) % self.bg_width / 2 - self.bg_width / 2
         y = (-top * 1 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background_1, (x, y))
-        #self.draw_vertical_gradient(layer, window_size)
+        # self.draw_vertical_gradient(layer, window_size)
         x = (-left * 1.8 * zoom) % self.bg_width / 2 - self.bg_width / 2
         y = (-top * 1.8 * zoom) % self.bg_height / 2 - self.bg_height / 2
         layer.blit(self.background_2, (x, y))

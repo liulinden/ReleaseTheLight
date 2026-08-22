@@ -1,7 +1,7 @@
 import math
-import numpy as np
 import random
 
+import numpy as np
 import pygame
 
 
@@ -9,7 +9,7 @@ class ImageCache:
     def __init__(self):
         self.cache = {}
 
-    def get_resized_image(self, image:pygame.Surface, id, size, smoothscale = True):
+    def get_resized_image(self, image: pygame.Surface, id, size, smoothscale=True):
         if (id, size, smoothscale) not in self.cache:
             if smoothscale:
                 self.cache[(id, size, smoothscale)] = pygame.transform.smoothscale(image, size)
@@ -66,7 +66,7 @@ def normalize_1d(n):
 
 def about_equal(a, b, frame_length=60, threshold=0.01):
     diff = a - b
-    return diff < threshold * frame_length/60 and diff > -threshold * frame_length/60
+    return diff < threshold * frame_length / 60 and diff > -threshold * frame_length / 60
 
 
 def polar_to_rect(r, angle, center=(0, 0)):
@@ -114,10 +114,10 @@ def charges_to_color(cw, cb, cr, max_charge=500, maximize=False):
     med = sorted((r, g, b))[1]
     sum = r + g + b
     if sum == 0:
-        return (0,0,0)
-    r = max(sum/20, r + 2 * (r - med)) * 255 / sum
-    g = max(sum/20, g + 2 * (g - med)) * 255 / sum
-    b = max(sum/20, b + 2 * (b - med)) * 255 / sum
+        return (0, 0, 0)
+    r = max(sum / 20, r + 2 * (r - med)) * 255 / sum
+    g = max(sum / 20, g + 2 * (g - med)) * 255 / sum
+    b = max(sum / 20, b + 2 * (b - med)) * 255 / sum
     frac = ((cw + cb + cr) / max_charge) ** 0.5
     factor = frac * 5
     if maximize:
