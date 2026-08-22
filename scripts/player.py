@@ -253,7 +253,8 @@ class Player:
         elif self.x > target_x:
             self.facing = "left"
 
-        self.arm_angle = -math.atan2(target_y - (self.y + 3), target_x - self.x)
+        start_x, start_y = self.get_laser_start()
+        self.arm_angle = -math.atan2(target_y - start_y, target_x - start_x)
 
         if not self.on_ground:
             if self.y_speed > 0.2:
@@ -419,13 +420,16 @@ class Player:
     def drain_damage(self, damage):
         self.queued_drain_damage += damage
 
+    def get_laser_start(self):
+        return self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X, self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + 3
+
     def tick(self, frame_length, _terrain: terrain.Terrain, mouse_pos, keys_down, events):
         if self.lose_charge(self.queued_damage) or self.lose_charge(self.queued_drain_damage):
             return True
         self.queued_damage = 0
         self.queued_drain_damage = 0
 
-        self.y_speed = min(1.5, self.y_speed + 0.0015 * frame_length)
+        self.y_speed = min(1, self.y_speed + 0.0015 * frame_length)
         if self.immunity_timer > 0:
             self.immunity_timer -= frame_length
             if self.immunity_timer < 0:
@@ -520,10 +524,11 @@ class Player:
         self.laser_timer = max(0, self.laser_timer)
 
         if self.laser:
+            start_x, start_y = self.get_laser_start()
             locked = self.laser.update_laser(
                 _terrain,
-                self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + 10 * math.cos(self.arm_angle),
-                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + 10 * math.sin(-self.arm_angle) + 3,
+                start_x + 10 * math.cos(self.arm_angle),
+                start_y + 10 * math.sin(-self.arm_angle),
                 -self.arm_angle,
                 self.laser_attributes.distance,
                 self.laser_attributes.cooldown,
@@ -653,10 +658,11 @@ class Player:
         self.update_costume(frame_length, mouse_pos)
 
         if self.laser:
+            start_x, start_y = self.get_laser_start()
             self.laser.update_laser(
                 _terrain,
-                self.x - SPRITE_WIDTH / 2 + ARM_PIVOT_X + 10 * math.cos(self.arm_angle),
-                self.y - SPRITE_HEIGHT / 2 + ARM_PIVOT_Y + 3 + 10 * math.sin(-self.arm_angle),
+                start_x + 10 * math.cos(self.arm_angle),
+                start_y + 10 * math.sin(-self.arm_angle),
                 -self.arm_angle,
                 self.laser_attributes.distance,
                 self.laser_attributes.cooldown,

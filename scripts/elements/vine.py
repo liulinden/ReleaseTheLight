@@ -44,7 +44,7 @@ ANCHOR_HEIGHT_FRAC = 1 / 8
 # plus a few iterations of distance-constraint relaxation per tick to keep
 # segments close to their rest length. Both endpoints are pinned to the
 # connection points and never move; only the interior points simulate.
-GRAVITY = 0.00005  # world units / ms^2, pulls interior points down every tick -- combined with
+GRAVITY = 0.0001  # world units / ms^2, pulls interior points down every tick -- combined with
 # the parabolic starting shape below, this settles a fresh vine to its natural sag in ~2s;
 # much weaker values are still stable but take tens of seconds to visibly settle from spawn
 VELOCITY_DAMPING = 0.996  # per-ms decay applied to each point's implicit verlet velocity

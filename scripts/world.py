@@ -92,6 +92,8 @@ class World:
         self.profiler = profiler
 
         self.foreground_alpha = 0
+        self.ambient_tint = (0, 0, 0)
+        self.ambient_tint_int = (0, 0, 0)
 
         # generate_elements takes roughly 9x as long as generate_world
         # (many small placement attempts vs. a bounded number of cave/nest
@@ -193,6 +195,13 @@ class World:
         # no longer applied to a CPU surface (see gl_present.py) -- this
         # value is read directly by Game.run() and passed to gl_present.present()
         self.foreground_alpha += (alpha_target - self.foreground_alpha) * frame_length / (100 if alpha_target < self.foreground_alpha else 1500)
+        frame_tint = self.terrain.get_frame_color(window_size, frame)
+        self.ambient_tint = (
+            self.ambient_tint[0] + (frame_tint[0] - self.ambient_tint[0]) * frame_length / 100,
+            self.ambient_tint[1] + (frame_tint[1] - self.ambient_tint[1]) * frame_length / 100,
+            self.ambient_tint[0] + (frame_tint[2] - self.ambient_tint[2]) * frame_length / 100
+        )
+        self.ambient_tint_int = (int(self.ambient_tint[0]), int(self.ambient_tint[1]), int(self.ambient_tint[2]))
 
         if frame_random(frame_length, 5) == 1:
             self.light.add_mist_particle(self.player.x, self.player.y, color=self.player.color)
@@ -297,7 +306,7 @@ class World:
 
         self.light.draw_gradient(layer, frame, self.player.color, self.player.x, self.player.y, offset_x=offset_x, offset_y=offset_y)
 
-        scratch_layer.fill(self.terrain.get_frame_color(layer, frame))
+        scratch_layer.fill(self.ambient_tint_int)
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
 
         self.light.draw_effects(layer, frame, offset_x=offset_x, offset_y=offset_y)

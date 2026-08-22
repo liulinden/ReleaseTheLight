@@ -415,6 +415,7 @@ class Game:
                 laser_pos,
                 self.kind_visibility,
                 self.game_world.foreground_alpha,
+                self.game_world.ambient_tint_int,
             )
 
             # tick game

@@ -20,7 +20,13 @@ def main():
     pygame.display.set_caption(config.WINDOW_NAME)
     pygame.display.set_icon(pygame.image.load(config.WINDOW_ICON_PATH))
 
-    game = Game(pygame.display.set_mode((0, 0), pygame.HIDDEN), fps=100, full_world=False, loading_screen=loading_screen, dev_mode=config.DEV_MODE)
+    info = pygame.display.Info()
+    print(info)
+    aspect_ratio = info.current_h / info.current_w
+    window_size = (1500, int(1500 * aspect_ratio))
+    flags = pygame.OPENGL | pygame.DOUBLEBUF | pygame.FULLSCREEN | pygame.SCALED
+
+    game = Game(pygame.display.set_mode(window_size, pygame.HIDDEN | flags), fps=100, full_world=False, loading_screen=loading_screen, dev_mode=config.DEV_MODE)
 
     did_user_quit_during_loading = False
 
@@ -39,7 +45,7 @@ def main():
         # Game.render_surface. Once this flag is set, the Surface set_mode
         # returns can no longer be blitted onto directly, which is why
         # everything now draws onto Game.render_surface instead.
-        window = pygame.display.set_mode((0, 0), pygame.OPENGL | pygame.DOUBLEBUF)
+        window = pygame.display.set_mode(window_size, flags)
         gl_present.init()
         # needs real asset data (game.setup(), above, already loaded it) and
         # _ctx (gl_present.init(), just above) -- uploads foreground/

@@ -1074,9 +1074,9 @@ class Terrain:
     # ------------------------------------------------------------------
 
     # def draw_depth_background(self, surface, frame, offset_x=0, offset_y=0):
-    def get_frame_color(self, surface, frame, offset_x=0, offset_y=0):
+    def get_frame_color(self, size, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
-        w, h = surface.get_size()
+        w, h = size
         cx = left + w / zoom / 2
         cy = top + h / zoom / 2
 

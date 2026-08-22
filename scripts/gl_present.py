@@ -71,6 +71,8 @@ of the scene+bloom+foreground composite as a separate final draw, with GL
 blending enabled just for that one draw call.
 """
 
+import math
+
 import moderngl
 import numpy as np
 import pygame
@@ -91,6 +93,8 @@ _ui_tex_size = None
 
 _foreground_tex = None
 _thick_tex = None
+_fog_tex = None
+_vignette_tex = None
 
 # bloom render targets, keyed by size
 _bloom_fbos = {}
@@ -109,6 +113,33 @@ BLOOM_UPDATE_INTERVAL = 2  # recompute every Nth present() call; reuse the exist
 # hand since they're now split across CPU and shader code)
 FG_WORLD_SIZE = 10000  # was pygame.transform.scale(foreground_raw, (10000, 10000)) in world.py
 TG_WORLD_SIZE = 300  # was `size = 300` in Lighting.__init__
+
+# -- foreground fog tuning --
+# foreground_fog.png is 4096x2048, authored as two identical 2048-wide
+# copies side by side specifically so it can be panned with a hard modulo
+# wrap at the half-width (2048) instead of the full width -- the wrapped
+# frame is pixel-identical to the un-wrapped one, so the reset is
+# guaranteed invisible (unlike a "normal" seamless tile, which only looks
+# right at the wrap point if its two edges happen to match). It was
+# cropped from a 4096x4096 source (empty top half trimmed off), so it's
+# not square -- see sample_fog's vertical math in the composite shader.
+FOG_TEX_HALF = 2048.0
+FOG_SCROLL_SPEED = 40.0  # texels/sec it pans right at
+FOG_ALPHA = 0.5  # 0..1, overall strength of the fog tint
+FOG_PARALLAX = 1.8  # vs. foreground_tex's fixed 6 (see fg_x) -- fog reads as farther from
+# the camera than foreground, so it should drift by less for the same camera movement
+
+# second fog layer -- same texture, panned the opposite way (negative speed
+# and parallax) for a cheap two-layer drifting-clouds look; independently
+# tunable in case the second layer should read as a different depth/pace
+FOG2_SCROLL_SPEED = -60
+FOG2_ALPHA = FOG_ALPHA
+FOG2_PARALLAX = 1.2
+
+# how strongly Terrain's screen-edge vignette darkens the fog layers -- 0
+# leaves fog untouched by it, 1 is the same full-strength darkening the
+# terrain layer gets (see FOG_VIGNETTE_STRENGTH's use in the composite shader)
+FOG_VIGNETTE_STRENGTH = 0.4
 
 _VERTEX_SHADER = """
 #version 330
@@ -181,6 +212,8 @@ uniform sampler2D scene;
 uniform sampler2D bloom;
 uniform sampler2D foreground_tex;
 uniform sampler2D thick_tex;
+uniform sampler2D fog_tex;
+uniform sampler2D vignette_tex;
 uniform vec2 window_size;
 uniform int kind_visibility;
 uniform float foreground_alpha;  // 0..1
@@ -190,6 +223,12 @@ uniform vec2 tg_player_pos;
 uniform float tg_size;
 uniform int has_laser;
 uniform vec2 tg_laser_pos;
+uniform float fog_pan;           // texels, 0..2048 -- see FOG_TEX_HALF comment in gl_present.py
+uniform float fog_alpha;         // 0..1
+uniform float fog_pan2;          // second fog layer, same texture, panned independently (opposite direction)
+uniform float fog_alpha2;        // 0..1
+uniform vec3 ambient_tint;       // 0..1, World.ambient_tint_int / 255
+uniform float fog_vignette_strength;  // 0..1, see FOG_VIGNETTE_STRENGTH in gl_present.py
 in vec2 uv;
 out vec4 f_color;
 
@@ -205,12 +244,67 @@ vec4 sample_box(sampler2D tex, vec2 screen_px, vec2 box_pos, float box_size) {
     return texture(tex, local / box_size).rgba;
 }
 
+// fog_tex is 4096x2048 (the doubled-width trick only applies horizontally
+// -- see FOG_TEX_HALF comment above). It spans window_size.x, stretching
+// one 2048-wide half across it and panning through it. Vertically it's
+// scaled by that same x-derived factor (not independently stretched to
+// window_size.y, which would distort it) and anchored to the bottom of
+// the screen, growing upward -- if the texture's scaled height falls
+// short of window_size.y, the gap above it samples nothing (transparent).
+vec4 sample_fog(vec2 screen_px, float pan) {
+    float scale = window_size.x / 2048.0;  // screen px per texel
+    float texel_x = mod(screen_px.x / scale - pan, 2048.0);
+
+    float texel_y = 2048.0 - (window_size.y - screen_px.y) / scale;
+    if (texel_y < 0.0 || texel_y >= 2048.0) {
+        return vec4(0.0);
+    }
+
+    return texture(fog_tex, vec2(texel_x / 4096.0, texel_y / 2048.0)).rgba;
+}
+
+// replicates Terrain.draw_vignette exactly: vignette_img smoothscaled to
+// fill the window and multiply-blended -- a plain screen-space stretch, so
+// (unlike sample_box/sample_fog) it needs no footprint/box math at all.
+vec4 sample_vignette(vec2 screen_px) {
+    return texture(vignette_tex, screen_px / window_size).rgba;
+}
+
 void main() {
     vec4 c = texture(scene, uv).bgra;
     vec4 b = texture(bloom, vec2(uv.x, 1.0 - uv.y));
 
     if (kind_visibility == 0) {
         vec2 screen_px = vec2(uv.x * window_size.x, uv.y * window_size.y);
+
+        // fog goes down first, underneath foreground/thick-gradient -- it's
+        // composited as a true alpha "over" (not folded into the multiply
+        // chain below), since a multiply can only ever darken and so
+        // couldn't put visible grey haze over near-black scene pixels
+        // (0 * mult is still 0). This can brighten a dark scene, which is
+        // the point. Two independent layers of the same texture, panned in
+        // opposite directions (see fog_pan/fog_pan2 in present()) for a
+        // cheap parallax-y drifting-cloud-layers look, each blended over
+        // the other in turn.
+        vec4 vignette = sample_vignette(screen_px);
+        // full-strength vignette.rgb is Terrain's own darkening; mix it
+        // toward white (no-op) by fog_vignette_strength so fog is only
+        // partially affected instead of getting the same hard edge falloff
+        vec3 fog_tint = ambient_tint * mix(vec3(1.0), vignette.rgb, fog_vignette_strength);
+
+        vec4 fog = sample_fog(screen_px, fog_pan);
+        float fog_a = fog.a * fog_alpha;
+        // tinted by the same ambient color World.py multiplies the rest of
+        // the scene by (see World.tick's ambient_tint/scratch_layer fill)
+        // and darkened by the same screen-edge vignette Terrain.draw_vignette
+        // multiplies the terrain layer by, so fog picks up both instead of
+        // staying a flat neutral grey/edge-to-edge regardless of them
+        c.rgb = (fog.rgb * fog_tint) * fog_a + c.rgb * (1.0 - fog_a);
+
+        vec4 fog2 = sample_fog(screen_px, fog_pan2);
+        float fog_a2 = fog2.a * fog_alpha2;
+        c.rgb = (fog2.rgb * fog_tint) * fog_a2 + c.rgb * (1.0 - fog_a2);
+
         vec3 mult = vec3(1.0);
 
         vec4 fg = sample_box(foreground_tex, screen_px, fg_pos, fg_size);
@@ -270,11 +364,13 @@ def load_static_textures():
     """Uploads foreground/gradient_thick once as persistent GPU textures.
     Must be called after global_assets.load_assets() has run (needs the
     real asset data) and after init() (needs _ctx) -- see main.py."""
-    global _foreground_tex, _thick_tex
+    global _foreground_tex, _thick_tex, _fog_tex, _vignette_tex
     from scripts.global_assets import get_asset
 
     _foreground_tex = _upload_static(get_asset("foreground"))
     _thick_tex = _upload_static(get_asset("gradient_thick"))
+    _fog_tex = _upload_static(get_asset("foreground_fog"))
+    _vignette_tex = _upload_static(get_asset("gradient_vignette"))
 
 
 def _upload_static(surf):
@@ -409,7 +505,7 @@ def _foreground_uniforms(frame, offset, player_pos, laser_pos):
     return fg_x, fg_y, tg_size, tg_player_x, tg_player_y, tg_laser_x, tg_laser_y
 
 
-def present(cpu_surface, ui_surface, frame, offset, player_pos, laser_pos, kind_visibility, foreground_alpha):
+def present(cpu_surface, ui_surface, frame, offset, player_pos, laser_pos, kind_visibility, foreground_alpha, ambient_tint):
     """Uploads cpu_surface (the world frame, must be a 32-bit opaque pygame
     Surface -- see Game.render_surface) and ui_surface (the UI overlay, must
     be a 32-bit Surface with real per-pixel alpha -- see Game.ui_surface) as
@@ -420,7 +516,8 @@ def present(cpu_surface, ui_surface, frame, offset, player_pos, laser_pos, kind_
 
     frame is (left, top, zoom); offset is (offset_x, offset_y); player_pos
     is (x, y) in world space; laser_pos is (x, y) in world space or None;
-    foreground_alpha is 0-255 (World.foreground_alpha)."""
+    foreground_alpha is 0-255 (World.foreground_alpha); ambient_tint is an
+    (r, g, b) 0-255 tuple (World.ambient_tint_int) the fog is tinted by."""
     global _bloom_frame_counter
 
     window_size = cpu_surface.get_size()
@@ -439,12 +536,35 @@ def present(cpu_surface, ui_surface, frame, offset, player_pos, laser_pos, kind_
 
     fg_x, fg_y, tg_size, tg_px, tg_py, tg_lx, tg_ly = _foreground_uniforms(frame, offset, player_pos, laser_pos)
 
+    # wall-clock based (not frame_length-accumulated) so the pan rate is
+    # independent of framerate/hit-stop; modulo'd on the CPU rather than
+    # left to grow unboundedly, since pygame.time.get_ticks() keeps
+    # climbing for the whole process lifetime. The "- left * FOG_PARALLAX *
+    # zoom / scale" term adds the same *kind* of camera-parallax motion
+    # foreground_tex gets (see fg_x above, "-left * 6 * zoom" before its own
+    # modulo/centering), but at a smaller factor -- fog reads as farther
+    # from the camera than foreground, so it should drift less for the same
+    # camera movement -- on top of fog's own constant rightward drift.
+    # Python's `%` (not math.fmod, which doesn't wrap negatives into
+    # [0, mod)) handles left being negative.
+    fog_scale = window_size[0] / FOG_TEX_HALF
+    left = frame[0]
+    zoom = frame[2]
+    now = pygame.time.get_ticks() / 1000
+    fog_pan = (now * FOG_SCROLL_SPEED - left * FOG_PARALLAX * zoom / fog_scale) % FOG_TEX_HALF
+    # second layer: same texture/math, opposite drift+parallax constants
+    # (FOG2_SCROLL_SPEED/FOG2_PARALLAX default to the negatives of the
+    # first layer's) -- see sample_fog's two calls in the composite shader
+    fog_pan2 = (now * FOG2_SCROLL_SPEED - left * FOG2_PARALLAX * zoom / fog_scale) % FOG_TEX_HALF
+
     _ctx.screen.use()
     _ctx.disable(moderngl.BLEND)
     _prog_composite["scene"] = 0
     _prog_composite["bloom"] = 1
     _prog_composite["foreground_tex"] = 2
     _prog_composite["thick_tex"] = 3
+    _prog_composite["fog_tex"] = 4
+    _prog_composite["vignette_tex"] = 5
     _prog_composite["window_size"] = window_size
     _prog_composite["kind_visibility"] = 1 if kind_visibility else 0
     _prog_composite["foreground_alpha"] = max(0.0, min(1.0, foreground_alpha / 255))
@@ -454,10 +574,18 @@ def present(cpu_surface, ui_surface, frame, offset, player_pos, laser_pos, kind_
     _prog_composite["tg_size"] = tg_size
     _prog_composite["has_laser"] = 1 if laser_pos is not None else 0
     _prog_composite["tg_laser_pos"] = (tg_lx, tg_ly)
+    _prog_composite["fog_pan"] = fog_pan
+    _prog_composite["fog_alpha"] = FOG_ALPHA
+    _prog_composite["fog_pan2"] = fog_pan2
+    _prog_composite["fog_alpha2"] = FOG2_ALPHA
+    _prog_composite["ambient_tint"] = tuple(max(0.0, min(1.0, c / 255)) for c in ambient_tint)
+    _prog_composite["fog_vignette_strength"] = FOG_VIGNETTE_STRENGTH
     tex.use(0)
     bloom_tex.use(1)
     _foreground_tex.use(2)
     _thick_tex.use(3)
+    _fog_tex.use(4)
+    _vignette_tex.use(5)
     _draw_quad(_prog_composite)
 
     # UI goes on top of everything above, alpha-blended -- this is the one
