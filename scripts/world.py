@@ -203,7 +203,7 @@ class World:
         self.ambient_tint = (
             self.ambient_tint[0] + (frame_tint[0] - self.ambient_tint[0]) * frame_length / 100,
             self.ambient_tint[1] + (frame_tint[1] - self.ambient_tint[1]) * frame_length / 100,
-            self.ambient_tint[0] + (frame_tint[2] - self.ambient_tint[2]) * frame_length / 100,
+            self.ambient_tint[2] + (frame_tint[2] - self.ambient_tint[2]) * frame_length / 100,
         )
         self.ambient_tint_int = (int(self.ambient_tint[0]), int(self.ambient_tint[1]), int(self.ambient_tint[2]))
 
