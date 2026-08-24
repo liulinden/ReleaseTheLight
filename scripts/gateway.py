@@ -4,7 +4,7 @@ import pygame
 
 from config import CHUNK_SIZE
 from scripts.global_assets import get_asset
-from scripts.structure import Structure
+from scripts.structures.structure import Structure
 from scripts.UI import HealthBar
 
 # ---------------------------------------------------------------------------
@@ -27,9 +27,7 @@ def init():
     gateway_imgs["corridorclosed"] = get_asset("gateCorridorClosed")
     gateway_imgs["corridoropened"] = get_asset("gateCorridorOpened")
     gateway_imgs["corridorback"] = get_asset("gateCorridorErase")
-    gateway_imgs["corridorerase"] = get_asset("gateCorridorErase")
     gateway_hitbox_imgs["corridor"] = get_asset("gateCorridorHitbox")
-    gateway_hitbox_imgs["corridorerase"] = get_asset("gateCorridorEraseHitbox")
 
     # entry
     gateway_imgs["entryclosed"] = get_asset("gateEntryClosed")
@@ -38,8 +36,6 @@ def init():
     gateway_imgs["entrycharging3"] = get_asset("gateEntryCharging3")
     gateway_imgs["entryopened"] = get_asset("gateEntryOpened")
     gateway_imgs["entryback"] = get_asset("gateEntryBack")
-    gateway_imgs["entryerase"] = get_asset("gateEntryErase")
-    gateway_hitbox_imgs["entryerase"] = get_asset("gateEntryEraseHitbox")
     gateway_hitbox_imgs["entryclosed"] = get_asset("gateEntryClosedHitbox")
     gateway_hitbox_imgs["entryopened"] = get_asset("gateEntryOpenedHitbox")
     gateway_hitbox_imgs["activator"] = get_asset("gatewayActivatorHitbox")
@@ -48,9 +44,7 @@ def init():
     gateway_imgs["exitclosed"] = get_asset("gateExitClosed")
     gateway_imgs["exitopened"] = get_asset("gateExitOpened")
     gateway_imgs["exitback"] = get_asset("gateExitBack")
-    gateway_imgs["exiterase"] = get_asset("gateExitErase")
     gateway_hitbox_imgs["exit"] = get_asset("gateExitHitbox")
-    gateway_hitbox_imgs["exiterase"] = get_asset("gateExitEraseHitbox")
 
 
 # ---------------------------------------------------------------------------
@@ -72,8 +66,6 @@ class GatewayTile(Structure):
         self._hitbox_surfs = {}
         self._front_surfs = {}
         self._back_surfs = {}
-        self._erase_hitbox_surfs = {}
-        self._erase_surfs = {}
 
     def _scaled_img(self, img, zoom):
         size = int(self.tile_size * zoom)
@@ -84,12 +76,6 @@ class GatewayTile(Structure):
 
     def get_hitbox_surface(self, zoom):
         return self._hitbox_surfs.get(zoom)
-
-    def get_erase_surface(self, zoom):
-        return self._erase_surfs.get(zoom)
-
-    def get_erase_hitbox_surface(self, zoom):
-        return self._erase_hitbox_surfs.get(zoom)
 
     def draw(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
@@ -119,8 +105,6 @@ class CorridorTile(GatewayTile):
             self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["corridor"], zoom)
             self._front_surfs[zoom] = self._scaled_img(gateway_imgs[f"corridor{state}"], zoom)
             self._back_surfs[zoom] = self._scaled_img(gateway_imgs["corridorback"], zoom)
-            self._erase_surfs[zoom] = self._scaled_img(gateway_imgs["corridorerase"], zoom)
-            self._erase_hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["corridorerase"], zoom)
 
     def open(self):
         if not self.opened:
@@ -142,8 +126,6 @@ class ExitTile(GatewayTile):
             self._hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["exit"], zoom)
             self._front_surfs[zoom] = self._scaled_img(gateway_imgs[f"exit{state}"], zoom)
             self._back_surfs[zoom] = self._scaled_img(gateway_imgs["exitback"], zoom)
-            self._erase_surfs[zoom] = self._scaled_img(gateway_imgs["exiterase"], zoom)
-            self._erase_hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["exiterase"], zoom)
 
     def open(self):
         if not self.opened:
@@ -183,8 +165,6 @@ class EntryTile(GatewayTile):
                 img = gateway_imgs["entryclosed"] if stage == 0 else gateway_imgs[f"entrycharging{stage}"]
                 self._front_surfs[zoom] = self._scaled_img(img, zoom)
             self._back_surfs[zoom] = self._scaled_img(gateway_imgs["entryback"], zoom)
-            self._erase_surfs[zoom] = self._scaled_img(gateway_imgs["entryerase"], zoom)
-            self._erase_hitbox_surfs[zoom] = self._scaled_img(gateway_hitbox_imgs["entryerase"], zoom)
 
     def is_laser_hitting_activator(self, wx, wy):
         """Precise check: is world point (wx,wy) inside the activator sub-region?"""

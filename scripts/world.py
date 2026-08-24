@@ -5,7 +5,6 @@ import random
 import pygame
 
 import scripts.cells as cells
-import scripts.elements.elements as elements
 import scripts.elements.spike as spike
 import scripts.elements.vine as vine
 import scripts.enemies._enemy as enemies
@@ -20,10 +19,7 @@ import scripts.terrain as terrain
 import scripts.UI.charge_display as charge_display
 import scripts.UI.interaction_display as interaction_display
 from scripts.global_assets import get_asset
-from scripts.util import dist, frame_random, poisson_count, rotate_and_get_offset
-
-SPIKES_PER_CHUNK = 5  # expected number of spike-placement attempts per chunk that has any air pockets
-VINES_PER_CHUNK = 10  # expected number of vine-placement attempts per chunk that has any air pockets
+from scripts.util import dist, frame_random, rotate_and_get_offset
 
 
 class World:
@@ -94,64 +90,11 @@ class World:
         self.ambient_tint = (0, 0, 0)
         self.ambient_tint_int = (0, 0, 0)
 
-        # generate_elements takes roughly 9x as long as generate_world
-        # (many small placement attempts vs. a bounded number of cave/nest
-        # carves), hence the lopsided split.
-        world_gen_screen, elements_gen_screen = generate_loading_screen.subsections(0, 0.1)
-        self.generate_world(world_gen_screen)
-        self.generate_elements(elements_gen_screen)
+        self.generate_world(generate_loading_screen)
         self.terrain.start_streaming()
 
     def generate_world(self, loading_screen):
-        self.terrain.generate_world(loading_screen)
-
-    def generate_elements(self, loading_screen=None):
-        """Runs once, after cave/nest truth generation is complete. For
-        each chunk that has any air pockets, attempts to place a handful of
-        spikes (count varies per chunk but averages SPIKES_PER_CHUNK over
-        the whole world) hanging below a randomly-picked air pocket in it,
-        the same number of upside-down spikes hanging above one, and a
-        handful of vines (VINES_PER_CHUNK) hanging above one. Each
-        successful spawn also tries to grow into a short row by attempting
-        one more of the same element directly to its left and right."""
-        # attempt_place_element can create new chunks (get_or_create_chunk)
-        # as a side effect, so snapshot before iterating
-        chunks = [chunk for chunk in list(self.terrain.chunks.values()) if chunk.air_pockets]
-        if not chunks:
-            return
-        for i, chunk in enumerate(chunks):
-            for _ in range(poisson_count(SPIKES_PER_CHUNK)):
-                air_pocket = random.choice(chunk.air_pockets)
-                size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
-                placed = elements.attempt_place_element_adjacent_to_air_pocket(self.terrain, spike.Spike, air_pocket, size=size)
-                if placed:
-                    elements.attempt_place_neighbors(self.terrain, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
-            for _ in range(poisson_count(SPIKES_PER_CHUNK)):
-                air_pocket = random.choice(chunk.air_pockets)
-                size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
-                placed = elements.attempt_place_element_adjacent_to_air_pocket(self.terrain, spike.UpsideDownSpike, air_pocket, size=size)
-                if placed:
-                    elements.attempt_place_neighbors(self.terrain, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
-            for _ in range(poisson_count(VINES_PER_CHUNK)):
-                air_pocket = random.choice(chunk.air_pockets)
-                size = random.randint(vine.SIZE_MIN, vine.SIZE_MAX)
-                slack_factor = random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)
-                placed = elements.attempt_place_element_adjacent_to_air_pocket(self.terrain, vine.Vine, air_pocket, size=size, slack_factor=slack_factor)
-                if placed:
-                    elements.attempt_place_neighbors(
-                        self.terrain,
-                        placed,
-                        placed.width / 4,
-                        count=5,
-                        size=size,
-                        slack_factor=slack_factor,
-                        randomize_kwargs=lambda: {"size": random.randint(vine.SIZE_MIN, vine.SIZE_MAX), "slack_factor": random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)},
-                    )
-            if loading_screen is not None:
-                loading_screen.put((i + 1) / len(chunks), f"Generating elements ({i + 1}/{len(chunks)} chunks)")
-
-    # def generate_next_layer(self):
-    #    self.terrain.generate_layer(1)
+        self.terrain.generate_world(loading_screen, spawn_x=self.player.x)
 
     def _get_world_layer(self, real_window_size):
         if self._world_layer is None or self._world_layer_size != real_window_size:
@@ -304,6 +247,7 @@ class World:
         self.draw_background(scratch_layer, window_size, frame)
 
         # struct back elements (behind terrain)
+        self.terrain.draw_structures_back(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
         self.terrain.draw_elements_back(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
         layer.blit(scratch_layer, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
@@ -338,6 +282,12 @@ class World:
         # lets terrain naturally occlude the buried parts of the element and
         # only show whatever actually hangs out into open/carved space.
         self.terrain.draw_elements_front(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
+
+        # structures-front draws after elements-front (in front of it), for
+        # the same buried-in-rock occlusion reason as above -- structures
+        # still need draw_terrain's blit after them to occlude any part of
+        # their own front visual meant to look embedded.
+        self.terrain.draw_structures_front(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)
 
         self.terrain.draw_terrain(window_size, layer, frame, hitboxes=hitboxes, real_window_size=real_window_size, offset_x=offset_x, offset_y=offset_y)
 

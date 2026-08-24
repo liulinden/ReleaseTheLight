@@ -258,11 +258,32 @@ def _find_blocking_air_pocket(_terrain, rect, cx, cy, search_radius):
     return None
 
 
+def _find_blocking_erase_rect(_terrain, rect):
+    """First nearby structure erase_rect overlapping rect, or None -- same
+    role as _find_blocking_air_pocket, but for a structure's carved-out
+    interior (see Terrain.carve_structure_erase_rects). Generation always
+    places structures before elements, so these are already-committed truth
+    data by the time any element placement runs, and should block grounding
+    exactly like an air pocket does. Unlike air pockets, erase_rects are
+    registered into precisely the chunks they geometrically touch (no
+    true_r-sized overshoot to account for), so a plain chunk-rect scan over
+    rect's own bounds is enough -- no search_radius needed."""
+    for row, col in _terrain._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=0):
+        chunk = _terrain.chunks.get((row, col))
+        if chunk is None:
+            continue
+        for erase_rect in chunk.erase_rects:
+            if rect.colliderect(erase_rect):
+                return erase_rect
+    return None
+
+
 def attempt_place_element(_terrain, element_cls, x, y, *args, **kwargs):
     """Try to place an element of type element_cls at (x, y). "Grounded"
-    means the element's anchor rect overlaps NO air pockets at all --
-    checked purely against each nearby air pocket's own (x, y, r), no
-    pixel sampling. The candidate anchor rect is built via
+    means the element's anchor rect overlaps NO air pockets and NO structure
+    erase_rects at all -- checked purely against each nearby air pocket's
+    own (x, y, r) / erase_rect's own bounds, no pixel sampling. The
+    candidate anchor rect is built via
     element_cls.get_placement_geometry (cheap, no instantiation) so a
     rejected placement never pays for the real object's construction
     (image loads/scales, etc). On success the element is constructed for
@@ -276,6 +297,8 @@ def attempt_place_element(_terrain, element_cls, x, y, *args, **kwargs):
 
     search_radius = _anchor_search_radius(anchor_width, anchor_height)
     if _find_blocking_air_pocket(_terrain, anchor_rect, x, y, search_radius) is not None:
+        return False
+    if _find_blocking_erase_rect(_terrain, anchor_rect) is not None:
         return False
 
     # reject placements that overlap an already-placed element's footprint --
@@ -352,7 +375,7 @@ def _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_poc
 
     def find_blocker(x, y):
         rect = pygame.Rect(x - width / 2 + anchor_left, y - height / 2 + anchor_top, anchor_width, anchor_height)
-        return _find_blocking_air_pocket(_terrain, rect, x, y, search_radius)
+        return _find_blocking_air_pocket(_terrain, rect, x, y, search_radius) or _find_blocking_erase_rect(_terrain, rect)
 
     for _ in range(max_steps + 1):
         x = air_pocket.x + width / 2 - anchor_left - anchor_width / 2
@@ -377,6 +400,12 @@ def _attempt_place_element_adjacent_to_air_pocket(_terrain, element_cls, air_poc
             else:
                 return False
             return attempt_place_element(_terrain, element_cls, x, y, *args, **kwargs)
+        if not isinstance(blocker, terrain.AirPocket):
+            # blocked by a structure's carved interior (see
+            # Terrain.carve_structure_erase_rects), not another air pocket --
+            # there's no chain to descend/ascend along the way there is for
+            # overlapping caves, so this starting pocket just doesn't work.
+            return False
         air_pocket = blocker
 
     return False

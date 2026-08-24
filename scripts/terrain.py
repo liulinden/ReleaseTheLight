@@ -9,11 +9,12 @@ import pygame
 import scripts.nest as nest
 import scripts.particles as particles
 from config import CHUNK_SIZE
+from scripts.structures.checkpoint import Checkpoint
 from scripts.cells import Cell, validate_cell_coords
 from scripts.global_assets import get_asset
 from scripts.loading_screen import LoadingScreen
 from scripts.UI.interaction_display import InteractionDisplayManager
-from scripts.util import dist
+from scripts.util import dist, poisson_count
 
 # ------------------------------------------------------------------
 # Architecture overview
@@ -22,8 +23,10 @@ from scripts.util import dist
 #
 #   Chunk.air_pockets / Chunk.nests / Chunk.cells / Chunk.structures
 #       -> truth data. Cheap plain-data objects, no pygame Surfaces.
-#          Generated once for the whole world at startup (generate_world),
-#          and added to incrementally afterwards (player mining).
+#          Generated once for the whole world at startup (generate_world,
+#          which runs generate_terrain -> generate_structures ->
+#          generate_elements in that order), and added to incrementally
+#          afterwards (player mining).
 #
 #   Chunk.visuals[zoom] -> derived pygame Surfaces (the pretty rendered
 #          art), built lazily from truth data the first time a chunk is
@@ -44,6 +47,23 @@ from scripts.util import dist
 max_air_pocket_radius = 120
 rim_pocket_ratio = 1.5
 rocks_world_span = 2 * CHUNK_SIZE
+
+# Structure erase-rect carving (see Terrain.carve_structure_erase_rects) --
+# fixed regardless of structure/rect size. Border pockets vary between these
+# two, interior pockets aren't used at all (the interior is carved as a
+# plain rect, disguised by the border pockets around it).
+STRUCTURE_CARVE_MIN_R = 20
+STRUCTURE_CARVE_MAX_R = 60
+
+# generate_elements -- expected number of spike/vine-placement attempts per
+# chunk that has any air pockets
+SPIKES_PER_CHUNK = 1
+VINES_PER_CHUNK = 10
+
+# generate_structures -- world-space y of the guaranteed spawn Checkpoint,
+# fixed regardless of spawn_x or the player's own spawn y (see
+# Terrain.generate_structures)
+CHECKPOINT_DEPTH = 400
 
 
 PALETTE = [
@@ -169,6 +189,7 @@ class Chunk:
         "cells",
         "structures",
         "elements",
+        "erase_rects",
         "visuals",
         "mask",
         "built",
@@ -185,6 +206,7 @@ class Chunk:
         self.cells = []
         self.structures = []  # future: generic solid structures (was gateway tiles)
         self.elements = []  # breakable elements (spikes, fire, vines, decorative terrain, ...)
+        self.erase_rects = []  # plain-rect carves from structure.erase_rects -- see Terrain.carve_structure_erase_rects
         self.visuals = {}  # dict[zoom] -> Surface, populated once built
         self.mask = None  # single native-resolution pygame.mask.Mask, collision truth, populated once built
         self.built = False
@@ -238,6 +260,74 @@ class AirPocket:
 
     def close(self, x, y, radius):
         return math.dist((self.x, self.y), (x, y)) < radius + self.r
+
+
+# ------------------------------------------------------------------
+# Structure erase-rect border planning -- pure geometry, no chunk/pygame
+# state, so it's cheap to call and easy to reason about on its own. Mirrors
+# how elements.py keeps its placement math as plain module-level functions.
+# See Terrain.carve_structure_erase_rects for how this feeds add_air_pocket.
+# ------------------------------------------------------------------
+
+# Distance from each corner over which a border pocket's radius ramps from
+# STRUCTURE_CARVE_MIN_R up to STRUCTURE_CARVE_MAX_R -- reusing the max as the
+# ramp length keeps this one fewer magic number, and gives a full, visible
+# taper rather than an abrupt jump right at the corner.
+_BORDER_TAPER_DIST = STRUCTURE_CARVE_MAX_R
+_BORDER_JITTER_R = (STRUCTURE_CARVE_MAX_R - STRUCTURE_CARVE_MIN_R) * 0.25
+
+
+def _border_taper_radius(d, length):
+    """Target radius for a border pocket at distance d along an edge of the
+    given length, before jitter: MIN_R at both corners, ramping up to MAX_R
+    over _BORDER_TAPER_DIST -- softening corners while leaning larger
+    (fewer pockets) along the rest of the edge. Short edges just never
+    reach MAX_R (the two ramps meet in the middle), which is fine."""
+    ramp = min(d, length - d, _BORDER_TAPER_DIST) / _BORDER_TAPER_DIST
+    return STRUCTURE_CARVE_MIN_R + (STRUCTURE_CARVE_MAX_R - STRUCTURE_CARVE_MIN_R) * ramp
+
+
+def _walk_border_edge(pockets, start, direction, perp, length):
+    """Appends (x, y, r) pockets walking from one corner of an edge to the
+    other (exclusive of both ends -- corners get their own explicit pocket,
+    see _plan_border_pockets). direction/perp are unit vectors (along the
+    edge, and outward off the edge, respectively). Step size scales with
+    each pocket's own radius, so bigger pockets naturally space out more.
+
+    Perpendicular jitter only ever pushes a pocket further outward (deeper
+    into the surrounding rock), never inward: carve_structure_erase_rects's
+    core rect is inset by exactly STRUCTURE_CARVE_MIN_R, on the assumption
+    that every border pocket reaches at least that far inward from the edge
+    line. A pocket centered ON the edge reaches its own radius inward, so
+    jittering it outward eats into that -- capping the outward jitter at
+    (r - STRUCTURE_CARVE_MIN_R) keeps the worst case (a MIN_R pocket,
+    jittered fully outward) still reaching exactly MIN_R inward, with no
+    gap between the border ring and the core it's meant to meet."""
+    d = STRUCTURE_CARVE_MIN_R * 1.3
+    while d < length - STRUCTURE_CARVE_MIN_R * 1.3:
+        r = _border_taper_radius(d, length) + random.uniform(-_BORDER_JITTER_R, _BORDER_JITTER_R)
+        r = max(STRUCTURE_CARVE_MIN_R, min(STRUCTURE_CARVE_MAX_R, r))
+        perp_offset = random.uniform(0, 1) * (r - STRUCTURE_CARVE_MIN_R)
+        x = start[0] + direction[0] * d + perp[0] * perp_offset
+        y = start[1] + direction[1] * d + perp[1] * perp_offset
+        pockets.append((x, y, r))
+        d += r * 1.3
+
+
+def _plan_border_pockets(rect):
+    """Plans the full set of (x, y, r) air pockets lining rect's perimeter:
+    one small, corner-softening pocket at each corner, plus a taper-sized,
+    jittered walk along each of the 4 edges. Doesn't touch the interior --
+    see Terrain.carve_structure_erase_rects, which carves that as a plain
+    rect instead, relying on this border to hide its sharp edges."""
+    pockets = [(x, y, STRUCTURE_CARVE_MIN_R) for x, y in (rect.topleft, rect.topright, rect.bottomleft, rect.bottomright)]
+
+    _walk_border_edge(pockets, rect.topleft, (1, 0), (0, -1), rect.width)  # top, outward = up
+    _walk_border_edge(pockets, rect.bottomleft, (1, 0), (0, 1), rect.width)  # bottom, outward = down
+    _walk_border_edge(pockets, rect.topleft, (0, 1), (-1, 0), rect.height)  # left, outward = left
+    _walk_border_edge(pockets, rect.topright, (0, 1), (1, 0), rect.height)  # right, outward = right
+
+    return pockets
 
 
 # ------------------------------------------------------------------
@@ -373,6 +463,19 @@ class Terrain:
                     result.append(e)
         return result
 
+    def _structures_touching_rect(self, rect):
+        seen = set()
+        result = []
+        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=0):
+            chunk = self.chunks.get((row, col))
+            if chunk is None:
+                continue
+            for s in chunk.structures:
+                if id(s) not in seen:
+                    seen.add(id(s))
+                    result.append(s)
+        return result
+
     def _elements_touching_chunks(self, chunks):
         seen = set()
         result = []
@@ -397,34 +500,32 @@ class Terrain:
         return result
 
     # ------------------------------------------------------------------
-    # Structure baking (generic; nothing calls this yet since gateways
-    # were removed, but kept for future structure types)
+    # Structure baking
     # ------------------------------------------------------------------
 
-    def reblit_structure_on_chunks(self, structure, erase=True):
-        for row, col in self._chunks_in_rect(structure.left, structure.top, structure.width, structure.height, pad=1):
+    def reblit_structure_on_chunks(self, structure):
+        """Registers structure into every chunk its registration_rect
+        (footprint + erase_rects) touches, mirroring how
+        elements.attempt_place_element registers an element across its own
+        footprint + anchor. Re-callable (e.g. a gateway tile re-baking
+        after opening) -- guarded by containment check, unlike element
+        registration which only ever runs once per element."""
+        rect = structure.get_registration_rect()
+        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=1):
             chunk = self.get_or_create_chunk(row, col)
             if structure not in chunk.structures:
                 chunk.structures.append(structure)
             if chunk.built:
-                self._bake_structure_into_chunk(chunk, structure, erase)
+                self._bake_structure_into_chunk(chunk, structure)
 
-    def _bake_structure_into_chunk(self, chunk, structure, erase=True):
+    def _bake_structure_into_chunk(self, chunk, structure):
         left, top = chunk.col * CHUNK_SIZE, chunk.row * CHUNK_SIZE
         with chunk.lock:
             if chunk.mask is not None:
-                offset = (int(structure.left - left), int(structure.top - top))
-                erase_hitbox_surf = structure.get_erase_hitbox_surface(1)
-                hitbox_surf = structure.get_hitbox_surface(1)
-                if hitbox_surf is not None:
-                    if erase and erase_hitbox_surf:
-                        chunk.mask.erase(pygame.mask.from_surface(erase_hitbox_surf), offset)
-                    chunk.mask.draw(pygame.mask.from_surface(hitbox_surf), offset)
-            for zoom in self.default_zooms:
-                if zoom in chunk.visuals:
-                    erase_surf = structure.get_erase_surface(zoom)
-                    if erase_surf is not None:
-                        chunk.visuals[zoom].blit(erase_surf, (zoom * (structure.left - left), zoom * (structure.top - top)), special_flags=pygame.BLEND_RGBA_SUB)
+                collide_mask = structure.get_collide_hitbox_mask()
+                if collide_mask is not None:
+                    offset = (int(structure.left - left), int(structure.top - top))
+                    chunk.mask.draw(collide_mask, offset)
 
     def _reblit_solid_structures_on_chunk(self, chunk):
         """Re-apply nests + structures on top of a chunk's collision mask
@@ -437,10 +538,10 @@ class Terrain:
             offset = (int(n.left - left), int(n.top - top))
             chunk.mask.draw(n.hitbox_mask, offset)
         for structure in chunk.structures:
-            hitbox_surf = structure.get_hitbox_surface(1)
-            if hitbox_surf:
+            collide_mask = structure.get_collide_hitbox_mask()
+            if collide_mask is not None:
                 offset = (int(structure.left - left), int(structure.top - top))
-                chunk.mask.draw(pygame.mask.from_surface(hitbox_surf), offset)
+                chunk.mask.draw(collide_mask, offset)
         for element in chunk.elements:
             collide_mask = element.get_collide_hitbox_mask()
             if collide_mask is not None:
@@ -570,6 +671,11 @@ class Terrain:
                 for zoom in self.default_zooms:
                     self._carve_visual(chunk, pocket, zoom)
 
+            for rect in chunk.erase_rects:
+                self._carve_hitbox_rect(chunk, rect)
+                for zoom in self.default_zooms:
+                    self._carve_visual_rect(chunk, rect, zoom)
+
             self._reblit_solid_structures_on_chunk(chunk)
 
             chunk.built = True
@@ -617,6 +723,24 @@ class Terrain:
         mask.blit(rim, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         surf.blit(mask, (l, t))
 
+    def _carve_hitbox_rect(self, chunk, rect):
+        left, top = chunk.col * CHUNK_SIZE, chunk.row * CHUNK_SIZE
+        offset = (int(rect.left - left), int(rect.top - top))
+        chunk.mask.erase(self._get_rect_mask(rect.width, rect.height), offset)
+
+    def _carve_visual_rect(self, chunk, rect, zoom):
+        """Plain rect erase, no rim -- structure erase_rects rely on the
+        border air pockets around them (see carve_structure_erase_rects) to
+        hide the rect's sharp edges, so there's no shading transition to
+        blend here the way a lone air pocket needs its rim for."""
+        left, top = chunk.col * CHUNK_SIZE, chunk.row * CHUNK_SIZE
+        l = zoom * (rect.left - left)
+        t = zoom * (rect.top - top)
+        size = (max(1, int(rect.width * zoom)), max(1, int(rect.height * zoom)))
+        eraser = pygame.Surface(size, pygame.SRCALPHA)
+        eraser.fill((255, 255, 255, 255))
+        chunk.visuals[zoom].blit(eraser, (l, t), special_flags=pygame.BLEND_RGBA_SUB)
+
     def _rebuild_chunk_mask(self, chunk):
         """Recomputes chunk.mask from truth data alone (solid rock, minus
         every air pocket, plus nests/structures/elements drawn back on top)
@@ -633,6 +757,8 @@ class Terrain:
             chunk.mask = pygame.mask.Mask((CHUNK_SIZE, CHUNK_SIZE), fill=True)
             for pocket in chunk.air_pockets:
                 self._carve_hitbox(chunk, pocket)
+            for rect in chunk.erase_rects:
+                self._carve_hitbox_rect(chunk, rect)
             self._reblit_solid_structures_on_chunk(chunk)
 
     def _carve_chunk_incremental(self, chunk, air_pocket):
@@ -718,10 +844,29 @@ class Terrain:
     # World generation (truth-only, one-time)
     # ------------------------------------------------------------------
 
-    def generate_world(self, loading_screen: LoadingScreen = None):
-        """Generates ALL truth data (air pockets, nests, cells) once, up
-        front. Builds no surfaces at all -- surfaces are built lazily by
-        the streaming system as the player explores."""
+    def generate_world(self, loading_screen: LoadingScreen = None, spawn_x=None):
+        """Runs the full world-gen pipeline once, in order:
+        generate_terrain (caves/nests) -> generate_structures (guaranteed,
+        fixed-location structures like the spawn checkpoint) ->
+        generate_elements (spikes/vines, which need the finished
+        air-pocket/erase_rect truth data from the first two passes to know
+        where they can and can't be grounded). spawn_x positions
+        generate_structures's guaranteed structures relative to the
+        player's actual spawn x; defaults to world_width/2 (the player's
+        own default spawn x) if not given."""
+        if loading_screen is not None:
+            terrain_screen, structures_screen, elements_screen = loading_screen.subsections(0, 0.1, 0.12)
+        else:
+            terrain_screen = structures_screen = elements_screen = None
+
+        self.generate_terrain(terrain_screen)
+        self.generate_structures(structures_screen, spawn_x=spawn_x)
+        self.generate_elements(elements_screen)
+
+    def generate_terrain(self, loading_screen: LoadingScreen = None):
+        """Generates ALL cave/nest truth data (air pockets, nests, cells)
+        once, up front. Builds no surfaces at all -- surfaces are built
+        lazily by the streaming system as the player explores."""
 
         print(f"{time.strftime('%H:%M:%S')} - world truth generation starting...")
 
@@ -748,11 +893,11 @@ class Terrain:
                 if random.randint(1, 20) == 1:
                     self.generate_skinny_cave(base_x + random.randint(0, 1000), random.randint(0, int(self.world_height / 3)), random.randint(20, 60), random.random() * 2 * math.pi)
                 if random.randint(1, 20) == 1:
-                    self.generate_skinny_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 90), random.random() * 2 * math.pi)
+                    self.generate_skinny_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 120), random.random() * 2 * math.pi)
                 if random.randint(1, 35) == 1:
-                    self.generate_blob_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 60), random.random() * 2 * math.pi)
+                    self.generate_blob_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 100), random.random() * 2 * math.pi)
                 if random.randint(1, 20) == 1:
-                    self.generate_blob_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height * 2 / 3), self.world_height), random.randint(60, 120), random.random() * 2 * math.pi)
+                    self.generate_blob_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height * 2 / 3), self.world_height), random.randint(60, 150), random.random() * 2 * math.pi)
 
                 y_white = random.randint(500, max(501, self.world_height - 500))
                 denom = self._nest_chance("white", self._depth_fraction(y_white))
@@ -772,6 +917,92 @@ class Terrain:
         print(f"{time.strftime('%H:%M:%S')} - world truth generation complete.")
         if loading_screen is not None:
             loading_screen.put(1, "World generation complete")
+
+    def generate_structures(self, loading_screen=None, spawn_x=None):
+        """Places every guaranteed, fixed-location structure. For now:
+        a single Checkpoint centered under spawn_x (defaults to
+        world_width/2, the player's own default spawn x) at a fixed depth
+        into the generated world -- CHECKPOINT_DEPTH is independent of the
+        player's actual spawn y, which is just how far above the world
+        they free-fall from and differs between dev/normal mode; the
+        checkpoint's own depth shouldn't move with that."""
+        if loading_screen is not None:
+            loading_screen.put(0, "Placing structures")
+
+        spawn_x = self.world_width / 2 if spawn_x is None else spawn_x
+        checkpoint = Checkpoint(spawn_x, CHECKPOINT_DEPTH, self.default_zooms)
+        self.carve_structure_erase_rects(checkpoint)
+        self.reblit_structure_on_chunks(checkpoint)
+
+        # Build every chunk the checkpoint touches right now, synchronously
+        # (safe here -- this runs before start_streaming, same "before the
+        # thread starts" case _build_chunk's own docstring calls out).
+        # Without this, the player can spawn in before the background
+        # streaming worker has caught up to a neighboring chunk the
+        # checkpoint's carve reaches into, showing the flat-red
+        # unbuilt-chunk placeholder (see draw_terrain) right at their own
+        # guaranteed spawn structure.
+        rect = checkpoint.get_registration_rect()
+        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=1):
+            self.build_chunk_now(row, col)
+
+        if loading_screen is not None:
+            loading_screen.put(1, "Structures complete")
+
+    def generate_elements(self, loading_screen=None):
+        """Runs once, after cave/nest truth generation is complete. For
+        each chunk that has any air pockets, attempts to place a handful of
+        spikes (count varies per chunk but averages SPIKES_PER_CHUNK over
+        the whole world) hanging below a randomly-picked air pocket in it,
+        the same number of upside-down spikes hanging above one, and a
+        handful of vines (VINES_PER_CHUNK) hanging above one. Each
+        successful spawn also tries to grow into a short row by attempting
+        one more of the same element directly to its left and right."""
+        # local imports -- scripts.elements.elements imports scripts.terrain
+        # at module level, so importing it back at terrain.py's own module
+        # level would be circular. Neither side touches the other's
+        # contents until these functions actually run, so a plain top-level
+        # import would likely work too, but a local import here sidesteps
+        # the question entirely.
+        import scripts.elements.elements as elements
+        import scripts.elements.spike as spike
+        import scripts.elements.vine as vine
+
+        # attempt_place_element can create new chunks (get_or_create_chunk)
+        # as a side effect, so snapshot before iterating
+        chunks = [chunk for chunk in list(self.chunks.values()) if chunk.air_pockets]
+        if not chunks:
+            return
+        for i, chunk in enumerate(chunks):
+            for _ in range(poisson_count(SPIKES_PER_CHUNK)):
+                air_pocket = random.choice(chunk.air_pockets)
+                size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
+                placed = elements.attempt_place_element_adjacent_to_air_pocket(self, spike.Spike, air_pocket, size=size)
+                if placed:
+                    elements.attempt_place_neighbors(self, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
+            for _ in range(poisson_count(SPIKES_PER_CHUNK)):
+                air_pocket = random.choice(chunk.air_pockets)
+                size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
+                placed = elements.attempt_place_element_adjacent_to_air_pocket(self, spike.UpsideDownSpike, air_pocket, size=size)
+                if placed:
+                    elements.attempt_place_neighbors(self, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
+            for _ in range(poisson_count(VINES_PER_CHUNK)):
+                air_pocket = random.choice(chunk.air_pockets)
+                size = random.randint(vine.SIZE_MIN, vine.SIZE_MAX)
+                slack_factor = random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)
+                placed = elements.attempt_place_element_adjacent_to_air_pocket(self, vine.Vine, air_pocket, size=size, slack_factor=slack_factor)
+                if placed:
+                    elements.attempt_place_neighbors(
+                        self,
+                        placed,
+                        placed.width / 4,
+                        count=5,
+                        size=size,
+                        slack_factor=slack_factor,
+                        randomize_kwargs=lambda: {"size": random.randint(vine.SIZE_MIN, vine.SIZE_MAX), "slack_factor": random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)},
+                    )
+            if loading_screen is not None:
+                loading_screen.put((i + 1) / len(chunks), f"Generating elements ({i + 1}/{len(chunks)} chunks)")
 
     def _nest_chance(self, nest_type, depth_frac):
         rules = BIOME_RULES["default"]["nest_rules"][nest_type]
@@ -939,6 +1170,54 @@ class Terrain:
             self._rebuild_chunk_mask(chunk)
 
         self.particles.spawn_mining_particles(10, (0, 0, 0), element.width / 2, element.x, element.y)
+
+    # ------------------------------------------------------------------
+    # Structure erase-rect carving -- see structure.Structure's own
+    # docstring for what erase_rects mean. Not called from anywhere yet
+    # (no structure is currently registered into the world), but this is
+    # the intended entry point once one is.
+    # ------------------------------------------------------------------
+
+    def carve_structure_erase_rects(self, structure):
+        """Carves every one of structure.get_erase_rects(): a jittered,
+        corner-softened ring of air pockets (see _plan_border_pockets)
+        along the rect's perimeter, sized between STRUCTURE_CARVE_MIN_R and
+        STRUCTURE_CARVE_MAX_R, plus a single plain-rect carve for the
+        interior (inset by STRUCTURE_CARVE_MIN_R -- the smallest possible
+        inward reach of any border pocket, so there's never a gap between
+        the two). The interior is a plain rect rather than more pockets:
+        far cheaper, and its sharp corners never show since the border ring
+        already sits on top of them."""
+        for rect in structure.get_erase_rects():
+            for x, y, r in _plan_border_pockets(rect):
+                self.add_air_pocket(x, y, r, player_made=False, override=True)
+
+            core = rect.inflate(-2 * STRUCTURE_CARVE_MIN_R, -2 * STRUCTURE_CARVE_MIN_R)
+            if core.width > 0 and core.height > 0:
+                self.carve_erase_rect(core)
+
+    def carve_erase_rect(self, rect):
+        """Carves a single plain rect out of terrain truth data (mask +
+        every zoom's visuals), registering it so unbuilt chunks pick it up
+        naturally whenever they're eventually built (mirrors add_air_pocket's
+        own truth-data-first, patch-if-built pattern). No element-destruction
+        check here, unlike a player_made air pocket -- generation always
+        places structures before elements, so there's never an element to
+        destroy yet; see elements.attempt_place_element, which instead
+        treats erase_rects as ungrounded the same way it treats air pockets."""
+        touched_chunks = []
+        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=0):
+            chunk = self.get_or_create_chunk(row, col)
+            chunk.erase_rects.append(rect)
+            touched_chunks.append(chunk)
+
+        for chunk in touched_chunks:
+            if chunk.built:
+                with chunk.lock:
+                    self._carve_hitbox_rect(chunk, rect)
+                    for zoom in self.default_zooms:
+                        self._carve_visual_rect(chunk, rect, zoom)
+                    self._reblit_solid_structures_on_chunk(chunk)
 
     def add_enemy(self, enemy):
         self.enemies.append(enemy)
@@ -1120,6 +1399,23 @@ class Terrain:
         for n in self._nests_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
             if n.close(left + w_width / zoom / 2, top + w_width / zoom / 2, dist(w_width, w_height) / zoom / 2):
                 n.draw(surface, frame, hitbox=hitboxes, offset_x=offset_x, offset_y=offset_y)
+
+    def draw_structures_back(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
+        left, top, zoom = frame
+        w_width, w_height = window_size
+        for s in self._structures_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
+            if hitboxes:
+                s.draw_hitbox(surface, frame, offset_x=offset_x, offset_y=offset_y)
+            else:
+                s.draw_back(surface, frame, offset_x=offset_x, offset_y=offset_y)
+
+    def draw_structures_front(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
+        if hitboxes:
+            return  # already drawn by draw_structures_back -- avoid drawing hitboxes twice
+        left, top, zoom = frame
+        w_width, w_height = window_size
+        for s in self._structures_touching_rect(pygame.Rect(left, top, w_width / zoom, w_height / zoom)):
+            s.draw_front(surface, frame, offset_x=offset_x, offset_y=offset_y)
 
     def draw_elements_back(self, window_size, surface, frame, hitboxes=False, offset_x=0, offset_y=0):
         left, top, zoom = frame

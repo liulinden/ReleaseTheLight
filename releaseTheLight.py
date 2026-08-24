@@ -161,8 +161,22 @@ class Game:
         self.show_fps = self.developing_mode
 
         while running:
-            # get mouse pos
+            # get mouse pos -- pygame.mouse.get_pos() is in the real window's
+            # native-resolution pixel space (see main.py: the actual window
+            # is native-sized, while self.window_width/height and everything
+            # derived from them -- offset_x/offset_y, cam math, etc -- run at
+            # the smaller fixed logical_size gl_present.py upscales onto
+            # it). Rescale into that same logical space here, once, so every
+            # downstream use of mouse_x/mouse_y (coords_window_to_world,
+            # event handling below) is already in the right coordinates.
+            # self.window.get_size() (not self.window_width/height, which
+            # the loading_debug toggle further down temporarily shrinks to
+            # 300x200) is always the true, fixed logical_size.
             mouse_x, mouse_y = pygame.mouse.get_pos()
+            native_w, native_h = pygame.display.get_window_size()
+            logical_w, logical_h = self.window.get_size()
+            mouse_x = mouse_x * logical_w / native_w
+            mouse_y = mouse_y * logical_h / native_h
 
             # player inputs
             self.events = {"left_mouse_down": False, "left_mouse_up": False, "right_mouse_down": False, "right_mouse_up": False, pygame.K_SPACE: False, pygame.K_RIGHT: False, pygame.K_LEFT: False}
