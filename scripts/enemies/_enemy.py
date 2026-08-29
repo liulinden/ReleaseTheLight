@@ -283,7 +283,7 @@ class Enemy:
 
     def tick_damage_and_knockback(self, frame_length, _terrain, player):
         for knockback_circle in _terrain.knockback_circles:
-            pow, x, y, r, falloff = knockback_circle
+            pow, x, y, r, falloff, source = knockback_circle
 
             dx = self.x - x
             dy = self.y - y
@@ -292,14 +292,14 @@ class Enemy:
             d = math.sqrt(dx**2 + dy**2)
             if player.laser:
                 if player.laser.laser_target is self:
-                    self.x_speed += NOMINAL_FRAME_MS * dx / d / self.size * pow / self.knockback_resistance
-                    self.y_speed += NOMINAL_FRAME_MS * dy / d / self.size * pow / self.knockback_resistance
+                    self.x_speed += 16 * dx / d / self.size * pow / self.knockback_resistance
+                    self.y_speed += 16 * dy / d / self.size * pow / self.knockback_resistance
                 elif d < r + self.r:
-                    self.x_speed += NOMINAL_FRAME_MS * dx / d / self.size * pow * falloff / self.knockback_resistance
-                    self.y_speed += NOMINAL_FRAME_MS * dy / d / self.size * pow * falloff / self.knockback_resistance
+                    self.x_speed += 16 * dx / d / self.size * pow * falloff / self.knockback_resistance
+                    self.y_speed += 16 * dy / d / self.size * pow * falloff / self.knockback_resistance
             elif d < r + self.r:
-                self.x_speed += NOMINAL_FRAME_MS * dx / d / self.size * pow * falloff / self.knockback_resistance
-                self.y_speed += NOMINAL_FRAME_MS * dy / d / self.size * pow * falloff / self.knockback_resistance
+                self.x_speed += 16 * dx / d / self.size * pow * falloff / self.knockback_resistance
+                self.y_speed += 16 * dy / d / self.size * pow * falloff / self.knockback_resistance
 
         for damage_circle in _terrain.player_damage_circles:
             pow, x, y, r, falloff = damage_circle

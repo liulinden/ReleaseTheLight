@@ -18,11 +18,16 @@ class Checkpoint(Structure):
     def draw_back(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
         struct_left, struct_top = self._footprint_screen_pos(frame)
-        rect = pygame.Rect(struct_left+55*zoom,struct_top+40*zoom, 40*zoom, 60*zoom)
+        rect = pygame.Rect(struct_left,struct_top, WIDTH*zoom, HEIGHT*zoom)
         pygame.draw.rect(surface, (255,255,255), rect)
 
     def draw_front(self, surface, frame, offset_x=0, offset_y=0):
         left, top, zoom = frame
         struct_left, struct_top = self._footprint_screen_pos(frame)
-        rect = pygame.Rect(struct_left+55*zoom,struct_top+80*zoom, 40*zoom, 20*zoom)
+        rect = pygame.Rect(struct_left,struct_top + HEIGHT*zoom*3/4, WIDTH*zoom, HEIGHT*zoom*1/4)
         pygame.draw.rect(surface, (255,0,0), rect)
+
+    def get_collide_hitbox_surface(self, zoom):
+        t_s = pygame.Surface((WIDTH,HEIGHT))
+        pygame.draw.rect(t_s, (255,255,255), pygame.Rect(0, HEIGHT*zoom*3/4, WIDTH*zoom, HEIGHT*zoom*1/4))
+        return t_s

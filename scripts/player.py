@@ -13,14 +13,15 @@ from scripts.util import channel_bound, charges_to_color, dist, frame_random, ro
 
 SPRITE_WIDTH = 40
 SPRITE_HEIGHT = 40
+SPRITE_RADIUS = dist(40, 40)
 ARM_PIVOT_X = 20
 ARM_PIVOT_Y = 21
 
 COYOTE_TIME = 120  # ms — grace window to jump after walking off a ledge
 GROUND_ACCEL = 0.005
 GROUND_MAX_SPEED = 0.2
-AIR_ACCEL = 0.0015
-AIR_FRICTION = 0.993
+AIR_ACCEL = 0.0012
+AIR_FRICTION = 0.995
 
 NOMINAL_FRAME_MS = 1000 / 60  # knockback circles are one-shot impulses, not continuous forces --
 # baked to a 60fps frame instead of scaling with actual frame_length, which made the "instant"
@@ -238,6 +239,10 @@ class Player:
         self.x_speed = 0
         self.y_speed = 0
         self.set_charges(max(100, 25 * int(self.n_cells * 2 / 3)), 0, 0)
+
+        self.n_cells = 20
+        self.set_charges(25, 0, 0)
+
         self.filter_type = "white"
         self.practical_charges = filter_charges(self.filter_type, self.charges)
         self.laser = None
@@ -415,7 +420,7 @@ class Player:
         self.deal_damage(damage)
         self.pending_hit_stop = HIT_STOP_DURATION
         self.pending_damage_flash = True
-        _terrain.particles.spawn_light_particles(int(damage/4), self.color, 20, self.x, self.y)
+        _terrain.particles.spawn_light_particles(int(damage / 4), self.color, 20, self.x, self.y)
 
     def drain_damage(self, damage):
         self.queued_drain_damage += damage
@@ -429,7 +434,7 @@ class Player:
         self.queued_damage = 0
         self.queued_drain_damage = 0
 
-        self.y_speed = min(1, self.y_speed + 0.0015 * frame_length)
+        self.y_speed = min(0.6, self.y_speed + 0.0015 * frame_length)
         if self.immunity_timer > 0:
             self.immunity_timer -= frame_length
             if self.immunity_timer < 0:
@@ -538,20 +543,37 @@ class Player:
                 if not locked:
                     self.laser_ramps = 0
                 if self.laser.collision:
+                    point = self.laser.collision[0]
+                    x, y = point
                     if self.laser_first_hit:
                         self.pending_hit_stop = max(self.pending_hit_stop, LASER_HIT_STOP_DURATION)
                         self.pending_laser_flash = True
+                        if self.laser.collision[1] in ("enemies", "nests"):
+
+                            # kill tangent velocity
+
+                            dx = self.x - x
+                            dy = self.y - y
+                            if dx == dy == 0:
+                                dy = -1  # circle acts as if it's one pixel below
+                            distance = dist(dx, dy)
+                            dx /= distance
+                            dy /= distance
+
+                            mag_tan = dy * self.x_speed - dx * self.y_speed
+                            mag_norm = max(0, dx * self.x_speed + dy * self.y_speed)
+
+                            self.x_speed = mag_tan * dy + dx * mag_norm
+                            self.y_speed = mag_tan * (-dx) + dy * mag_norm
                     else:
                         self.pending_laser_ramp_flash = True
-                    point = self.laser.collision[0]
-                    x, y = point
                     explosion_size = laser_properties.get_laser_expl(self.laser_attributes, self.laser_first_hit, self.laser_ramps)
                     _terrain.add_air_pocket_clump(x, y, explosion_size, player_made=True, spreading=1 / 5, spawn_particles=self.laser.collision[1] == "ground")
                     if self.laser.collision[1] == "ground":
                         HealthBar.targeted = None
 
                     _terrain.new_knockback_circles.append(
-                        [laser_properties.get_laser_kb(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.kb_range, self.laser_attributes.area_kb_falloff]
+                        [laser_properties.get_laser_kb(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.kb_range, self.laser_attributes.area_kb_falloff, "player"]
                     )
                     _terrain.new_player_damage_circles.append(
                         [laser_properties.get_laser_dmg(self.laser_attributes, self.laser_first_hit, self.laser_ramps), x, y, self.laser_attributes.dmg_range, self.laser_attributes.area_dmg_falloff]
@@ -581,13 +603,18 @@ class Player:
         for knockback_circle in _terrain.knockback_circles:
             dx = self.x - knockback_circle[1]
             dy = self.y - knockback_circle[2]
-            if dx == 0 and dy == 0:
+            if dx == dy == 0:
                 dy = -1  # circle acts as if it's one pixel below
             distance = dist(dx, dy)
-            knockback = knockback_circle[0]
+            dx /= distance
+            dy /= distance
+            knockback = knockback_circle[0] / 5
 
-            self.x_speed += NOMINAL_FRAME_MS * dx / distance * knockback / 60
-            self.y_speed += NOMINAL_FRAME_MS * dy / distance * knockback / 60
+            mag_tan = dy * self.x_speed - dx * self.y_speed
+            mag_norm = dx * self.x_speed + dy * self.y_speed + knockback
+
+            self.x_speed = mag_tan * dy + dx * mag_norm
+            self.y_speed = mag_tan * (-dx) + dy * mag_norm
 
         for nest in _terrain._nests_near(self.x, self.y, 400):
             if nest.stage == nest.max_stage and self.charge_capacity > self.charges[nest.nest_type] and nest.within_effect_radius(self.x, self.y) and nest.charge > 0:

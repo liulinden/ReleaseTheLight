@@ -92,7 +92,7 @@ class Cell:
 
         _terrain.add_air_pocket_clump(x, y, explosion_size, player_made=True, spreading=1 / 5, spawn_particles=True)
         _terrain.new_player_damage_circles.append([damage, x, y, attrs.dmg_range, attrs.area_dmg_falloff])
-        _terrain.new_knockback_circles.append([knockback, x, y, attrs.kb_range, attrs.area_kb_falloff])
+        _terrain.new_knockback_circles.append([knockback, x, y, attrs.kb_range, attrs.area_kb_falloff, "cell"])
 
         # same weighting the player's own laser hits use (base_xpl/8), and the same
         # dmg_range/kb_range pulse pair, just colored by this cell's own stored charge
@@ -103,7 +103,7 @@ class Cell:
     def tick_knockback(self, frame_length, _terrain, player):
         affected = False
         for knockback_circle in _terrain.knockback_circles:
-            pow, x, y, r, falloff = knockback_circle
+            pow, x, y, r, falloff, source = knockback_circle
 
             dx = self.x - x
             dy = self.y - y

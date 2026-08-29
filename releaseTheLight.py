@@ -253,6 +253,8 @@ class Game:
                             self.loading_debug = not self.loading_debug
                         elif event.key == pygame.K_F1:
                             self.crosshair = not self.crosshair
+                        elif event.key == pygame.K_r:
+                            self.game_world.player.reset_player()
 
                 if event.type == pygame.KEYUP:
                     if event.key in self.keys_down:

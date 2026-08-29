@@ -169,7 +169,7 @@ class Vine(elements.Element):
                     push_x += dx / d * strength
                     push_y += dy / d * strength
 
-            for pow_, kx, ky, r, falloff in knockbacks:
+            for pow_, kx, ky, r, falloff, source in knockbacks:
                 dx, dy = px - kx, py - ky
                 d = math.hypot(dx, dy)
                 if 0 < d < r:
