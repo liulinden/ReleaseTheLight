@@ -5,7 +5,7 @@ import pygame
 
 from scripts.global_assets import get_asset
 
-# FIX 2: images loaded in init() after display exists
+# images loaded in init(), after the display exists
 mist_particle_im_gs = []
 light_gradient = None
 
@@ -16,10 +16,9 @@ def init():
     for i in range(5):
         mist_particle_im_gs.append(get_asset("particles_mist_" + str(i + 1)))
     light_gradient = get_asset("gradient_light")
-    # gradient_thick ("thick gradient") used to be loaded here too, for
-    # Lighting.draw_thick_gradient -- that effect now runs on the GPU
-    # instead (see gl_present.py's load_static_textures/present), which
-    # loads its own copy of the asset directly.
+    # gradient_thick ("thick gradient") is loaded and used directly by
+    # gl_present.py's load_static_textures/present -- that effect runs on
+    # the GPU, not here.
 
 def snap_color(color, snap=8):
     return (color[0] // snap * snap, color[1] // snap * snap, color[2] // snap * snap)
@@ -55,10 +54,6 @@ class Lighting:
         self._gradient_size_cache = {}
         for size in (400, 600, 800):  # pre-warm the sizes used every frame for ambient light
             self._get_gradient_lookup(size)
-
-        # NOTE: _gradient_filters / _gradient_premul preallocation removed —
-        # GradientCache now owns caching, keyed by color instead of being
-        # rebuilt from scratch every draw_gradient call.
 
     def _get_gradient_lookup(self, size):
         size = _snap_gradient_size(size)

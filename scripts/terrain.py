@@ -204,7 +204,7 @@ class Chunk:
         self.air_pockets = []
         self.nests = []
         self.cells = []
-        self.structures = []  # future: generic solid structures (was gateway tiles)
+        self.structures = []  # generic solid structures (e.g. gateway tiles)
         self.elements = []  # breakable elements (spikes, fire, vines, decorative terrain, ...)
         self.erase_rects = []  # plain-rect carves from structure.erase_rects -- see Terrain.carve_structure_erase_rects
         self.visuals = {}  # dict[zoom] -> Surface, populated once built
@@ -1018,7 +1018,6 @@ class Terrain:
         y = max(max_air_pocket_radius, min(self.world_height - max_air_pocket_radius, y))
         if size == 0:
             size = random.randint(100, 100 + (y * 150) // self.world_height)
-        # NOTE: nest.Nest no longer takes a layer_index argument.
         new_nest = nest.Nest(self.default_zooms, self.world_height, nest_type, x, y, size)
         rect = new_nest.get_rect()
         for existing in self._nests_touching_rect(rect):
@@ -1173,9 +1172,7 @@ class Terrain:
 
     # ------------------------------------------------------------------
     # Structure erase-rect carving -- see structure.Structure's own
-    # docstring for what erase_rects mean. Not called from anywhere yet
-    # (no structure is currently registered into the world), but this is
-    # the intended entry point once one is.
+    # docstring for what erase_rects mean.
     # ------------------------------------------------------------------
 
     def carve_structure_erase_rects(self, structure):

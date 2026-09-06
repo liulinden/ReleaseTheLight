@@ -93,10 +93,9 @@ def get_bloom(surface, threshold=30, downscale=30, blur_passes=2, intensity=0.5)
         pygame.transform.smoothscale(small, shrink_size, tiny)
         pygame.transform.smoothscale(tiny, small_size, small)
 
-    # --- 4. Apply intensity while still small. This used to run on the
-    #        full-size surface after upscaling (an extra full-resolution
-    #        blend pass); dimming/boosting commutes with scaling, so
-    #        doing it here is visually equivalent and much cheaper. ---
+    # --- 4. Apply intensity while still small. Dimming/boosting commutes
+    #        with scaling, so doing it here (instead of after upscaling)
+    #        is visually equivalent and much cheaper. ---
     if intensity > 1.0:
         for _ in range(int(intensity) - 1):
             small.blit(small, (0, 0), special_flags=pygame.BLEND_RGB_ADD)

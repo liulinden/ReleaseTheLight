@@ -5,7 +5,7 @@ import pygame
 
 
 def init():
-    pass  # impact images now loaded in aplayer.init() and scaled in Player.__init__
+    pass  # impact images are loaded in aplayer.init() and scaled in Player.__init__
 
 
 class Laser:

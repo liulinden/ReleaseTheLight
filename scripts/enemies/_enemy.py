@@ -239,7 +239,7 @@ class Enemy:
                 if self.mode == "attack" and self.animation_frame in self.attack_frames:
                     self.draw_attack_hitbox(surface, frame, offset_x=offset_x, offset_y=offset_y)
         else:
-            # FIX 1: reuse pre-allocated draw filter surface
+            # reuse pre-allocated draw filter surface
             filt = self._draw_filter[zoom]
             filt.fill(self.color)
             filt.blit(self.resized_im_gs[zoom][self.facing][self.mode][self.animation_frame], (0, 0), special_flags=pygame.BLEND_RGBA_MULT)

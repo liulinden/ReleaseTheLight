@@ -213,8 +213,8 @@ class MiningParticle:
 
 class SparkParticle:
     """Exact same spawn/physics/lifetime behavior as MiningParticle, but
-    colorized light_particle.png art instead of black rock debris -- the
-    non-(0, 0, 0) replacement for spawn_mining_particles' old color param."""
+    colorized light_particle.png art instead of black rock debris -- use
+    this for any color besides (0, 0, 0)."""
 
     def __init__(self, color, size, x, y, x_speed=0, y_speed=0, time=500):
         self.color = color

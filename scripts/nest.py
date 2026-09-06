@@ -19,7 +19,7 @@ def load_nest_img_set(id, stages):
     return imgs, get_asset("nest_" + str(id) + "_hitbox")
 
 
-# FIX 2: module-level nestIMGs loaded in init() after display exists
+# module-level image/hitbox caches, populated by init() after display exists
 nest_im_gs = {}
 nest_hitboxes = {}
 
@@ -147,7 +147,7 @@ class Nest:
         self.resized_hitboxes = {}
         self.resized_im_gs = {}
 
-        # FIX 1: pre-allocate filter surfaces for draw() per zoom
+        # pre-allocated filter surfaces for draw(), keyed by zoom
         self._draw_filter = {}
         self._flash_surface = {}
 
@@ -228,7 +228,7 @@ class Nest:
 
         self.update_color()
 
-        # FIX 1: reuse pre-allocated draw filter surface
+        # reuse the pre-allocated draw filter surface
         filt = self._draw_filter[zoom]
         filt.fill(self.color)
         filt.blit(img, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)

@@ -57,16 +57,17 @@ class World:
         creation_loading_screen.put(3 / 6, "Creating lighting object")
         self.light = lighting.Lighting(default_zooms=default_zooms)
         creation_loading_screen.put(4 / 6, "Creating background surfaces")
-        background_raw = get_asset("background_1")
+        background_raw = get_asset("background_4")
         # no transparency in this layer -- .convert() drops the alpha channel
         # get_asset's own .convert_alpha() left it with, so every blit is a
         # straight opaque copy instead of paying for alpha compositing.
         # background_2/foreground keep their alpha (see draw_background/
         # draw_foreground -- they're genuinely translucent layers).
         self.background_1 = pygame.transform.scale(background_raw, (3000, 3000)).convert()
-        background_raw = get_asset("background_2")
-        self.background_2 = pygame.transform.scale(background_raw, (3000, 3000))
-        self.bg_width, self.bg_height = 3000, 3000
+        background_raw = get_asset("background_3")
+        self.background_2 = pygame.transform.scale(background_raw, (6000, 6000))
+        self.bg_size_1 = 3000
+        self.bg_size_2 = 6000
         self.gradient_vertical_raw = get_asset("gradient_vertical")
         self.gradient_vertical = None
         creation_loading_screen.put(1.0, "Object creation complete")
@@ -139,8 +140,7 @@ class World:
 
         player_speed = dist(self.player.x_speed, self.player.y_speed)
         alpha_target = max(0, 255 - 600 * player_speed)
-        # no longer applied to a CPU surface (see gl_present.py) -- this
-        # value is read directly by Game.run() and passed to gl_present.present()
+        # consumed by gl_present.present() (see gl_present.py), not drawn here directly
         self.foreground_alpha += (alpha_target - self.foreground_alpha) * frame_length / (100 if alpha_target < self.foreground_alpha else 1500)
         frame_tint = self.terrain.get_frame_color(window_size, frame)
         self.ambient_tint = (
@@ -213,12 +213,12 @@ class World:
 
     def draw_background(self, layer, window_size, frame):
         left, top, zoom = frame
-        x = (-left * 1 * zoom) % self.bg_width / 2 - self.bg_width / 2
-        y = (-top * 1 * zoom) % self.bg_height / 2 - self.bg_height / 2
+        x = (-left * 1 * zoom) % self.bg_size_1 / 2 - self.bg_size_1 / 2
+        y = (-top * 1 * zoom) % self.bg_size_1 / 2 - self.bg_size_1 / 2
         layer.blit(self.background_1, (x, y))
         # self.draw_vertical_gradient(layer, window_size)
-        x = (-left * 1.8 * zoom) % self.bg_width / 2 - self.bg_width / 2
-        y = (-top * 1.8 * zoom) % self.bg_height / 2 - self.bg_height / 2
+        x = (-left * 1.8 * zoom) % self.bg_size_2 / 2 - self.bg_size_2 / 2
+        y = (-top * 1.8 * zoom) % self.bg_size_2 / 2 - self.bg_size_2 / 2
         layer.blit(self.background_2, (x, y))
 
     def draw_world(self, window, window_size, frame, hitboxes=False, kind_visibility=False, real_window_size=None, offset_x=0, offset_y=0, tilt=0, crosshair=False):
@@ -231,10 +231,10 @@ class World:
         if kind_visibility:
             layer.fill((200, 200, 200))
         else:
-            layer.fill((5, 5, 5))
+            layer.fill((3, 3, 3))
             # self.terrain.draw_depth_background(layer, frame, offset_x=offset_x, offset_y=offset_y)
 
-        self.light.draw_gradient(layer, frame, self.player.color, self.player.x, self.player.y, size=600, offset_x=offset_x, offset_y=offset_y)
+        self.light.draw_gradient(layer, frame, self.player.color, self.player.x, self.player.y, size=400, offset_x=offset_x, offset_y=offset_y)
         if self.player.laser:
             if self.player.laser.collision:
                 cx, cy = self.player.laser.collision[0]
@@ -296,15 +296,10 @@ class World:
         self.player.draw_cell_charge_bar(layer, frame, offset_x=offset_x, offset_y=offset_y)
         self.terrain.draw_interaction_displays(layer, frame, time, offset_x=offset_x, offset_y=offset_y)
 
-        # Foreground darkening + its thick-gradient "clear zone" around the
-        # player/laser used to be applied here (see World.draw_foreground /
-        # Lighting.draw_thick_gradient) as a scratch-surface multiply blit --
-        # it's now computed on the GPU instead, as part of
-        # gl_present.present() (called on this same, still-unmultiplied
-        # layer right after draw_world returns), for the same reason bloom
-        # moved there: it's a clean final pass over the finished frame, and
-        # the GPU does two full-window blits + a multiply far cheaper than
-        # CPU blits can. See gl_present.py.
+        # Foreground darkening and its thick-gradient "clear zone" around the
+        # player/laser are computed on the GPU in gl_present.present(),
+        # called on this same (still-unmultiplied) layer right after
+        # draw_world returns. See gl_present.py.
 
         if crosshair:
             pygame.draw.line(layer, (100, 100, 100, 0.3), (real_window_size[0] * 0.45, real_window_size[1] // 2), (real_window_size[0] * 0.55, real_window_size[1] // 2), 2)
@@ -319,13 +314,8 @@ class World:
             pygame.draw.line(layer, (255, 0, 0), (real_window_size[0] // 2 - size, real_window_size[1] // 2), (real_window_size[0] // 2 + size, real_window_size[1] // 2), 2)
             pygame.draw.line(layer, (255, 0, 0), (real_window_size[0] // 2, real_window_size[1] // 2 - size), (real_window_size[0] // 2, real_window_size[1] // 2 + size), 2)
 
-        # Bloom used to be computed here (see bloom.py) and additively
-        # blitted onto layer as the very last step -- it's now computed on
-        # the GPU instead, as part of gl_present.present() (called on this
-        # same, still-pre-bloom layer right after draw_world returns), for
-        # exactly the same reason bloom.py's own docstring gives for
-        # downscaling before the CPU pixel work: the full-resolution pass is
-        # what dominates the cost, and the GPU does that pass far cheaper
-        # than a numpy round-trip can. See gl_present.py.
+        # Bloom is computed on the GPU in gl_present.present(), called on
+        # this same (still-pre-bloom) layer right after draw_world returns.
+        # See gl_present.py.
 
         return layer

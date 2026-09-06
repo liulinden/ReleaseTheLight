@@ -1,21 +1,20 @@
 """GPU present layer: takes the CPU-composited world frame plus a separate
-CPU-composited UI frame, and does everything from here on (bloom, the
-foreground "grime" overlay + its thick-gradient clear zone around the
-player/laser, and UI compositing) on the GPU in a single present() call.
+CPU-composited UI frame and does bloom, the foreground "grime" overlay (with
+its thick-gradient clear zone around the player/laser), and UI compositing
+on the GPU in a single present() call.
 
 Requires the display to have been created with pygame.OPENGL | pygame.DOUBLEBUF
 (see main.py) -- once that flag is set, the window Surface pygame.display.set_mode
-returns can no longer be blitted onto directly, which is why everything now
-draws onto off-screen Surfaces (see Game.render_surface / Game.ui_surface in
+returns can no longer be blitted onto directly, so everything draws onto
+off-screen Surfaces (see Game.render_surface / Game.ui_surface in
 releaseTheLight.py) that only gl_present.present() ever touches.
 
 Per-frame upload uses Surface.get_view('1') (a zero-copy buffer-protocol view
 of the Surface's raw pixel memory) instead of pygame.image.tostring, which
-would otherwise dominate the cost of this whole step -- tostring does a real
-format-conversion copy (~3.5ms/frame measured at 1920x1080) that get_view
-skips entirely. This only works because render_surface/ui_surface are plain
-32-bit-per-pixel Surfaces (see Game.set_window) -- get_view's raw bytes are
-meaningless without that.
+does a real format-conversion copy (~3.5ms/frame measured at 1920x1080) that
+get_view skips entirely. This only works because render_surface/ui_surface
+are plain 32-bit-per-pixel Surfaces (see Game.set_window) -- get_view's raw
+bytes are meaningless without that.
 
 Pygame's native 32-bit pixel layout is BGRA in memory (not RGBA) -- see the
 .bgra swizzle in every shader that samples a per-frame raw upload (scene,
@@ -27,48 +26,35 @@ with a plain (non-swizzled) .rgba instead.
 
 Bloom
 -----
-Used to be bloom.py's CPU implementation (numpy array ops on a downscaled
-copy). Now a GPU render-to-texture pipeline: downscale + luminance-threshold
-the scene (mipmap-based downscale, since a naive single bilinear tap at this
-downscale factor would lose small bright features), then repeated
-*separable Gaussian* blur passes (horizontal then vertical, each a real
-multi-tap kernel) before compositing back additively. This replaced an
-earlier version that used bloom.py's own shrink/grow-by-bilinear-resample
-trick -- functionally similar, but that trick's repeated hard resampling
-steps read as "pixely" at the tuned downscale/pass values; a proper
-multi-tap blur doesn't have that artifact regardless of how many passes are
-stacked. BLOOM_UPDATE_INTERVAL reproduces the old World.BLOOM_UPDATE_INTERVAL
-caching (recompute only every Nth call, reuse the existing texture
-otherwise -- bloom is a soft, slowly changing glow, recomputing it every
-frame was already known to be wasted work before this all moved to the GPU).
+A GPU render-to-texture pipeline: downscale + luminance-threshold the scene
+(mipmap-based downscale, since a naive single bilinear tap at this downscale
+factor would lose small bright features), then repeated *separable
+Gaussian* blur passes (horizontal then vertical, each a real multi-tap
+kernel) before compositing back additively. BLOOM_UPDATE_INTERVAL recomputes
+bloom only every Nth call and reuses the existing texture otherwise, since
+bloom is a soft, slowly changing glow and recomputing it every frame is
+wasted work.
 
 Foreground + thick gradient
 ----------------------------
-Used to be World.draw_foreground/Lighting.draw_thick_gradient, both plain
-CPU blits onto a scratch surface that started white, multiplied onto the
-finished frame as the very last CPU step. Moved here because -- like bloom
--- it's a clean final pass over the already-finished scene, not entangled
-with the mid-pipeline ambient-lighting/background compositing the way
-background_1/2 are (those stay on the CPU). The composite shader below
-replicates the exact same "white, then foreground-over, then thick-gradient
-(player)-over, then thick-gradient (laser)-over, then multiply onto scene"
-algebra as a small number of texture samples instead of two full-window CPU
-blits + one CPU multiply-blit per frame. foreground/gradient_thick are
-uploaded once as static textures (load_static_textures(), called once after
-assets finish loading) rather than every frame, and rather than the old
-10000x10000 pre-scaled CPU copy (self.foreground in world.py) -- the raw,
-much smaller asset is sampled directly with UV math replicating that same
-10000x10000 effective world-space footprint.
+The composite shader below replicates a "white, then foreground-over, then
+thick-gradient(player)-over, then thick-gradient(laser)-over, then multiply
+onto scene" algebra as a small number of texture samples, matching
+World.draw_foreground / Lighting.draw_thick_gradient. foreground/
+gradient_thick are uploaded once as static textures (load_static_textures(),
+called once after assets finish loading) rather than every frame; the raw,
+small asset is sampled directly with UV math replicating a 10000x10000
+effective world-space footprint (see FG_WORLD_SIZE).
 
 UI compositing
 --------------
-charge_display and the other UI (flash overlay, debug rect, fps text) now
-draw onto their own transparent Surface (Game.ui_surface) instead of being
-baked into render_surface before the foreground multiply -- otherwise the
-foreground/thick-gradient darkening would incorrectly apply to the UI too.
-ui_surface is uploaded as its own per-frame texture and alpha-blended on top
-of the scene+bloom+foreground composite as a separate final draw, with GL
-blending enabled just for that one draw call.
+charge_display and the other UI (flash overlay, debug rect, fps text) draw
+onto their own transparent Surface (Game.ui_surface) rather than being baked
+into render_surface -- otherwise the foreground/thick-gradient darkening
+would incorrectly apply to the UI too. ui_surface is uploaded as its own
+per-frame texture and alpha-blended on top of the scene+bloom+foreground
+composite as a separate final draw, with GL blending enabled just for that
+one draw call.
 """
 
 import moderngl
@@ -106,24 +92,21 @@ BLOOM_BLUR_PASSES = 5
 BLOOM_INTENSITY = 0.8
 BLOOM_UPDATE_INTERVAL = 2  # recompute every Nth present() call; reuse the existing bloom texture otherwise
 
-# world-space footprints replicated from world.py/lighting.py (see their own
-# comments/docstrings for where these numbers come from -- kept in sync by
-# hand since they're now split across CPU and shader code)
-FG_WORLD_SIZE = 10000  # was pygame.transform.scale(foreground_raw, (10000, 10000)) in world.py
-TG_WORLD_SIZE = 300  # was `size = 300` in Lighting.__init__
+# world-space footprints matching world.py/lighting.py -- kept in sync by
+# hand since they're split across CPU and shader code
+FG_WORLD_SIZE = 10000  # side length of the foreground texture's footprint, in world space
+TG_WORLD_SIZE = 300  # side length of the thick-gradient clear zone's footprint, in world space
 
 # -- foreground fog tuning --
-# foreground_fog.png is 4096x2048, authored as two identical 2048-wide
-# copies side by side specifically so it can be panned with a hard modulo
-# wrap at the half-width (2048) instead of the full width -- the wrapped
-# frame is pixel-identical to the un-wrapped one, so the reset is
-# guaranteed invisible (unlike a "normal" seamless tile, which only looks
-# right at the wrap point if its two edges happen to match). It was
-# cropped from a 4096x4096 source (empty top half trimmed off), so it's
-# not square -- see sample_fog's vertical math in the composite shader.
+# foreground_fog.png is 4096x2048: two identical 2048-wide copies side by
+# side, so it can be panned with a hard modulo wrap at the half-width (2048)
+# instead of the full width -- the wrapped frame is pixel-identical to the
+# un-wrapped one, so the reset is guaranteed invisible. It was cropped from
+# a 4096x4096 source (empty top half trimmed off), so it's not square --
+# see sample_fog's vertical math in the composite shader.
 FOG_TEX_HALF = 2048.0
 FOG_SCROLL_SPEED = 90.0  # texels/sec it pans right at
-FOG_ALPHA = 0.4  # 0..1, overall strength of the fog tint
+FOG_ALPHA = 0.3  # 0..1, overall strength of the fog tint
 FOG_PARALLAX = 1.8  # vs. foreground_tex's fixed 6 (see fg_x) -- fog reads as farther from
 # the camera than foreground, so it should drift by less for the same camera movement
 
@@ -183,10 +166,8 @@ uniform float mult;
 in vec2 uv;
 out vec4 f_color;
 
-// 5-tap symmetric Gaussian half-kernel (9 taps total) -- a standard,
-// cheap separable blur kernel. Unlike the old shrink/grow-by-bilinear-
-// resample trick, this has no hard resampling step to lose quality at,
-// so it stays smooth regardless of how many passes are stacked.
+// 5-tap symmetric Gaussian half-kernel (9 taps total) -- a standard, cheap
+// separable blur kernel.
 const float weights[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
 
 void main() {
@@ -232,8 +213,8 @@ out vec4 f_color;
 
 // foreground_tex/thick_tex are static uploads (see load_static_textures --
 // tostring-based, not get_view, so no .bgra swizzle needed) sampled as a
-// single square footprint positioned in screen space, replicating the old
-// CPU blit position math exactly (see gl_present.py module docstring).
+// single square footprint positioned in screen space (see
+// _foreground_uniforms in gl_present.py).
 vec4 sample_box(sampler2D tex, vec2 screen_px, vec2 box_pos, float box_size) {
     vec2 local = screen_px - box_pos;
     if (local.x < 0.0 || local.y < 0.0 || local.x >= box_size || local.y >= box_size) {
@@ -328,11 +309,7 @@ void main() {
 # TRIANGLE_STRIP. V is flipped here (bottom-of-screen vertices sample v=1,
 # top sample v=0) to correct for the mismatch between pygame's row-0-is-top
 # surface layout and OpenGL's row-0-is-bottom texture convention -- without
-# this the image renders upside down. (An earlier version of this file had
-# it the other way around based on a Framebuffer.read()-based check that
-# looked correct but wasn't actually representative of what lands on the
-# physical screen -- confirmed wrong by actually looking at the running
-# game. Trust what's on screen over a readback comparison.)
+# this the image renders upside down.
 _QUAD = np.array(
     [-1, -1, 0, 1, 1, -1, 1, 1, -1, 1, 0, 0, 1, 1, 1, 0],
     dtype="f4",
@@ -438,12 +415,11 @@ def _compute_bloom(window_size):
     # downscale + luminance threshold in one pass. This downscale is
     # aggressive (BLOOM_DOWNSCALE=10x), so a plain single-tap sample here
     # would silently lose small bright features entirely (a 15px bright
-    # spot at 10x downscale is sub-pixel) -- unlike bloom.py's own
-    # pygame.transform.smoothscale, which does proper area-averaging. Build
-    # mipmaps and let GL's automatic LOD selection pick a properly
-    # pre-averaged mip level instead (this IS what mipmaps are for);
-    # restored to NEAREST right after, since every other sampling of this
-    # texture elsewhere is intentionally exact 1:1 (see _get_scene_texture).
+    # spot at 10x downscale is sub-pixel). Build mipmaps and let GL's
+    # automatic LOD selection pick a properly pre-averaged mip level
+    # instead; restored to NEAREST right after, since every other sampling
+    # of this texture elsewhere is intentionally exact 1:1 (see
+    # _get_scene_texture).
     _scene_tex.filter = (moderngl.LINEAR_MIPMAP_LINEAR, moderngl.LINEAR)
     _scene_tex.build_mipmaps()
     small_fbo.use()
@@ -455,9 +431,9 @@ def _compute_bloom(window_size):
 
     # separable Gaussian blur: each pass is one horizontal + one vertical
     # multi-tap sample, ping-ponging between small_fbo/ping_fbo. Stacking
-    # passes widens the effective blur (each pass is itself a real Gaussian,
-    # not a lossy resample), which is what fixed the "pixely" look the old
-    # shrink/grow-by-bilinear-resample trick had.
+    # passes widens the effective blur without introducing resampling
+    # artifacts, since each pass is itself a real Gaussian, not a lossy
+    # resample.
     texel_size = (1.0 / small_size[0], 1.0 / small_size[1])
     _prog_blur["tex"] = 0
     _prog_blur["texel_size"] = texel_size
