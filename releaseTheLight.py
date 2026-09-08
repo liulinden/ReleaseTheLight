@@ -115,7 +115,14 @@ class Game:
 
         focus_half_w = half_win_w * 0.1
         dir = math.cos(player.arm_angle)
-        focus_x = - dir * 0.5 * half_win_w
+        if -0.5 < dir < 0.5:
+            dir = 0
+        elif dir > 0:
+            dir = (dir - 0.5)
+        else:
+            dir = (dir + 0.5)
+
+        focus_x = - dir * half_win_w
         #if dir > 0.8:
         #    focus_x = - half_win_w * 0.4
         #elif dir < -0.8:
