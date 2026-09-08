@@ -49,6 +49,7 @@ class Game:
 
         self.cam_scroll_x_active = False
         self.cam_scroll_y_active = False
+        self.cam_focus = "neutral" #left, right, neutral, laser
 
         # set up variables
         self.mode = "play"
@@ -114,36 +115,51 @@ class Game:
         player_y = player.y
 
         focus_half_w = half_win_w * 0.1
-        dir = math.cos(player.arm_angle)
-        if -0.5 < dir < 0.5:
-            dir = 0
-        elif dir > 0:
-            dir = (dir - 0.5)
+        focus_half_h = half_win_h * 0.2
+        if player.laser:
+            if player.laser.collision and math.dist(player.laser.collision[0], (player.x, player.y)) > math.hypot(half_win_w,  half_win_h) * 0.2:
+                self.cam_focus = "laser"
         else:
-            dir = (dir + 0.5)
+            if self.cam_focus == "laser":
+                self.cam_focus = "neutral"
+                self.cam_scroll_x_active = False
 
-        focus_x = - dir * half_win_w
-        #if dir > 0.8:
-        #    focus_x = - half_win_w * 0.4
-        #elif dir < -0.8:
-        #    focus_x = half_win_w * 0.4
-        #else:
-        #    focus_x = 0
+        if self.cam_focus == "laser":
+            focus_x = - math.cos(player.arm_angle) * 0.5 * half_win_w
+            focus_y = math.sin(player.arm_angle) * 0.5 * half_win_h
+        else:
+            focus_y = 0
+            if player.x_speed > 0.1:
+                if self.cam_focus != "right":
+                    self.cam_focus = "right"
+                    self.cam_scroll_x_active = False
+                focus_x = - half_win_w * 0.5
+            elif player.x_speed < -0.1:
+                if self.cam_focus != "left":
+                    self.cam_focus = "left"
+                    self.cam_scroll_x_active = False
+                focus_x = half_win_w * 0.5
+            else:
+                if self.cam_focus != "neutral":
+                    self.cam_focus = "neutral"
+                    self.cam_scroll_x_active = False
+                focus_x = 0
+                focus_half_w = half_win_w * 0.5
 
         if not (focus_x - focus_half_w < player_x - cam_center_x < focus_x + focus_half_w):
             self.cam_scroll_x_active = True
 
-        if not (-half_win_h * 0.3 < player_y - cam_center_y < half_win_h * 0.1):
+        if not (focus_y - focus_half_h < player_y - cam_center_y < focus_y + focus_half_h):
             self.cam_scroll_y_active = True
 
         goal_x = player_x - focus_x
-        goal_y = player_y + half_win_h * 0.1
+        goal_y = player_y - focus_y
         if not half_win_w > half_width:
             goal_x = max(-half_width + half_win_w, min(half_width - half_win_w, goal_x))
         goal_y = max(-100, min(max_y, goal_y))
 
         if self.cam_scroll_x_active:
-            d = (goal_x - cam_center_x) * 1.5
+            d = (goal_x - cam_center_x) * 2
             self.cam_x += d * frame_length / 1000
             if abs(d) <= 1:
                 self.cam_scroll_x_active = False

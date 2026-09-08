@@ -105,6 +105,7 @@ class Laser:
             self.hitboxes.append((wx, wy))
             distance += step
 
+        self.collision = ([(wx, wy), None])
         return distance + step / 2
 
     def update_laser(self, terrain, start_x, start_y, angle, length=None, laser_cooldown=None):
