@@ -673,10 +673,13 @@ class Player:
                 self.x_speed += AIR_ACCEL * frame_length
             self.x_speed *= AIR_FRICTION**frame_length
 
-        if self.x < 50:
-            self.x_speed += (50 - self.x) / 10000 * frame_length
-        elif self.x > _terrain.world_width - 50:
-            self.x_speed -= (self.x - _terrain.world_width + 50) / 10000 * frame_length
+        # world span is centered on the origin -- see MASTER_CAVE_ORIGIN in terrain.py
+        left_edge = -_terrain.world_width / 2 + 50
+        right_edge = _terrain.world_width / 2 - 50
+        if self.x < left_edge:
+            self.x_speed += (left_edge - self.x) / 10000 * frame_length
+        elif self.x > right_edge:
+            self.x_speed -= (self.x - right_edge) / 10000 * frame_length
 
         self.move_vertical(frame_length, _terrain)
         self.move_horizontal(frame_length, _terrain)

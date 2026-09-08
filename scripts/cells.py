@@ -55,6 +55,12 @@ class Cell:
         self.animation_timer = 0
         self.frame = 1
 
+        # (row, col) of the chunk this cell is stored under -- set by
+        # Terrain.add_cell right after construction. Cells never migrate
+        # chunks as they move (see Terrain.remove_cell), so this is the only
+        # way to find which chunk's cells list holds a given cell again.
+        self.origin_chunk_key = None
+
         # charge this cell holds -- restored to the player if picked back up. Only ever
         # unset for a cell created outside the normal throw path, hence the safe default.
         self.charges = charges if charges is not None else {"white": CELL_CHARGE_CAPACITY, "blue": 0, "red": 0}

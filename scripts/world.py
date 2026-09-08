@@ -53,21 +53,16 @@ class World:
         creation_loading_screen.put(1 / 6, "Creating terrain object")
         self.terrain = terrain.Terrain(world_width, world_height, default_zooms=default_zooms)
         creation_loading_screen.put(2 / 6, "Creating player object")
-        self.player = player.Player(default_zooms, world_width / 2, -200 if developing_mode else -1200)
+        self.player = player.Player(default_zooms, 0, -200 if developing_mode else -1200)
         creation_loading_screen.put(3 / 6, "Creating lighting object")
         self.light = lighting.Lighting(default_zooms=default_zooms)
         creation_loading_screen.put(4 / 6, "Creating background surfaces")
-        background_raw = get_asset("background_4")
-        # no transparency in this layer -- .convert() drops the alpha channel
-        # get_asset's own .convert_alpha() left it with, so every blit is a
-        # straight opaque copy instead of paying for alpha compositing.
-        # background_2/foreground keep their alpha (see draw_background/
-        # draw_foreground -- they're genuinely translucent layers).
-        self.background_1 = pygame.transform.scale(background_raw, (3000, 3000)).convert()
-        background_raw = get_asset("background_3")
-        self.background_2 = pygame.transform.scale(background_raw, (6000, 6000))
         self.bg_size_1 = 3000
-        self.bg_size_2 = 6000
+        self.bg_size_2 = 4000
+        background_raw = get_asset("background_1")
+        self.background_1 = pygame.transform.scale(background_raw, (self.bg_size_1, self.bg_size_1)).convert()
+        background_raw = get_asset("background_3")
+        self.background_2 = pygame.transform.scale(background_raw, (self.bg_size_2, self.bg_size_2))
         self.gradient_vertical_raw = get_asset("gradient_vertical")
         self.gradient_vertical = None
         creation_loading_screen.put(1.0, "Object creation complete")
@@ -91,11 +86,20 @@ class World:
         self.ambient_tint = (0, 0, 0)
         self.ambient_tint_int = (0, 0, 0)
 
-        self.generate_world(generate_loading_screen)
+        self._present_starting_chunk(generate_loading_screen)
         self.terrain.start_streaming()
 
-    def generate_world(self, loading_screen):
-        self.terrain.generate_world(loading_screen, spawn_x=self.player.x)
+    def _present_starting_chunk(self, loading_screen):
+        """Presents just the one chunk the player actually spawns into --
+        generation happens on demand from here on (see Terrain.present_chunk),
+        not as a whole-world pass. Safe to run synchronously, before
+        start_streaming's background worker exists (see present_chunk's
+        own docstring)."""
+        if loading_screen is not None:
+            loading_screen.put(0, "Preparing starting area")
+        self.terrain.present_chunk(*terrain.MASTER_CAVE_ORIGIN)
+        if loading_screen is not None:
+            loading_screen.put(1, "Starting area ready")
 
     def _get_world_layer(self, real_window_size):
         if self._world_layer is None or self._world_layer_size != real_window_size:
@@ -110,16 +114,14 @@ class World:
         self.terrain.add_air_pocket(x, y, radius, layer_index=layer_index, player_made=True)
 
     def heal_nests(self):
-        for chunk in self.terrain.chunks:
-            for n in self.terrain.chunks[chunk].nests:
-                if n.health > 0:
-                    n.health = n.max_health
-                    n.stage = 0
+        for n in self.terrain.nests:
+            if n.health > 0:
+                n.health = n.max_health
+                n.stage = 0
 
     def remove_enemies(self):
-        for chunk in self.terrain.chunks:
-            for n in self.terrain.chunks[chunk].nests:
-                n.enemies.clear()
+        for n in self.terrain.nests:
+            n.enemies.clear()
         self.terrain.enemies = []
 
     def tick(self, fps, window_size, frame, mouse_pos, keys_down, events):
@@ -211,14 +213,14 @@ class World:
             self.gradient_vertical = pygame.transform.smoothscale(self.gradient_vertical_raw, window_size)
         layer.blit(self.gradient_vertical, (0, 0))
 
-    def draw_background(self, layer, window_size, frame):
+    def draw_background(self, layer, window_size, frame, kind_visibility=False):
         left, top, zoom = frame
         x = (-left * 1 * zoom) % self.bg_size_1 / 2 - self.bg_size_1 / 2
         y = (-top * 1 * zoom) % self.bg_size_1 / 2 - self.bg_size_1 / 2
         layer.blit(self.background_1, (x, y))
         # self.draw_vertical_gradient(layer, window_size)
-        x = (-left * 1.8 * zoom) % self.bg_size_2 / 2 - self.bg_size_2 / 2
-        y = (-top * 1.8 * zoom) % self.bg_size_2 / 2 - self.bg_size_2 / 2
+        x = (-left * 1.2 * zoom) % self.bg_size_2 / 2 - self.bg_size_2 / 2
+        y = (-top * 1.2 * zoom) % self.bg_size_2 / 2 - self.bg_size_2 / 2
         layer.blit(self.background_2, (x, y))
 
     def draw_world(self, window, window_size, frame, hitboxes=False, kind_visibility=False, real_window_size=None, offset_x=0, offset_y=0, tilt=0, crosshair=False):
@@ -244,7 +246,7 @@ class World:
 
         self.terrain.draw_enemy_gradients(window_size, layer, frame, self.light, offset_x=offset_x, offset_y=offset_y)
 
-        self.draw_background(scratch_layer, window_size, frame)
+        self.draw_background(scratch_layer, window_size, frame, kind_visibility)
 
         # struct back elements (behind terrain)
         self.terrain.draw_structures_back(window_size, layer, frame, hitboxes=hitboxes, offset_x=offset_x, offset_y=offset_y)

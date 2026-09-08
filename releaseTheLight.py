@@ -33,7 +33,7 @@ class Game:
         # constants
         self.fps = fps
         if dev_mode:
-            self.DEFAULT_ZOOMS = [0.1, 1, 2]
+            self.DEFAULT_ZOOMS = [0.1, 1, 2.5] # must include 1
         else:
             self.DEFAULT_ZOOMS = [1, 1.8]
         # self.HITBOX_ZOOM=0.2 -- add later
@@ -46,6 +46,9 @@ class Game:
 
         self.offset_x = 0
         self.offset_y = 0
+
+        self.cam_scroll_x_active = False
+        self.cam_scroll_y_active = False
 
         # set up variables
         self.mode = "play"
@@ -83,7 +86,9 @@ class Game:
         return self.cam_x + (coords[0] - self.offset_x) / self.zoom, self.cam_y + (coords[1] - self.offset_y) / self.zoom
 
     def get_world_centered_cam(self):
-        return self.get_centered_cam((self.WORLD_WIDTH / 2, self.WORLD_HEIGHT / 2))
+        # world x is centered on the origin (0) -- see terrain.py's
+        # MASTER_CAVE_ORIGIN -- only y still spans [0, WORLD_HEIGHT]
+        return self.get_centered_cam((0, self.WORLD_HEIGHT / 2))
 
     def get_centered_cam(self, center):
         return center[0] - self.window_width / self.zoom / 2, center[1] - self.window_height / self.zoom / 2
@@ -97,20 +102,52 @@ class Game:
         self.cam_y -= (zoom_center[1] - self.cam_y) * (zoom_ratio - 1)
         self.zoom = new_zoom
 
-    def update_cam_pos(self, fps, zoom, player_x, player_y, player_x_speed, player_y_speed):
+    def update_cam_pos(self, fps, zoom, player):
         max_y = self.WORLD_HEIGHT - 100
         frame_length = 1000 / fps
-        self.cam_offset_x += 2 * player_x_speed * frame_length
-        self.cam_offset_y += 2 * player_y_speed * frame_length
-        self.cam_offset_x = min(max(self.cam_offset_x, self.window_width / zoom * 1 / 6), self.window_width / zoom * (-1 / 6))
-        self.cam_offset_y = min(max(self.cam_offset_y, self.window_height / zoom * 1 / 6), self.window_height / zoom * (-1 / 6))
-        self.cam_offset_x, self.cam_offset_y = 0, 0
-        goal_x = max(self.window_width / zoom / 2, min(self.WORLD_WIDTH - self.window_width / zoom / 2, player_x))
-        if self.window_width / zoom / 2 > self.WORLD_WIDTH - self.window_width / zoom / 2:
-            goal_x = player_x
-        goal_y = max(-100, min(max_y, player_y))
-        self.cam_x += (self.cam_offset_x + goal_x - self.cam_x - self.window_width / zoom / 2) * frame_length / 200
-        self.cam_y += (self.cam_offset_y + goal_y - self.cam_y - self.window_height / zoom / 2) * frame_length / 200
+        half_width = self.WORLD_WIDTH / 2
+        half_win_w = self.window_width / zoom / 2
+        half_win_h = self.window_height / zoom / 2
+        cam_center_x = self.cam_x + half_win_w
+        cam_center_y = self.cam_y + half_win_h
+        player_x = player.x
+        player_y = player.y
+
+        focus_half_w = half_win_w * 0.1
+        dir = math.cos(player.arm_angle)
+        focus_x = - dir * 0.5 * half_win_w
+        #if dir > 0.8:
+        #    focus_x = - half_win_w * 0.4
+        #elif dir < -0.8:
+        #    focus_x = half_win_w * 0.4
+        #else:
+        #    focus_x = 0
+
+        if not (focus_x - focus_half_w < player_x - cam_center_x < focus_x + focus_half_w):
+            self.cam_scroll_x_active = True
+
+        if not (-half_win_h * 0.3 < player_y - cam_center_y < half_win_h * 0.1):
+            self.cam_scroll_y_active = True
+
+        goal_x = player_x - focus_x
+        goal_y = player_y + half_win_h * 0.1
+        if not half_win_w > half_width:
+            goal_x = max(-half_width + half_win_w, min(half_width - half_win_w, goal_x))
+        goal_y = max(-100, min(max_y, goal_y))
+
+        if self.cam_scroll_x_active:
+            d = (goal_x - cam_center_x) * 1.5
+            self.cam_x += d * frame_length / 1000
+            if abs(d) <= 1:
+                self.cam_scroll_x_active = False
+        if self.cam_scroll_y_active:
+            d = (goal_y - cam_center_y) * 2
+            self.cam_y += d * frame_length / 1000
+            if abs(d) <= 1:
+                self.cam_scroll_y_active = False
+
+        if player_y - self.cam_y > 1.5 * half_win_h:
+            self.cam_y = player_y - 1.5 * half_win_h
 
     def setup(self):
 
@@ -311,7 +348,7 @@ class Game:
             self.charge_display.update(practical_fps, self.game_world.player)
             # self.minimap.update(self.game_world.player, self.game_world.terrain)
 
-            self.update_cam_pos(practical_fps, self.zoom, self.game_world.player.x, self.game_world.player.y, self.game_world.player.x_speed, self.game_world.player.y_speed)
+            self.update_cam_pos(practical_fps, self.zoom, self.game_world.player)
             # world wrapping
             # if self.gameWorld.player.x>self.WORLD_WIDTH:
             #    self.gameWorld.player.x-=self.WORLD_WIDTH

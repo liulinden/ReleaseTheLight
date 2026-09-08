@@ -1,5 +1,4 @@
 import math
-import queue
 import random
 import threading
 import time
@@ -12,7 +11,6 @@ from config import CHUNK_SIZE
 from scripts.structures.checkpoint import Checkpoint
 from scripts.cells import Cell, validate_cell_coords
 from scripts.global_assets import get_asset
-from scripts.loading_screen import LoadingScreen
 from scripts.UI.interaction_display import InteractionDisplayManager
 from scripts.util import dist, poisson_count
 
@@ -23,9 +21,8 @@ from scripts.util import dist, poisson_count
 #
 #   Chunk.air_pockets / Chunk.nests / Chunk.cells / Chunk.structures
 #       -> truth data. Cheap plain-data objects, no pygame Surfaces.
-#          Generated once for the whole world at startup (generate_world,
-#          which runs generate_terrain -> generate_structures ->
-#          generate_elements in that order), and added to incrementally
+#          Generated on demand, one chunk at a time, as the player
+#          approaches (see present_chunk), and added to incrementally
 #          afterwards (player mining).
 #
 #   Chunk.visuals[zoom] -> derived pygame Surfaces (the pretty rendered
@@ -37,16 +34,62 @@ from scripts.util import dist, poisson_count
 #          (evict_far_chunks), since they're a pure function of the
 #          chunk's truth data.
 #
+# Chunk.generation_state tracks truth-generation progress through 3
+# stages (independent of Chunk.built, which only tracks whether visuals/
+# mask are currently resident -- see present_chunk for the full pipeline):
+#   "initialized" -> a Chunk object exists (created on first touch, e.g.
+#          get_or_create_chunk), possibly already holding air pockets
+#          spilled over from a neighboring chunk's cave growth, but none
+#          of its own.
+#   "generated" -> this chunk has rolled and grown all caves/nests that
+#          originate within its own bounds (see _generate_chunk). May
+#          still receive further spillover from a not-yet-generated
+#          neighbor's cave growth.
+#   "finalized" -> structures and elements have been placed for this
+#          chunk (see _finalize_chunk), and it will never receive another
+#          terrain-generated air pocket: every cave-growth call checks
+#          _overlaps_finalized_chunk before carving and simply skips
+#          (never partially carves) anything that would touch a finalized
+#          chunk, so this guarantee holds regardless of generation order.
+#
 # Biomes: each Chunk has a `biome` string (currently always "default",
-# see get_biome). BIOME_RULES holds per-biome tunables (fill_mode, nest
-# frequency/type thresholds by depth). Not wired up to per-chunk cave
-# generation yet (cave carving is a continuous, multi-chunk-spanning
-# process at world-gen time, not chunk-scoped) -- that's future work.
+# see get_biome). BIOME_RULES holds per-biome tunables (fill_mode, cave
+# kinds, nest frequency/type thresholds by depth), each expressed as an
+# expected count per chunk (see poisson_count) rather than a chance roll,
+# so origination is naturally chunk-scoped.
 # ------------------------------------------------------------------
 
 max_air_pocket_radius = 120
 rim_pocket_ratio = 1.5
 rocks_world_span = 2 * CHUNK_SIZE
+
+# Chunk.generation_state values -- see the architecture overview above.
+STATE_INITIALIZED = "initialized"
+STATE_GENERATED = "generated"
+STATE_FINALIZED = "finalized"
+
+# How many chunks out present_chunk force-generates (not finalizes) around
+# the chunk it's actually presenting, before that chunk itself finalizes.
+# Purely a lookahead/richness knob, not a correctness requirement: a
+# smaller radius means chunks finalize sooner relative to how far
+# generation has spread, so a growing cave runs into a finalized (closed)
+# chunk -- and gets cut off, see _overlaps_finalized_chunk -- more often,
+# yielding shorter, more contained caves. A larger radius delays
+# finalization, giving caves more room to wander before that happens.
+# Must be >= 1: a nest can bleed one chunk past its own (pad=1 in
+# generate_nest's registration loop) and is never larger than a chunk, so
+# radius 1 is what guarantees (by construction, not luck) that a chunk's
+# own nest rolls never need to fight over a chunk that's already finalized.
+GENERATION_RADIUS_CHUNKS = 3
+
+# World coordinate origin (0, 0): both the player's actual spawn point
+# (see world.py) and where the one world-spanning cave descends from.
+# world_width is NOT a generation boundary -- generation is on demand per
+# chunk (see present_chunk) regardless of x, so it happens uniformly no
+# matter how far the player wanders. world_width is only how far the
+# player/camera are nudged to stay within (see player.py's edge push,
+# releaseTheLight.py's camera clamp), symmetric around this origin.
+MASTER_CAVE_ORIGIN = (0, 0)  # (row, col) -- always the first chunk presented
 
 # Structure erase-rect carving (see Terrain.carve_structure_erase_rects) --
 # fixed regardless of structure/rect size. Border pockets vary between these
@@ -55,15 +98,16 @@ rocks_world_span = 2 * CHUNK_SIZE
 STRUCTURE_CARVE_MIN_R = 20
 STRUCTURE_CARVE_MAX_R = 60
 
-# generate_elements -- expected number of spike/vine-placement attempts per
-# chunk that has any air pockets
-SPIKES_PER_CHUNK = 1
-VINES_PER_CHUNK = 10
-
-# generate_structures -- world-space y of the guaranteed spawn Checkpoint,
-# fixed regardless of spawn_x or the player's own spawn y (see
-# Terrain.generate_structures)
+# generate_structures_for_chunk -- world-space y of the guaranteed spawn
+# Checkpoint, fixed regardless of the player's own spawn y (dev vs. normal
+# mode use different free-fall heights, see world.py)
 CHECKPOINT_DEPTH = 400
+# The one chunk whose turn at generate_structures_for_chunk places the
+# Checkpoint -- its own (x=0, y=CHECKPOINT_DEPTH) center point determines
+# which single chunk "owns" it; carve_structure_erase_rects/
+# reblit_structure_on_chunks still register it into every chunk its
+# footprint actually overlaps, same as before.
+CHECKPOINT_CHUNK = (CHECKPOINT_DEPTH // CHUNK_SIZE, 0)
 
 
 PALETTE = [
@@ -92,16 +136,47 @@ PALETTE = [
 # BIOME_RULES as new biomes are introduced.
 # ------------------------------------------------------------------
 
+# cave_kinds/nest_rules/surface_fissure expected-per-chunk values below are
+# uniform across the whole default biome (no depth dependence) -- depth- or
+# region-varying density is a per-biome concern for whenever more biomes
+# exist (see get_biome), not something the default biome itself needs to
+# encode. Values were derived by taking the old whole-world generation
+# loop's total expected event count at the shipped world size (15x100
+# chunks) and dividing by the total chunk count, so aggregate density
+# roughly matches what shipped before, not an exact match. Retune by feel.
 BIOME_RULES = {
     "default": {
         # "solid": chunk starts as solid rock, air pockets are carved (subtracted) out.
         # "air": reserved for future biomes that start hollow and add solid
         #        features instead. Not implemented -- see _render_base_terrain.
         "fill_mode": "solid",
+        # Each kind rolls independently per chunk: poisson_count(expected_per_chunk)
+        # spawns, each at a uniformly random point inside the chunk -- see
+        # generate_caves_for_chunk. shape selects generate_skinny_cave vs
+        # generate_blob_cave; skinny/blob each get a small- and large-radius
+        # variant for visual variety.
+        "cave_kinds": {
+            "skinny_small": {"radius_range": (20, 60), "max_pockets": 20, "shape": "skinny", "expected_per_chunk": 0.08},
+            "skinny_large": {"radius_range": (30, 120), "max_pockets": 20, "shape": "skinny", "expected_per_chunk": 0.08},
+            "blob_small": {"radius_range": (30, 100), "max_pockets": 10, "shape": "blob", "expected_per_chunk": 0.046},
+            "blob_large": {"radius_range": (60, 150), "max_pockets": 10, "shape": "blob", "expected_per_chunk": 0.08},
+        },
+        # Temporary stand-in for a real surface biome (see fill_mode's "air"
+        # note) -- a dense scatter of small pockets along row 0 only,
+        # reproducing the old edge-to-edge surface band. Remove once
+        # fill_mode "air" exists.
+        "surface_fissure": {"radius_range": (10, 30), "expected_per_chunk": 38},
         "nest_rules": {
-            "white": {"min_frac": 0.0, "switch_frac": 0.2, "early_denom": 5, "late_denom": 15},
-            "blue": {"min_frac": 0.2, "switch_frac": 0.3, "early_denom": 6, "late_denom": 12},
-            "red": {"min_frac": 0.3, "switch_frac": 0.4, "early_denom": 6, "late_denom": 12},
+            "white": {"expected_per_chunk": 0.148},
+            "blue": {"expected_per_chunk": 0.121},
+            "red": {"expected_per_chunk": 0.108},
+        },
+        # generate_elements_for_chunk -- expected placement attempts per
+        # chunk that has any air pockets to anchor against. "spikes" drives
+        # both upright and upside-down spike attempts (same count each).
+        "element_rules": {
+            "spikes_per_chunk": 1,
+            "vines_per_chunk": 10,
         },
     },
 }
@@ -194,6 +269,7 @@ class Chunk:
         "mask",
         "built",
         "last_touched",
+        "generation_state",
         "lock",
     )
 
@@ -211,6 +287,7 @@ class Chunk:
         self.mask = None  # single native-resolution pygame.mask.Mask, collision truth, populated once built
         self.built = False
         self.last_touched = 0.0
+        self.generation_state = STATE_INITIALIZED
         # Reentrant: _build_chunk can call helpers that also lock this chunk.
         self.lock = threading.RLock()
 
@@ -346,11 +423,11 @@ class Terrain:
 
         self.display_manager = InteractionDisplayManager()
 
-        # world_width is the GENERATION SPAN width (caves/nests/cells only
-        # spawn within [0, world_width] at world-gen time). The world
-        # itself extends infinitely in both x directions -- the player can
-        # mine out past the span freely; those chunks just start as plain
-        # rock with no truth-level air pockets/nests until carved.
+        # world_width does not bound generation -- see MASTER_CAVE_ORIGIN's
+        # note. It's only how far the player/camera are meant to stay
+        # within, centered on the origin; the world itself extends
+        # infinitely in both x directions, generating identically however
+        # far the player wanders.
         self.world_width = world_width
         self.world_height = world_height
         self.default_zooms = default_zooms
@@ -358,6 +435,13 @@ class Terrain:
         self.enemies = []
 
         self.chunks: dict[tuple, Chunk] = {}
+        # Flat registry of every nest, alongside (not instead of) their
+        # per-chunk registration in chunk.nests -- the per-chunk copies are
+        # what spatial queries (_nests_touching_rect etc.) use, since a nest
+        # can be registered into several chunks; this is for callers that
+        # want every nest exactly once regardless of chunk (see
+        # World.heal_nests/remove_enemies), without scanning self.chunks.
+        self.nests: list = []
 
         self._rocks_scaled = {}
         for zoom in default_zooms:
@@ -378,13 +462,22 @@ class Terrain:
         # per distinct size and reused every collision check thereafter.
         self._rect_mask_cache = {}
 
-        # streaming
-        self._stream_queue = queue.PriorityQueue()
-        self._stream_queued_keys = set()
+        # streaming -- see _stream_worker_loop for why this isn't a
+        # queue.PriorityQueue (fixed priority at enqueue time can't reflect
+        # the player having moved since)
+        self._stream_pending = set()  # {(row, col)} not yet built, not currently being presented
+        self._stream_chunk_pos = (0, 0)  # player's (row, col), refreshed every update_streaming call
         self._stream_lock = threading.Lock()
         self._stream_thread = None
-        self._stream_seq = 0  # tie-breaker so PriorityQueue never compares Chunks/tuples of equal priority incorrectly
         self._last_evict_time = 0.0
+
+        # Currently-built chunk keys -- self.chunks itself only grows over a
+        # session (evicting a chunk keeps its truth data, see
+        # evict_far_chunks), so this is what evict_far_chunks scans instead:
+        # it stays roughly keep_radius_chunks-sized forever, rather than
+        # growing with how much of the world has been visited.
+        self._built_chunk_keys = set()
+        self._built_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Chunk lookup / creation
@@ -569,13 +662,23 @@ class Terrain:
             self._scratch_surfaces[(w, h)] = pygame.Surface((w, h), pygame.SRCALPHA)
         return self._scratch_surfaces[(w, h)]
 
-    def _get_unbuilt_placeholder(self, zoom):
-        if zoom not in self._placeholder_surfaces:
+    # Debug colors for a not-yet-built chunk, by generation_state -- lets
+    # streaming/generation lag show up visually during testing (see
+    # draw_terrain). Does not trigger generation itself.
+    _PLACEHOLDER_COLORS = {
+        STATE_INITIALIZED: (200, 0, 0),
+        STATE_GENERATED: (200, 200, 0),
+        STATE_FINALIZED: (0, 160, 0),
+    }
+
+    def _get_unbuilt_placeholder(self, zoom, state):
+        key = (zoom, state)
+        if key not in self._placeholder_surfaces:
             chunk_px = max(1, int(CHUNK_SIZE * zoom))
             surf = pygame.Surface((chunk_px, chunk_px))
-            surf.fill((255, 0, 0))
-            self._placeholder_surfaces[zoom] = surf
-        return self._placeholder_surfaces[zoom]
+            surf.fill(self._PLACEHOLDER_COLORS.get(state, self._PLACEHOLDER_COLORS[STATE_INITIALIZED]))
+            self._placeholder_surfaces[key] = surf
+        return self._placeholder_surfaces[key]
 
     # ------------------------------------------------------------------
     # Noise / colour -- continuous with world_y, no layers
@@ -679,12 +782,8 @@ class Terrain:
             self._reblit_solid_structures_on_chunk(chunk)
 
             chunk.built = True
-
-    def build_chunk_now(self, row, col):
-        chunk = self.get_or_create_chunk(row, col)
-        if not chunk.built:
-            self._build_chunk(chunk)
-        return chunk
+            with self._built_lock:
+                self._built_chunk_keys.add((chunk.row, chunk.col))
 
     def get_chunk_if_built(self, row, col):
         chunk = self.chunks.get((row, col))
@@ -783,23 +882,38 @@ class Terrain:
 
     def _stream_worker_loop(self):
         while True:
-            try:
-                _, _, key = self._stream_queue.get(timeout=1.0)
-            except queue.Empty:
+            key = self._pop_nearest_pending()
+            if key is None:
+                time.sleep(0.05)
                 continue
-            with self._stream_lock:
-                self._stream_queued_keys.discard(key)
             row, col = key
-            chunk = self.get_or_create_chunk(row, col)
-            if not chunk.built:
-                self._build_chunk(chunk)
+            self.present_chunk(row, col)
+
+    def _pop_nearest_pending(self):
+        """Picks and removes whichever pending chunk is currently closest
+        to the player, recomputed fresh against _stream_chunk_pos every
+        call -- unlike a priority queue (fixed priority at enqueue time),
+        this can never go stale: a chunk queued while the player was
+        somewhere else can't jump the line ahead of what's actually
+        nearest by the time a worker slot opens up."""
+        with self._stream_lock:
+            if not self._stream_pending:
+                return None
+            pr, pc = self._stream_chunk_pos
+            nearest = min(self._stream_pending, key=lambda rc: (rc[0] - pr) ** 2 + (rc[1] - pc) ** 2)
+            self._stream_pending.discard(nearest)
+            return nearest
 
     def update_streaming(self, player_x, player_y, build_radius_chunks=3):
-        """Call once per tick (or every few ticks). Enqueues chunks around
-        the player for the background worker to build, nearest first."""
+        """Call once per tick (or every few ticks). Marks chunks around the
+        player as pending for the background worker to present, and
+        refreshes the player position the worker prioritizes against (see
+        _pop_nearest_pending)."""
         pr = int(math.floor(player_y / CHUNK_SIZE))
         pc = int(math.floor(player_x / CHUNK_SIZE))
         now = time.time()
+        with self._stream_lock:
+            self._stream_chunk_pos = (pr, pc)
         for dr in range(-build_radius_chunks, build_radius_chunks + 1):
             row = pr + dr
             if row < 0 or row * CHUNK_SIZE > self.world_height:
@@ -812,152 +926,176 @@ class Terrain:
                     chunk.last_touched = now
                     continue
                 with self._stream_lock:
-                    if key in self._stream_queued_keys:
-                        continue
-                    self._stream_queued_keys.add(key)
-                priority = dr * dr + dc * dc
-                self._stream_seq += 1
-                self._stream_queue.put((priority, self._stream_seq, key))
+                    self._stream_pending.add(key)
 
     def evict_far_chunks(self, player_x, player_y, keep_radius_chunks=20, min_interval=5.0):
         """Drops cached surfaces for chunks far from the player. Truth
         data (air_pockets/nests/cells/biome) is retained, so re-entering
-        the area rebuilds identically. Scans self.chunks (O(n)), so this
-        throttles itself to run at most once per min_interval seconds
-        regardless of how often it's called."""
+        the area rebuilds identically. Scans _built_chunk_keys, not
+        self.chunks -- self.chunks only grows over a session, but built
+        chunks stay bounded to roughly the area around the player, so this
+        scan doesn't get any slower the more of the world has been visited.
+        Still throttled to once per min_interval seconds regardless."""
         now = time.time()
         if now - self._last_evict_time < min_interval:
             return
         self._last_evict_time = now
         pr = int(math.floor(player_y / CHUNK_SIZE))
         pc = int(math.floor(player_x / CHUNK_SIZE))
-        for key, chunk in list(self.chunks.items()):
+        with self._built_lock:
+            keys = list(self._built_chunk_keys)
+        for key in keys:
             row, col = key
             if abs(row - pr) > keep_radius_chunks or abs(col - pc) > keep_radius_chunks:
-                if chunk.built:
+                chunk = self.chunks.get(key)
+                if chunk is not None and chunk.built:
                     with chunk.lock:
                         chunk.visuals.clear()
                         chunk.mask = None
                         chunk.built = False
+                with self._built_lock:
+                    self._built_chunk_keys.discard(key)
 
     # ------------------------------------------------------------------
-    # World generation (truth-only, one-time)
+    # World generation -- on demand, one chunk at a time. present_chunk is
+    # the only entry point external callers need (used by both the stream
+    # worker above and the synchronous starting-chunk call in world.py);
+    # everything else here is its internal pipeline. See the architecture
+    # overview at the top of this file for what each generation_state means.
     # ------------------------------------------------------------------
 
-    def generate_world(self, loading_screen: LoadingScreen = None, spawn_x=None):
-        """Runs the full world-gen pipeline once, in order:
-        generate_terrain (caves/nests) -> generate_structures (guaranteed,
-        fixed-location structures like the spawn checkpoint) ->
-        generate_elements (spikes/vines, which need the finished
-        air-pocket/erase_rect truth data from the first two passes to know
-        where they can and can't be grounded). spawn_x positions
-        generate_structures's guaranteed structures relative to the
-        player's actual spawn x; defaults to world_width/2 (the player's
-        own default spawn x) if not given."""
-        if loading_screen is not None:
-            terrain_screen, structures_screen, elements_screen = loading_screen.subsections(0, 0.1, 0.12)
+    def present_chunk(self, row, col):
+        """Runs whatever's left of the full presentation pipeline for one
+        chunk -- origination, finalization (radius lookahead + structures
+        + elements), then visual/mask build -- and returns it. Idempotent:
+        safe to call on a chunk at any state, it only does what's not
+        already done."""
+        chunk = self.get_or_create_chunk(row, col)
+        self._finalize_chunk(chunk)  # also generates first, if needed
+        if not chunk.built:
+            self._build_chunk(chunk)
+        return chunk
+
+    def _generate_chunk(self, chunk):
+        """Step 2: roll and grow every cave/nest that originates within
+        this chunk's own bounds, once. No-op if already generated (or
+        finalized)."""
+        with chunk.lock:
+            if chunk.generation_state != STATE_INITIALIZED:
+                return
+            rules = BIOME_RULES.get(chunk.biome, BIOME_RULES["default"])
+            self.generate_caves_for_chunk(chunk, rules)
+            self.generate_nests_for_chunk(chunk, rules)
+            self.generate_surface_fissure_for_chunk(chunk, rules)
+            if (chunk.row, chunk.col) == MASTER_CAVE_ORIGIN:
+                self._generate_master_cave()
+            chunk.generation_state = STATE_GENERATED
+
+    def _finalize_chunk(self, chunk):
+        """Steps 3-5: force origination for every chunk within
+        GENERATION_RADIUS_CHUNKS (pure lookahead -- no-op for chunks
+        already generated/finalized), then place this chunk's structures
+        and elements and mark it finalized. No-op if already finalized."""
+        if chunk.generation_state == STATE_FINALIZED:
+            return
+        self._generate_chunk(chunk)
+        for dr in range(-GENERATION_RADIUS_CHUNKS, GENERATION_RADIUS_CHUNKS + 1):
+            neighbor_row = chunk.row + dr
+            if neighbor_row < 0:
+                continue
+            for dc in range(-GENERATION_RADIUS_CHUNKS, GENERATION_RADIUS_CHUNKS + 1):
+                if dr == 0 and dc == 0:
+                    continue
+                self._generate_chunk(self.get_or_create_chunk(neighbor_row, chunk.col + dc))
+        with chunk.lock:
+            if chunk.generation_state == STATE_FINALIZED:
+                return
+            rules = BIOME_RULES.get(chunk.biome, BIOME_RULES["default"])
+            self.generate_structures_for_chunk(chunk)
+            self.generate_elements_for_chunk(chunk, rules)
+            chunk.generation_state = STATE_FINALIZED
+
+    def _overlaps_finalized_chunk(self, x, y, r):
+        """True if a circle of radius r centered at (x, y) touches any
+        chunk that's already finalized. World-gen cave/nest growth checks
+        this before carving, and stops (see generate_blob_cave etc. and
+        add_air_pocket) rather than partially carving into a chunk whose
+        structures/elements are already locked in -- this is what makes a
+        finalized chunk's truth data permanent regardless of generation
+        order (see the architecture overview)."""
+        row_c = math.floor(y / CHUNK_SIZE)
+        col_c = math.floor(x / CHUNK_SIZE)
+        chunk_radius = math.ceil(r / CHUNK_SIZE)
+        for dr in range(-chunk_radius, chunk_radius + 1):
+            for dc in range(-chunk_radius, chunk_radius + 1):
+                chunk = self.chunks.get((row_c + dr, col_c + dc))
+                if chunk is not None and chunk.generation_state == STATE_FINALIZED:
+                    return True
+        return False
+
+    def _grow_cave(self, shape, x, y, r, direction, max_pockets):
+        if shape == "skinny":
+            self.generate_skinny_cave(x, y, r, direction, max_pockets=max_pockets)
         else:
-            terrain_screen = structures_screen = elements_screen = None
+            self.generate_blob_cave(x, y, r, direction, max_pockets=max_pockets)
 
-        self.generate_terrain(terrain_screen)
-        self.generate_structures(structures_screen, spawn_x=spawn_x)
-        self.generate_elements(elements_screen)
+    def generate_caves_for_chunk(self, chunk, rules):
+        """One expected-count roll per cave_kinds entry (see BIOME_RULES),
+        each spawning at a uniformly random point inside this chunk. Density
+        is uniform across the biome -- depth/region variation is a per-biome
+        concern for later, not encoded here."""
+        for cfg in rules.get("cave_kinds", {}).values():
+            for _ in range(poisson_count(cfg["expected_per_chunk"])):
+                x = chunk.col * CHUNK_SIZE + random.randint(0, CHUNK_SIZE)
+                y = chunk.row * CHUNK_SIZE + random.randint(0, CHUNK_SIZE)
+                r = random.randint(*cfg["radius_range"])
+                direction = random.random() * 2 * math.pi
+                self._grow_cave(cfg["shape"], x, y, r, direction, cfg["max_pockets"])
 
-    def generate_terrain(self, loading_screen: LoadingScreen = None):
-        """Generates ALL cave/nest truth data (air pockets, nests, cells)
-        once, up front. Builds no surfaces at all -- surfaces are built
-        lazily by the streaming system as the player explores."""
+    def generate_nests_for_chunk(self, chunk, rules):
+        for nest_type, cfg in rules.get("nest_rules", {}).items():
+            for _ in range(poisson_count(cfg["expected_per_chunk"])):
+                x = chunk.col * CHUNK_SIZE + random.randint(0, CHUNK_SIZE)
+                y = chunk.row * CHUNK_SIZE + random.randint(0, CHUNK_SIZE)
+                self.generate_nest(x, y, nest_type)
 
-        print(f"{time.strftime('%H:%M:%S')} - world truth generation starting...")
-
-        if loading_screen is not None:
-            loading_screen.put(0, "Generating master cave")
-
-        # initial band of surface pockets across the generation span
-        x = -CHUNK_SIZE
-        while x < self.world_width + CHUNK_SIZE:
-            r = random.randint(10, 30)
+    def generate_surface_fissure_for_chunk(self, chunk, rules):
+        """Temporary stand-in for a real surface biome -- see the
+        "surface_fissure" note in BIOME_RULES."""
+        cfg = rules.get("surface_fissure")
+        if cfg is None or chunk.row != 0:
+            return
+        for _ in range(poisson_count(cfg["expected_per_chunk"])):
+            x = chunk.col * CHUNK_SIZE + random.randint(0, CHUNK_SIZE)
+            r = random.randint(*cfg["radius_range"])
             self.add_air_pocket_clump(x, 0, r, override=True)
-            x += r / 2
 
-        self.generate_descending_cave(self.world_width / 2, 0, 40, math.pi / 2)
+    def _generate_master_cave(self):
+        """The one world-spanning cave, descending from the origin all the
+        way to world_height in a single call -- see generate_descending_cave.
+        Runs once, the moment MASTER_CAVE_ORIGIN is generated (always the
+        first chunk presented, since that's also the player's spawn chunk)."""
+        self.generate_descending_cave(0, 0, 40, math.pi / 2)
 
-        num_steps = max(1, int(self.world_height / 100))
-        for i in range(num_steps):
-            if loading_screen is not None:
-                loading_screen.put((i + 1) / num_steps, f"Generating world section {i + 1}/{num_steps}")
+    def generate_structures_for_chunk(self, chunk):
+        """Step 4: place any fixed-position structure whose designated
+        chunk is this one. Temporary: only the guaranteed spawn Checkpoint
+        exists right now (see CHECKPOINT_CHUNK) -- future structures
+        (gateways, etc.) get their own designated-chunk check here."""
+        if (chunk.row, chunk.col) == CHECKPOINT_CHUNK:
+            checkpoint = Checkpoint(0, CHECKPOINT_DEPTH, self.default_zooms)
+            self.carve_structure_erase_rects(checkpoint)
+            self.reblit_structure_on_chunks(checkpoint)
 
-            for j in range(max(1, int(self.world_width / 1000))):
-                base_x = j * 1000
-
-                if random.randint(1, 20) == 1:
-                    self.generate_skinny_cave(base_x + random.randint(0, 1000), random.randint(0, int(self.world_height / 3)), random.randint(20, 60), random.random() * 2 * math.pi)
-                if random.randint(1, 20) == 1:
-                    self.generate_skinny_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 120), random.random() * 2 * math.pi)
-                if random.randint(1, 35) == 1:
-                    self.generate_blob_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height / 4), self.world_height), random.randint(30, 100), random.random() * 2 * math.pi)
-                if random.randint(1, 20) == 1:
-                    self.generate_blob_cave(base_x + random.randint(0, 1000), random.randint(int(self.world_height * 2 / 3), self.world_height), random.randint(60, 150), random.random() * 2 * math.pi)
-
-                y_white = random.randint(500, max(501, self.world_height - 500))
-                denom = self._nest_chance("white", self._depth_fraction(y_white))
-                if denom and random.randint(1, denom) == 1:
-                    self.generate_nest(base_x + random.randint(0, 1000), y_white, "white")
-
-                y_blue = random.randint(500, max(501, self.world_height - 500))
-                denom = self._nest_chance("blue", self._depth_fraction(y_blue))
-                if denom and random.randint(1, denom) == 1:
-                    self.generate_nest(base_x + random.randint(0, 1000), y_blue, "blue")
-
-                y_red = random.randint(500, max(501, self.world_height - 500))
-                denom = self._nest_chance("red", self._depth_fraction(y_red))
-                if denom and random.randint(1, denom) == 1:
-                    self.generate_nest(base_x + random.randint(0, 1000), y_red, "red")
-
-        print(f"{time.strftime('%H:%M:%S')} - world truth generation complete.")
-        if loading_screen is not None:
-            loading_screen.put(1, "World generation complete")
-
-    def generate_structures(self, loading_screen=None, spawn_x=None):
-        """Places every guaranteed, fixed-location structure. For now:
-        a single Checkpoint centered under spawn_x (defaults to
-        world_width/2, the player's own default spawn x) at a fixed depth
-        into the generated world -- CHECKPOINT_DEPTH is independent of the
-        player's actual spawn y, which is just how far above the world
-        they free-fall from and differs between dev/normal mode; the
-        checkpoint's own depth shouldn't move with that."""
-        if loading_screen is not None:
-            loading_screen.put(0, "Placing structures")
-
-        spawn_x = self.world_width / 2 if spawn_x is None else spawn_x
-        checkpoint = Checkpoint(spawn_x, CHECKPOINT_DEPTH, self.default_zooms)
-        self.carve_structure_erase_rects(checkpoint)
-        self.reblit_structure_on_chunks(checkpoint)
-
-        # Build every chunk the checkpoint touches right now, synchronously
-        # (safe here -- this runs before start_streaming, same "before the
-        # thread starts" case _build_chunk's own docstring calls out).
-        # Without this, the player can spawn in before the background
-        # streaming worker has caught up to a neighboring chunk the
-        # checkpoint's carve reaches into, showing the flat-red
-        # unbuilt-chunk placeholder (see draw_terrain) right at their own
-        # guaranteed spawn structure.
-        rect = checkpoint.get_registration_rect()
-        for row, col in self._chunks_in_rect(rect.left, rect.top, rect.width, rect.height, pad=1):
-            self.build_chunk_now(row, col)
-
-        if loading_screen is not None:
-            loading_screen.put(1, "Structures complete")
-
-    def generate_elements(self, loading_screen=None):
-        """Runs once, after cave/nest truth generation is complete. For
-        each chunk that has any air pockets, attempts to place a handful of
-        spikes (count varies per chunk but averages SPIKES_PER_CHUNK over
-        the whole world) hanging below a randomly-picked air pocket in it,
-        the same number of upside-down spikes hanging above one, and a
-        handful of vines (VINES_PER_CHUNK) hanging above one. Each
+    def generate_elements_for_chunk(self, chunk, rules):
+        """Step 5: attempts to place a handful of spikes (count varies but
+        averages element_rules["spikes_per_chunk"]) hanging below a
+        randomly-picked air pocket in this chunk, the same number of
+        upside-down spikes hanging above one, and a handful of vines
+        (element_rules["vines_per_chunk"]) hanging above one. Each
         successful spawn also tries to grow into a short row by attempting
-        one more of the same element directly to its left and right."""
+        one more of the same element directly to its left and right. No-op
+        for a chunk with no air pockets to anchor against."""
         # local imports -- scripts.elements.elements imports scripts.terrain
         # at module level, so importing it back at terrain.py's own module
         # level would be circular. Neither side touches the other's
@@ -968,53 +1106,51 @@ class Terrain:
         import scripts.elements.spike as spike
         import scripts.elements.vine as vine
 
-        # attempt_place_element can create new chunks (get_or_create_chunk)
-        # as a side effect, so snapshot before iterating
-        chunks = [chunk for chunk in list(self.chunks.values()) if chunk.air_pockets]
-        if not chunks:
+        if not chunk.air_pockets:
             return
-        for i, chunk in enumerate(chunks):
-            for _ in range(poisson_count(SPIKES_PER_CHUNK)):
-                air_pocket = random.choice(chunk.air_pockets)
-                size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
-                placed = elements.attempt_place_element_adjacent_to_air_pocket(self, spike.Spike, air_pocket, size=size)
-                if placed:
-                    elements.attempt_place_neighbors(self, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
-            for _ in range(poisson_count(SPIKES_PER_CHUNK)):
-                air_pocket = random.choice(chunk.air_pockets)
-                size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
-                placed = elements.attempt_place_element_adjacent_to_air_pocket(self, spike.UpsideDownSpike, air_pocket, size=size)
-                if placed:
-                    elements.attempt_place_neighbors(self, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
-            for _ in range(poisson_count(VINES_PER_CHUNK)):
-                air_pocket = random.choice(chunk.air_pockets)
-                size = random.randint(vine.SIZE_MIN, vine.SIZE_MAX)
-                slack_factor = random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)
-                placed = elements.attempt_place_element_adjacent_to_air_pocket(self, vine.Vine, air_pocket, size=size, slack_factor=slack_factor)
-                if placed:
-                    elements.attempt_place_neighbors(
-                        self,
-                        placed,
-                        placed.width / 4,
-                        count=5,
-                        size=size,
-                        slack_factor=slack_factor,
-                        randomize_kwargs=lambda: {"size": random.randint(vine.SIZE_MIN, vine.SIZE_MAX), "slack_factor": random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)},
-                    )
-            if loading_screen is not None:
-                loading_screen.put((i + 1) / len(chunks), f"Generating elements ({i + 1}/{len(chunks)} chunks)")
-
-    def _nest_chance(self, nest_type, depth_frac):
-        rules = BIOME_RULES["default"]["nest_rules"][nest_type]
-        if depth_frac < rules["min_frac"]:
-            return None
-        return rules["early_denom"] if depth_frac < rules["switch_frac"] else rules["late_denom"]
+        element_rules = rules.get("element_rules", {})
+        spikes_per_chunk = element_rules.get("spikes_per_chunk", 0)
+        vines_per_chunk = element_rules.get("vines_per_chunk", 0)
+        for _ in range(poisson_count(spikes_per_chunk)):
+            air_pocket = random.choice(chunk.air_pockets)
+            size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
+            placed = elements.attempt_place_element_adjacent_to_air_pocket(self, spike.Spike, air_pocket, size=size)
+            if placed:
+                elements.attempt_place_neighbors(self, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
+        for _ in range(poisson_count(spikes_per_chunk)):
+            air_pocket = random.choice(chunk.air_pockets)
+            size = random.randint(spike.SIZE_MIN, spike.SIZE_MAX)
+            placed = elements.attempt_place_element_adjacent_to_air_pocket(self, spike.UpsideDownSpike, air_pocket, size=size)
+            if placed:
+                elements.attempt_place_neighbors(self, placed, size=size, randomize_kwargs=lambda: {"size": random.randint(spike.SIZE_MIN, spike.SIZE_MAX)})
+        for _ in range(poisson_count(vines_per_chunk)):
+            air_pocket = random.choice(chunk.air_pockets)
+            size = random.randint(vine.SIZE_MIN, vine.SIZE_MAX)
+            slack_factor = random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)
+            placed = elements.attempt_place_element_adjacent_to_air_pocket(self, vine.Vine, air_pocket, size=size, slack_factor=slack_factor)
+            if placed:
+                elements.attempt_place_neighbors(
+                    self,
+                    placed,
+                    placed.width / 4,
+                    count=5,
+                    size=size,
+                    slack_factor=slack_factor,
+                    randomize_kwargs=lambda: {"size": random.randint(vine.SIZE_MIN, vine.SIZE_MAX), "slack_factor": random.uniform(vine.SLACK_FACTOR_MIN, vine.SLACK_FACTOR_MAX)},
+                )
 
     # ------------------------------------------------------------------
-    # Cave / nest generation helpers -- bounded by world_height only
+    # Cave / nest generation helpers -- bounded by world_height, and by
+    # _overlaps_finalized_chunk (see add_air_pocket / generate_nest /
+    # generate_blob_cave / generate_skinny_cave / generate_descending_cave).
     # ------------------------------------------------------------------
 
     def generate_nest(self, x, y, nest_type, size=0):
+        # generation works in world-integer coordinates throughout --
+        # size's own randint call below requires it (a float y makes
+        # `100 + (y * 150) // self.world_height` a float, which
+        # random.randint rejects).
+        x, y = round(x), round(y)
         y = max(max_air_pocket_radius, min(self.world_height - max_air_pocket_radius, y))
         if size == 0:
             size = random.randint(100, 100 + (y * 150) // self.world_height)
@@ -1023,8 +1159,15 @@ class Terrain:
         for existing in self._nests_touching_rect(rect):
             if rect.colliderect(existing.get_rect()):  # redundant?
                 return False
+        # A nest only ever originates from its own chunk's generate_nests_for_chunk
+        # roll and is never larger than one chunk, so this should be
+        # structurally unreachable (see GENERATION_RADIUS_CHUNKS) -- kept as
+        # a defense-in-depth check rather than assumed.
+        if self._overlaps_finalized_chunk(new_nest.x, new_nest.y, new_nest.size / 2):
+            return False
         for row, col in self._chunks_in_rect(new_nest.left, new_nest.top, new_nest.size, new_nest.size, pad=1):
             self.get_or_create_chunk(row, col).nests.append(new_nest)
+        self.nests.append(new_nest)
 
         cave_size = (size * random.randint(0, 2) / 3 + 80) / 3
         if cave_size > 15:
@@ -1034,7 +1177,7 @@ class Terrain:
         return True
 
     def generate_blob_cave(self, start_x, start_y, start_r, start_dir=0, max_pockets=10):
-        if max_pockets > 0 and (start_y - 2 * start_r) > 0 and start_y - start_r < self.world_height and start_r > 0:
+        if max_pockets > 0 and (start_y - 2 * start_r) > 0 and start_y - start_r < self.world_height and start_r > 0 and not self._overlaps_finalized_chunk(start_x, start_y, start_r * rim_pocket_ratio):
             self.add_air_pocket_clump(start_x, start_y, start_r)
             for i in range(2):
                 r = start_r + (random.random() - 0.6) * 20
@@ -1046,7 +1189,7 @@ class Terrain:
                     break
 
     def generate_skinny_cave(self, start_x, start_y, start_r, start_dir=0, max_pockets=20, shrinking=False):
-        if max_pockets > 0 and (start_y - 2 * start_r) > 0 and start_y - start_r < self.world_height and start_r > 0:
+        if max_pockets > 0 and (start_y - 2 * start_r) > 0 and start_y - start_r < self.world_height and start_r > 0 and not self._overlaps_finalized_chunk(start_x, start_y, start_r * rim_pocket_ratio):
             self.add_air_pocket_clump(start_x, start_y, start_r)
             for i in range(2):
                 r = start_r + (random.random() - 0.6) * 5
@@ -1060,11 +1203,14 @@ class Terrain:
                     break
 
     def generate_descending_cave(self, start_x, start_y, start_r, start_dir=0):
-        while start_y - start_r < self.world_height:
-            bounded_x = abs(math.fmod(start_x, 2 * self.world_width) - self.world_width)
-            self.add_air_pocket_clump(bounded_x, start_y, start_r)
+        # No world_width wraparound needed -- unlike the old whole-world
+        # generation loop, this only ever runs once from MASTER_CAVE_ORIGIN
+        # (see _generate_master_cave), drifting by at most ~50 units/step,
+        # so it never travels anywhere near the edge of the generation span.
+        while start_y - start_r < self.world_height and not self._overlaps_finalized_chunk(start_x, start_y, start_r * rim_pocket_ratio):
+            self.add_air_pocket_clump(start_x, start_y, start_r)
             if start_y > 600 and start_y < self.world_height - 600 and random.randint(1, 100) == 1:
-                self.generate_nest(bounded_x, start_y + random.randint(-100, 100), "white")
+                self.generate_nest(start_x, start_y + random.randint(-100, 100), "white")
 
             r = min(50, max(10, start_r + random.randint(-5, 5)))
             dir = start_dir + (random.random() - 0.5) * math.pi / 2
@@ -1095,11 +1241,23 @@ class Terrain:
             self.particles.spawn_mining_particles(10, self._depth_color(x, y), radius * 1.5, x, y)
 
     def add_air_pocket(self, x, y, radius, recursions=0, player_made=False, override=False):
+        # generation works in world-integer coordinates throughout -- callers
+        # (add_air_pocket_clump's jitter, cave-growth's cos/sin steps) pass
+        # floats, normalized here rather than at every call site.
+        x, y = round(x), round(y)
         radius = min(radius, max_air_pocket_radius)
 
         if recursions > 3 or y < 0 or y > self.world_height:
             return False
-        if not player_made and (x + radius > self.world_width or x - radius < 0):
+        # No world_width bound here -- generation is on demand per chunk
+        # (see present_chunk) regardless of x, so it's not confined to any
+        # fixed span; world_width is just how far the player/camera are
+        # nudged to stay within (see player.py, releaseTheLight.py), not a
+        # generation boundary.
+        # World-gen carving only -- player mining/explosions must always be
+        # able to carve wherever the player actually is, finalized or not.
+        # See _overlaps_finalized_chunk.
+        if not player_made and self._overlaps_finalized_chunk(x, y, radius * rim_pocket_ratio):
             return False
 
         base_row = math.floor(y / CHUNK_SIZE)
@@ -1224,18 +1382,18 @@ class Terrain:
             new_cell = Cell(self.default_zooms, coords, velocities, charges=charges, filter_type=filter_type)
             row = math.floor(new_cell.y / CHUNK_SIZE)
             col = math.floor(new_cell.x / CHUNK_SIZE)
+            new_cell.origin_chunk_key = (row, col)
             self.get_or_create_chunk(row, col).cells.append(new_cell)
 
     def remove_cell(self, cell):
         # can't just recompute (row, col) from cell.x/y -- cells are never migrated between
         # chunks as they move (only ever appended once, in add_cell), so a cell that's drifted
-        # since being thrown is still stored under its *original* chunk, not its current one.
-        # Explosions are rare enough events that a full scan here is fine.
+        # since being thrown is still stored under its *original* chunk (cell.origin_chunk_key),
+        # not its current one.
         self.remove_interaction_display(cell.interaction_display, True)
-        for chunk in self.chunks.values():
-            if cell in chunk.cells:
-                chunk.cells.remove(cell)
-                return
+        chunk = self.chunks.get(cell.origin_chunk_key)
+        if chunk is not None and cell in chunk.cells:
+            chunk.cells.remove(cell)
 
     def add_screen_shake(self, amount):
         self.pending_shake += amount
@@ -1477,8 +1635,6 @@ class Terrain:
             self._vignette_stencil_size = real_window_size
         self._vignette_stencil.fill((0, 0, 0, 0))
 
-        placeholder = self._get_unbuilt_placeholder(zoom)
-
         for row in range(top_chunk, bottom_chunk + 1):
             if row < 0:
                 continue
@@ -1488,10 +1644,13 @@ class Terrain:
                 if chunk is not None and chunk.built and zoom in chunk.visuals:
                     self._vignette_stencil.blit(chunk.visuals[zoom], dest)
                 else:
-                    # Streaming hasn't built this chunk yet -- shown as
-                    # flat red so lag in the prefetch system is obvious
-                    # during testing. Does not trigger generation itself.
-                    self._vignette_stencil.blit(placeholder, dest)
+                    # Streaming hasn't built this chunk yet -- shown by
+                    # generation_state (red/yellow/green for
+                    # initialized/generated/finalized) so lag in the
+                    # prefetch system is obvious during testing. Does not
+                    # trigger generation itself.
+                    state = chunk.generation_state if chunk is not None else STATE_INITIALIZED
+                    self._vignette_stencil.blit(self._get_unbuilt_placeholder(zoom, state), dest)
 
         self.draw_vignette(self._vignette_stencil, window_size, offset_x=offset_x, offset_y=offset_y)
         surface.blit(self._vignette_stencil, (0, 0))

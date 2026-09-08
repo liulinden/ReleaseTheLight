@@ -53,8 +53,11 @@ class Laser:
         distance = 0
 
         while distance < self.max_length:
-            wx = int(self.start_x + dx * distance)
-            wy = int(self.start_y + dy * distance)
+            # floor, not int() -- these feed terrain.laser_collide_point's own
+            # floor-based pixel grid, and int() truncates toward zero instead
+            # of down, which only diverges (by up to 1px) at negative x/y.
+            wx = math.floor(self.start_x + dx * distance)
+            wy = math.floor(self.start_y + dy * distance)
 
             if terrain.laser_collide_point(wx, wy):
                 # nest check: AABB pre-screen then precise pixel sample from nest's hitbox image
@@ -62,8 +65,8 @@ class Laser:
                 for n in terrain._nests_near(wx, wy, 5):
                     if n.close(wx, wy, 5):
                         # precise: sample nest's zoom=1 hitbox at local coordinates
-                        l = int(wx - n.left) - 1
-                        t = int(wy - n.top) - 1
+                        l = math.floor(wx - n.left) - 1
+                        t = math.floor(wy - n.top) - 1
                         r = l + 2
                         b = t + 2
                         for lx in range(l, r + 1):

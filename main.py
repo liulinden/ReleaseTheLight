@@ -56,7 +56,7 @@ def main():
     # Game.set_window) -- never blits onto it -- so a plain off-screen
     # Surface at logical_size is all it needs; the game never has to know
     # its rendered output ends up upscaled onto a differently-sized window
-    game = Game(pygame.Surface(logical_size), fps=100, full_world=False, loading_screen=loading_screen, dev_mode=config.DEV_MODE)
+    game = Game(pygame.Surface(logical_size), fps=100, full_world=True, loading_screen=loading_screen, dev_mode=config.DEV_MODE)
 
     did_user_quit_during_loading = False
 

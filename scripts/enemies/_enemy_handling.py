@@ -31,7 +31,9 @@ def get_enemy(_terrain, player, nest):
     for i in range(20):
         angle = math.atan2(player.y - nest.y, player.x - nest.x) + (random.random() * 2 - 1) * math.pi / 2
         r = random.randint(int(nest.size / 2 - 10), int(nest.size / 2 + 10))
-        x, y = int(nest.x + r * math.cos(angle)), int(nest.y + r * math.sin(angle))
+        # floor, not int() -- int() truncates toward zero rather than down,
+        # which only matters (by up to 1px) when nest.x/y is negative.
+        x, y = math.floor(nest.x + r * math.cos(angle)), math.floor(nest.y + r * math.sin(angle))
 
         eligible = eligible_enemies[nest.nest_type]
         variant = eligible[random.randint(0, len(eligible) - 1)]

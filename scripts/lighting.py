@@ -100,7 +100,7 @@ class MistParticle:
         self.life_time = 500
         self.x = x + random.randint(-50, 50)
         self.y = y + random.randint(-50, 50)
-        self.brightness = (random.random() + 0.2) * 2
+        self.brightness = (random.random() + 0.2) * 1.5
         self.fade_in = 0
 
     def tick(self, frame_length):
