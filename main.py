@@ -35,11 +35,11 @@ def main():
     # whatever viewport it's drawn into regardless of the texture's own size.
     resolution_w = 1500
     logical_size = (resolution_w, int(resolution_w * aspect_ratio))
+    native_size = (info.current_w, info.current_h)
     flags = pygame.OPENGL | pygame.DOUBLEBUF
     if config.DEV_MODE:
-        native_size = (info.current_w, info.current_h)
+        os.environ["SDL_VIDEO_WINDOW_POS"] = "0,1"
     else:
-        native_size = (info.current_w, info.current_h)
         os.environ["SDL_VIDEO_WINDOW_POS"] = "0,0"
         flags |= pygame.NOFRAME
 
