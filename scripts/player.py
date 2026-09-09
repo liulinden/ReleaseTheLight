@@ -18,7 +18,7 @@ ARM_PIVOT_X = 20
 ARM_PIVOT_Y = 21
 
 COYOTE_TIME = 120  # ms — grace window to jump after walking off a ledge
-GROUND_ACCEL = 0.005
+GROUND_ACCEL = 0.0015
 GROUND_MAX_SPEED = 0.2
 AIR_ACCEL = 0.0012
 AIR_FRICTION = 0.995

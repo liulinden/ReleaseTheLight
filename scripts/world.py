@@ -174,14 +174,30 @@ class World:
                 d = math.dist((n.x, n.y), (self.player.x, self.player.y))
                 if d < 300 and frame_random(frame_length, 0.2 + 0.5 * (300 - d) / 300):
                     n.add_enemy(self.terrain, self.player)
-                for i in range(len(n.enemies) - 1, -1, -1):
-                    enemy = n.enemies[i]
-                    if enemy.tick(frame_length, self.terrain, self.player):
-                        self.terrain.enemies.remove(enemy)
-                        del n.enemies[i]
             else:
                 if frame_random(frame_length, 8 if n.interaction_display.active else 2):
                     self.light.add_mist_particle(n.x, n.y, color=n.color)
+
+        # Enemies tick by their OWN on-screen presence, not their nest's --
+        # an enemy has no leash to its nest (tick_enemy_behavior just chases
+        # the player), so it can easily still be on screen, right next to
+        # the player, well after its own nest has scrolled off screen.
+        # Gating this loop on the nest instead (like the block above) would
+        # stop calling tick() on such an enemy entirely -- freezing it in
+        # place forever, since draw_enemies (which checks the enemy's own
+        # rect, not its nest's) would keep drawing it regardless. Iterating
+        # self.terrain.enemies directly, every frame, regardless of screen
+        # position, fixes that; it also stays cheap on its own, since
+        # check_despawn (in Enemy.tick) prunes anything more than 500 units
+        # from the player the moment it's evaluated, keeping this list to
+        # roughly "enemies actually near the player" rather than growing
+        # with how much of the world has been visited.
+        for i in range(len(self.terrain.enemies) - 1, -1, -1):
+            enemy = self.terrain.enemies[i]
+            if enemy.tick(frame_length, self.terrain, self.player):
+                del self.terrain.enemies[i]
+                if enemy in enemy.nest.enemies:
+                    enemy.nest.enemies.remove(enemy)
 
         # elements (e.g. Vine's sway) -- scoped to what's on screen, same
         # reasoning as the cells loop just below

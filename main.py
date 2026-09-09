@@ -35,16 +35,13 @@ def main():
     # whatever viewport it's drawn into regardless of the texture's own size.
     resolution_w = 1500
     logical_size = (resolution_w, int(resolution_w * aspect_ratio))
-    native_size = (info.current_w, info.current_h)
-    # NOFRAME (a plain borderless window sized/positioned to cover the whole
-    # screen) instead of pygame.FULLSCREEN -- real exclusive fullscreen
-    # (SDL_WINDOW_FULLSCREEN) can trigger an actual OS display-mode
-    # switch, which visibly disrupts every other window's position/size on
-    # some systems (observed on Windows here). A borderless window is just
-    # a normal window as far as the OS is concerned, so it can't do that,
-    # while still looking identical (no border/titlebar, fills the screen).
-    os.environ["SDL_VIDEO_WINDOW_POS"] = "0,0"
-    flags = pygame.OPENGL | pygame.DOUBLEBUF | pygame.NOFRAME
+    flags = pygame.OPENGL | pygame.DOUBLEBUF
+    if config.DEV_MODE:
+        native_size = (info.current_w, info.current_h)
+    else:
+        native_size = (info.current_w, info.current_h)
+        os.environ["SDL_VIDEO_WINDOW_POS"] = "0,0"
+        flags |= pygame.NOFRAME
 
     # placeholder GL-capable display mode so asset loading during
     # game.setup() (below) has a display to .convert()/.convert_alpha()
